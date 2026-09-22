@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nina — Painel do Servidor</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <!-- ===================== TELA DE LOGIN ===================== -->
+    <div id="tela-login" class="tela-login">
+
+        <div class="login-card">
+
+            <div class="login-marca">
+                <div class="login-ponto"></div>
+                <span>Nina</span>
+            </div>
+
+            <h1>Painel do servidor</h1>
+            <p class="login-sub">Entre com sua conta do Discord pra configurar o bot nos servidores onde você é administrador.</p>
+
+            <button id="btn-entrar-discord" class="btn-discord" type="button">
+                Entrar com Discord
+            </button>
+
+            <p id="login-erro" class="login-erro"></p>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== SELEÇÃO DE SERVIDOR ===================== -->
+    <div id="tela-servidores" class="tela-login oculto">
+
+        <div class="picker-card">
+
+            <div class="picker-topo">
+                <div>
+                    <h1>Escolha um servidor</h1>
+                    <p class="login-sub">Servidores onde você tem permissão de gerenciar.</p>
+                </div>
+                <button id="btn-sair-picker" class="btn-fantasma">Sair</button>
+            </div>
+
+            <div id="lista-picker" class="lista-picker">
+                <p class="carregando">Carregando...</p>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== APP (dentro de um servidor) ===================== -->
+    <div id="app" class="app oculto">
+
+        <header class="topbar">
+
+            <div class="topbar-bot">
+                <img id="guild-icon" src="" alt="" />
+                <div>
+                    <strong id="guild-nome">—</strong>
+                    <div class="topbar-status">
+                        <span id="guild-membros">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="topbar-acoes">
+                <button id="btn-trocar-servidor" class="btn-fantasma">Trocar servidor</button>
+                <button id="btn-sair" class="btn-fantasma">Sair</button>
+            </div>
+
+        </header>
+
+        <div class="corpo">
+
+            <nav class="sidebar">
+                <button class="nav-item ativo" data-secao="geral">Geral</button>
+                <button class="nav-item" data-secao="automod">AutoMod</button>
+                <button class="nav-item" data-secao="boasvindas">Boas-vindas</button>
+                <button class="nav-item" data-secao="autorole">Autorole</button>
+                <button class="nav-item" data-secao="logs">Logs</button>
+                <button class="nav-item" data-secao="sorteios">Sorteios</button>
+            </nav>
+
+            <main class="conteudo">
+
+                <!-- ===================== GERAL ===================== -->
+                <section id="secao-geral" class="secao">
+
+                    <h2>Configurações gerais</h2>
+
+                    <div class="linha-toggle">
+                        <div>
+                            <strong>Economia</strong>
+                            <p>Moedas, XP, jogos (/daily, /work, /slots...).</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="toggle-economia" /><span></span></label>
+                    </div>
+
+                    <div class="linha-toggle">
+                        <div>
+                            <strong>Moderação</strong>
+                            <p>Comandos e IA podem banir/kickar/silenciar membros.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="toggle-moderacao" /><span></span></label>
+                    </div>
+
+                    <div class="linha-toggle">
+                        <div>
+                            <strong>Aviso de level-up</strong>
+                            <p>Avisa quando alguém sobe de nível no chat.</p>
+                        </div>
+                        <label class="switch"><input type="checkbox" id="toggle-levelup" /><span></span></label>
+                    </div>
+
+                    <div class="campo-linha">
+                        <label>Prefixo de comandos por texto</label>
+                        <input type="text" id="input-prefixo" maxlength="5" style="width:70px" />
+                    </div>
+
+                    <button id="btn-salvar-geral" class="btn-primario" type="button">Salvar</button>
+                    <span id="geral-feedback" class="feedback"></span>
+
+                </section>
+
+                <!-- ===================== AUTOMOD ===================== -->
+                <section id="secao-automod" class="secao oculto">
+
+                    <h2>AutoMod</h2>
+
+                    <div class="linha-toggle">
+                        <div><strong>AutoMod ativado</strong><p>Chave geral — desligue pra parar tudo de uma vez.</p></div>
+                        <label class="switch"><input type="checkbox" id="am-enabled" /><span></span></label>
+                    </div>
+
+                    <div id="am-regras"></div>
+
+                    <h3 class="subtitulo">Anti-raid</h3>
+
+                    <div class="linha-toggle">
+                        <div><strong>Anti-raid ativado</strong><p>Detecta entrada em massa de contas novas.</p></div>
+                        <label class="switch"><input type="checkbox" id="am-raid-enabled" /><span></span></label>
+                    </div>
+
+                    <div class="grid-2">
+                        <div class="campo-linha coluna">
+                            <label>Entradas pra disparar</label>
+                            <input type="number" id="am-raid-threshold" min="3" max="100" />
+                        </div>
+                        <div class="campo-linha coluna">
+                            <label>Intervalo (segundos)</label>
+                            <input type="number" id="am-raid-interval" min="5" max="600" />
+                        </div>
+                        <div class="campo-linha coluna">
+                            <label>Ação</label>
+                            <select id="am-raid-action">
+                                <option value="lockdown">Lockdown (tranca canais)</option>
+                                <option value="kick_new">Expulsar quem entrou</option>
+                                <option value="ban_new">Banir quem entrou</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="campo-linha">
+                        <label>Duração do mute (minutos)</label>
+                        <input type="number" id="am-mute-duracao" min="1" max="10080" style="width:90px" />
+                    </div>
+
+                    <button id="btn-salvar-automod" class="btn-primario" type="button">Salvar</button>
+                    <span id="automod-feedback" class="feedback"></span>
+
+                </section>
+
+                <!-- ===================== BOAS-VINDAS ===================== -->
+                <section id="secao-boasvindas" class="secao oculto">
+
+                    <h2>Boas-vindas</h2>
+
+                    <div class="linha-toggle">
+                        <div><strong>Boas-vindas ativadas</strong><p>Manda um cartão de imagem quando alguém entra.</p></div>
+                        <label class="switch"><input type="checkbox" id="bv-enabled" /><span></span></label>
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>Canal</label>
+                        <select id="bv-canal"></select>
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>URL da imagem de fundo (opcional)</label>
+                        <input type="text" id="bv-fundo" placeholder="https://..." />
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>Cor de destaque</label>
+                        <input type="color" id="bv-cor" />
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>Título (use {usuario}, {servidor}, {membros})</label>
+                        <input type="text" id="bv-titulo" />
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>Subtítulo</label>
+                        <input type="text" id="bv-subtitulo" />
+                    </div>
+
+                    <div class="campo-linha coluna">
+                        <label>Mensagem de texto (use {menção})</label>
+                        <input type="text" id="bv-mensagem" />
+                    </div>
+
+                    <button id="btn-salvar-boasvindas" class="btn-primario" type="button">Salvar</button>
+                    <span id="boasvindas-feedback" class="feedback"></span>
+
+                </section>
+
+                <!-- ===================== AUTOROLE ===================== -->
+                <section id="secao-autorole" class="secao oculto">
+
+                    <h2>Autorole — cargo de entrada</h2>
+                    <p class="secao-sub">Cargos aplicados automaticamente pra quem entra no servidor.</p>
+
+                    <div class="campo-linha">
+                        <select id="ar-select-cargo"></select>
+                        <button id="btn-add-autorole" class="btn-secundario" type="button">Adicionar</button>
+                    </div>
+
+                    <div id="ar-lista" class="lista-servidores"></div>
+
+                </section>
+
+                <!-- ===================== LOGS ===================== -->
+                <section id="secao-logs" class="secao oculto">
+
+                    <h2>Logs</h2>
+
+                    <div class="campo-linha coluna">
+                        <label>Canal de logs</label>
+                        <select id="logs-canal"></select>
+                        <button id="btn-salvar-logs-canal" class="btn-secundario" type="button">Salvar canal</button>
+                    </div>
+
+                    <h3 class="subtitulo">Categorias</h3>
+                    <div id="logs-categorias" class="lista-status"></div>
+
+                </section>
+
+                <!-- ===================== SORTEIOS ===================== -->
+                <section id="secao-sorteios" class="secao oculto">
+
+                    <h2>Sorteios em andamento</h2>
+
+                    <div id="sorteios-lista" class="lista-servidores">
+                        <p class="carregando">Carregando...</p>
+                    </div>
+
+                </section>
+
+            </main>
+
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nina — Painel do Dono</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <!-- ===================== TELA DE LOGIN ===================== -->
+    <div id="tela-login" class="tela-login">
+
+        <div class="login-card">
+
+            <div class="login-marca">
+                <div class="login-ponto"></div>
+                <span>Nina</span>
+            </div>
+
+            <h1>Painel do dono</h1>
+            <p class="login-sub">Acesso restrito. Digite a senha do dashboard.</p>
+
+            <form id="form-login">
+                <input type="password" id="input-senha" placeholder="Senha" autocomplete="current-password" required />
+                <button type="submit">Entrar</button>
+            </form>
+
+            <p id="login-erro" class="login-erro"></p>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== APP ===================== -->
+    <div id="app" class="app oculto">
+
+        <header class="topbar">
+
+            <div class="topbar-bot">
+                <img id="bot-avatar" src="" alt="" />
+                <div>
+                    <strong id="bot-tag">—</strong>
+                    <div class="topbar-status">
+                        <span id="bot-dot" class="dot"></span>
+                        <span id="bot-ping">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-sair" class="btn-fantasma">Sair</button>
+
+        </header>
+
+        <div class="corpo">
+
+            <nav class="sidebar">
+                <button class="nav-item ativo" data-secao="visao-geral">Visão geral</button>
+                <button class="nav-item" data-secao="servidores">Servidores</button>
+                <button class="nav-item" data-secao="status">Status do bot</button>
+                <button class="nav-item" data-secao="comunicados">Comunicados</button>
+                <button class="nav-item" data-secao="reiniciar">Reiniciar</button>
+            </nav>
+
+            <main class="conteudo">
+
+                <!-- ===================== VISÃO GERAL ===================== -->
+                <section id="secao-visao-geral" class="secao">
+
+                    <h2>Visão geral</h2>
+
+                    <div class="grid-stats">
+
+                        <div class="stat-card">
+                            <span class="stat-label">Servidores</span>
+                            <span class="stat-valor" id="stat-servers">—</span>
+                        </div>
+
+                        <div class="stat-card">
+                            <span class="stat-label">Membros</span>
+                            <span class="stat-valor" id="stat-members">—</span>
+                        </div>
+
+                        <div class="stat-card">
+                            <span class="stat-label">Ping</span>
+                            <span class="stat-valor" id="stat-ping">—</span>
+                        </div>
+
+                        <div class="stat-card">
+                            <span class="stat-label">Uptime</span>
+                            <span class="stat-valor" id="stat-uptime">—</span>
+                        </div>
+
+                        <div class="stat-card">
+                            <span class="stat-label">Memória (RSS)</span>
+                            <span class="stat-valor" id="stat-memoria">—</span>
+                        </div>
+
+                        <div class="stat-card">
+                            <span class="stat-label">Node.js</span>
+                            <span class="stat-valor" id="stat-node">—</span>
+                        </div>
+
+                    </div>
+
+                    <h3 class="subtitulo">Crescimento (últimos 30 dias)</h3>
+                    <div class="grafico-card">
+                        <canvas id="grafico-crescimento" height="180"></canvas>
+                        <p id="grafico-vazio" class="carregando oculto">Ainda não há histórico suficiente. Volte em alguns dias.</p>
+                    </div>
+
+                </section>
+
+                <!-- ===================== SERVIDORES ===================== -->
+                <section id="secao-servidores" class="secao oculto">
+
+                    <h2>Servidores</h2>
+                    <p class="secao-sub">Lista de todos os servidores em que o bot está.</p>
+
+                    <div id="lista-servidores" class="lista-servidores">
+                        <p class="carregando">Carregando...</p>
+                    </div>
+
+                    <h3 class="subtitulo">Servidores banidos</h3>
+                    <p class="secao-sub">O bot sai automaticamente se for adicionado de novo a um servidor banido.</p>
+
+                    <div id="lista-banidos" class="lista-servidores"></div>
+
+                </section>
+
+                <!-- ===================== STATUS ===================== -->
+                <section id="secao-status" class="secao oculto">
+
+                    <h2>Status do bot</h2>
+                    <p class="secao-sub">Configure as frases que aparecem sob o nome do bot (rotacionam automaticamente).</p>
+
+                    <div class="campo-linha">
+                        <label>Intervalo de rotação (segundos)</label>
+                        <input type="number" id="input-intervalo" min="5" value="15" />
+                    </div>
+
+                    <div id="lista-status" class="lista-status"></div>
+
+                    <button id="btn-add-status" class="btn-secundario" type="button">+ Adicionar status</button>
+
+                    <div class="acoes-linha">
+                        <button id="btn-salvar-status" class="btn-primario" type="button">Salvar</button>
+                        <span id="status-salvo" class="feedback"></span>
+                    </div>
+
+                </section>
+
+                <!-- ===================== COMUNICADOS ===================== -->
+                <section id="secao-comunicados" class="secao oculto">
+
+                    <h2>Comunicados</h2>
+                    <p class="secao-sub">Manda um aviso, em embed, pra todos os servidores em que o bot está.</p>
+
+                    <form id="form-comunicado" class="form-vertical">
+
+                        <label>Título</label>
+                        <input type="text" id="com-titulo" placeholder="📢 Aviso importante" />
+
+                        <label>Mensagem</label>
+                        <textarea id="com-descricao" rows="6" placeholder="Escreva o comunicado aqui..." required></textarea>
+
+                        <label>Cor</label>
+                        <input type="color" id="com-cor" value="#5865f2" />
+
+                        <button type="submit" class="btn-primario">Enviar para todos os servidores</button>
+
+                    </form>
+
+                    <div id="comunicado-resultado" class="resultado-broadcast"></div>
+
+                    <h3 class="subtitulo">Histórico</h3>
+                    <div id="lista-historico-comunicados" class="lista-servidores"></div>
+
+                </section>
+
+                <!-- ===================== REINICIAR ===================== -->
+                <section id="secao-reiniciar" class="secao oculto">
+
+                    <h2>Reiniciar o bot</h2>
+                    <p class="secao-sub">
+                        Manda um comunicado explicando o motivo e, alguns segundos depois, encerra o processo.
+                        <strong>Isso só reinicia o bot de fato se ele estiver rodando sob um gerenciador de
+                        processos com reinício automático</strong> (pm2, systemd, Docker com <code>--restart=always</code>, etc).
+                        Sem isso, o bot fica desligado até você subir manualmente de novo.
+                    </p>
+
+                    <form id="form-reiniciar" class="form-vertical">
+
+                        <label>Título do aviso</label>
+                        <input type="text" id="re-titulo" value="🔧 Reiniciando para atualização" />
+
+                        <label>Motivo / mensagem</label>
+                        <textarea id="re-descricao" rows="5" placeholder="Ex: Vou reiniciar para aplicar uma atualização importante. Devo voltar em poucos minutos.">Vou reiniciar rapidinho para aplicar uma atualização. Devo voltar em poucos minutos!</textarea>
+
+                        <button type="submit" class="btn-perigo">Avisar e reiniciar agora</button>
+
+                    </form>
+
+                    <div id="reiniciar-resultado" class="resultado-broadcast"></div>
+
+                </section>
+
+            </main>
+
+        </div>
+
+    </div>
+
+    <!-- ===================== MODAL: CONVITE ===================== -->
+    <div id="modal-convite" class="modal oculto">
+
+        <div class="modal-card">
+
+            <h3>Convite gerado</h3>
+            <p id="modal-convite-texto">—</p>
+            <div class="modal-acoes">
+                <button id="modal-convite-copiar" class="btn-secundario" type="button">Copiar link</button>
+                <button id="modal-convite-fechar" class="btn-fantasma" type="button">Fechar</button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
