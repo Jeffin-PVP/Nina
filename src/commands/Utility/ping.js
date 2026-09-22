@@ -13,17 +13,17 @@ module.exports = {
 
     async execute(interaction) {
 
-        const sent = await interaction.reply({ content: "🏓 Calculando...", fetchReply: true });
+        const sent = await interaction.reply({ content: "🌸 Calculando...", fetchReply: true });
 
         const roundtrip = sent.createdTimestamp - interaction.createdTimestamp;
         const apiPing = interaction.client.ws.ping;
 
         const embed = new EmbedBuilder()
-            .setColor("#5865F2")
+            .setColor("#f569ff")
             .setTitle("🏓 Pong!")
             .addFields(
-                { name: "Latência da mensagem", value: `${roundtrip}ms`, inline: true },
-                { name: "Latência da API (WebSocket)", value: `${apiPing}ms`, inline: true }
+                { name: "⚡Latência da mensagem: ", value: `${roundtrip}ms`, inline: false },
+                { name: "📡Latência da API (WebSocket):   ", value: `${apiPing}ms`, inline: false }
             );
 
         return interaction.editReply({ content: null, embeds: [embed] });
