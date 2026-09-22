@@ -9,7 +9,7 @@ class StatsHistoryRepository {
             `
             INSERT INTO bot_stats_history (date, servers, members)
             VALUES (?, ?, ?)
-            ON CONFLICT(date) DO UPDATE SET servers = excluded.servers, members = excluded.members
+            ON DUPLICATE KEY UPDATE servers = VALUES(servers), members = VALUES(members)
             `,
 
             [date, servers, members]

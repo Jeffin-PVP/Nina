@@ -119,7 +119,7 @@ class SettingsRepository {
             `
             INSERT INTO bot_settings (key, value)
             VALUES (?, ?)
-            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            ON DUPLICATE KEY UPDATE value = VALUES(value)
             `,
 
             [key, value]

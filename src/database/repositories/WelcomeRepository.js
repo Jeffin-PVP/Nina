@@ -53,14 +53,14 @@ class WelcomeRepository {
                 title_text, subtitle_text, message_content, accent_color
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET
-                enabled = excluded.enabled,
-                channel_id = excluded.channel_id,
-                background_url = excluded.background_url,
-                title_text = excluded.title_text,
-                subtitle_text = excluded.subtitle_text,
-                message_content = excluded.message_content,
-                accent_color = excluded.accent_color
+            ON DUPLICATE KEY UPDATE
+                enabled = VALUES(enabled),
+                channel_id = VALUES(channel_id),
+                background_url = VALUES(background_url),
+                title_text = VALUES(title_text),
+                subtitle_text = VALUES(subtitle_text),
+                message_content = VALUES(message_content),
+                accent_color = VALUES(accent_color)
             `,
 
             [

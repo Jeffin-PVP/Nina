@@ -41,7 +41,7 @@ class AutoroleRepository {
             `
             INSERT INTO autorole_join (guild_id, role_ids)
             VALUES (?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET role_ids = excluded.role_ids
+            ON DUPLICATE KEY UPDATE role_ids = VALUES(role_ids)
             `,
 
             [guildId, updated.join(",")]
@@ -62,7 +62,7 @@ class AutoroleRepository {
             `
             INSERT INTO autorole_join (guild_id, role_ids)
             VALUES (?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET role_ids = excluded.role_ids
+            ON DUPLICATE KEY UPDATE role_ids = VALUES(role_ids)
             `,
 
             [guildId, updated.join(",")]
@@ -103,9 +103,9 @@ class AutoroleRepository {
             `
             INSERT INTO autorole_selfroles (guild_id, role_id, label, emoji)
             VALUES (?, ?, ?, ?)
-            ON CONFLICT(guild_id, role_id) DO UPDATE SET
-                label = excluded.label,
-                emoji = excluded.emoji
+            ON DUPLICATE KEY UPDATE
+                label = VALUES(label),
+                emoji = VALUES(emoji)
             `,
 
             [guildId, roleId, label, emoji ?? null]
@@ -159,7 +159,7 @@ class AutoroleRepository {
             `
             INSERT INTO autorole_levels (guild_id, level, role_id)
             VALUES (?, ?, ?)
-            ON CONFLICT(guild_id, level) DO UPDATE SET role_id = excluded.role_id
+            ON DUPLICATE KEY UPDATE role_id = VALUES(role_id)
             `,
 
             [guildId, level, roleId]

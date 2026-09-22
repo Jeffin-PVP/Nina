@@ -31,7 +31,7 @@ class GuildRepository {
             await database.run(
 
                 `
-                INSERT INTO guild_settings (
+                INSERT IGNORE INTO guild_settings (
                     guild_id
                 )
                 VALUES (?)

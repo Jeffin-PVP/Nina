@@ -1,3 +1,11 @@
 node_modules/
 images/
 .env
+# Banco local antigo (não usado pela Nina)
+src/database/*.sqlite
+src/database/*.sqlite3
+
+# Variáveis de ambiente
+.env
+.env.*
+!.env.example
