@@ -2,7 +2,7 @@ const {
     SlashCommandBuilder,
     PermissionFlagsBits
 } = require("discord.js");
-
+//
 const EmbedPreview =
     require("../../interactions/embed/EmbedPreview");
 
