@@ -14,12 +14,15 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^0.1.53",
+    "@napi-rs/canvas": "0.1.100",
     "cors": "^2.8.6",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "groq-sdk": "^1.3.0",
     "mysql2": "^3.24.4"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas-linux-x64-musl": "0.1.100"
   }
 }
