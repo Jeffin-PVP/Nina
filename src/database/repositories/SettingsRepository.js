@@ -11,13 +11,11 @@ class SettingsRepository {
     static async listPresence() {
 
         return database.all(
-
             `
             SELECT *
             FROM bot_presence
             ORDER BY position ASC, id ASC
             `
-
         );
 
     }
@@ -25,23 +23,18 @@ class SettingsRepository {
     static async addPresence({ type, text }) {
 
         const row = await database.get(
-
             `
             SELECT COALESCE(MAX(position), -1) AS maxPos
             FROM bot_presence
             `
-
         );
 
         const result = await database.run(
-
             `
             INSERT INTO bot_presence (type, text, position)
             VALUES (?, ?, ?)
             `,
-
             [type, text, (row?.maxPos ?? -1) + 1]
-
         );
 
         return result.lastID;
@@ -51,14 +44,11 @@ class SettingsRepository {
     static async removePresence(id) {
 
         await database.run(
-
             `
             DELETE FROM bot_presence
             WHERE id = ?
             `,
-
             [id]
-
         );
 
     }
@@ -72,14 +62,11 @@ class SettingsRepository {
         for (const item of lista) {
 
             await database.run(
-
                 `
                 INSERT INTO bot_presence (type, text, position)
                 VALUES (?, ?, ?)
                 `,
-
                 [item.type, item.text, position]
-
             );
 
             position++;
@@ -97,15 +84,12 @@ class SettingsRepository {
     static async get(key, fallback = null) {
 
         const row = await database.get(
-
             `
             SELECT value
             FROM bot_settings
-            WHERE key = ?
+            WHERE \`key\` = ?
             `,
-
             [key]
-
         );
 
         return row ? row.value : fallback;
@@ -115,15 +99,12 @@ class SettingsRepository {
     static async set(key, value) {
 
         await database.run(
-
             `
-            INSERT INTO bot_settings (key, value)
+            INSERT INTO bot_settings (\`key\`, value)
             VALUES (?, ?)
             ON DUPLICATE KEY UPDATE value = VALUES(value)
             `,
-
             [key, value]
-
         );
 
     }
