@@ -4,6 +4,7 @@ const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WarningRepository = require("../database/repositories/WarningRepository");
 const LogManager = require("./LogManager");
 const LogTypes = require("./LogTypes");
+const AntiScamManager = require("../antiScam/AntiScamManager");
 
 // "Executor" usado nos logs pra deixar claro que foi o AutoMod, não um humano
 const EXECUTOR_AUTOMOD = { tag: "🤖 AutoMod", username: "AutoMod" };
@@ -314,6 +315,14 @@ async function checkMessage(message) {
         return true;
 
     }
+
+    // Anti-Scam visual: analisa anexos de imagem depois das regras de texto.
+    const tratadaPeloAntiScam = await AntiScamManager.checkMessage(message).catch(error => {
+        console.error("[Anti-Scam] Erro ao verificar imagem:", error);
+        return false;
+    });
+
+    if (tratadaPeloAntiScam) return true;
 
     return false;
 

@@ -313,6 +313,12 @@ async function initializeDatabase() {
             channel_id VARCHAR(32) NOT NULL,
             PRIMARY KEY (guild_id, channel_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+,
+
+        `ALTER TABLE automod_settings
+            ADD COLUMN IF NOT EXISTS image_enabled TINYINT(1) NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS image_action VARCHAR(20) NOT NULL DEFAULT 'ignore',
+            ADD COLUMN IF NOT EXISTS image_threshold DECIMAL(4,3) NOT NULL DEFAULT 0.850`
     ];
 
     const connection = await pool.getConnection();

@@ -29,7 +29,11 @@ const PADRAO = {
     raid_enabled: 0,
     raid_join_threshold: 10,
     raid_interval_seconds: 60,
-    raid_action: "lockdown"
+    raid_action: "lockdown",
+
+    image_enabled: 0,
+    image_action: "ignore",
+    image_threshold: 0.85
 };
 
 const CAMPOS = Object.keys(PADRAO);

@@ -67,6 +67,21 @@ module.exports = {
                 .addIntegerOption(o => o.setName("minutos").setDescription("Duração em minutos.").setMinValue(1).setMaxValue(10080).setRequired(true))
         )
 
+        .addSubcommand(sub =>
+            sub
+                .setName("imagem")
+                .setDescription("Configura a detecção de possíveis golpes em imagens.")
+                .addBooleanOption(o => o.setName("ativado").setDescription("Ativar a proteção visual Anti-Scam?").setRequired(false))
+                .addStringOption(o => o.setName("acao").setDescription("Ação para uma imagem suspeita.").setRequired(false).addChoices(
+                    { name: "Ignorar", value: "ignore" },
+                    { name: "Apagar imagem", value: "delete" },
+                    { name: "Advertir + apagar", value: "warn" },
+                    { name: "Expulsar + apagar", value: "kick" },
+                    { name: "Banir + apagar", value: "ban" }
+                ))
+                .addIntegerOption(o => o.setName("sensibilidade").setDescription("Confiança mínima da IA em porcentagem (50-99).").setMinValue(50).setMaxValue(99).setRequired(false))
+        )
+
         .addSubcommandGroup(group =>
 
             group
@@ -238,6 +253,34 @@ module.exports = {
 
         }
 
+        if (!grupo && sub === "imagem") {
+
+            const ativado = interaction.options.getBoolean("ativado");
+            const acao = interaction.options.getString("acao");
+            const sensibilidade = interaction.options.getInteger("sensibilidade");
+            const campos = {};
+
+            if (ativado !== null) campos.image_enabled = ativado ? 1 : 0;
+            if (acao !== null) campos.image_action = acao;
+            if (sensibilidade !== null) campos.image_threshold = sensibilidade / 100;
+
+            const nomesAcao = { ignore: "Ignorar", delete: "Apagar imagem", warn: "Advertir + apagar", kick: "Expulsar + apagar", ban: "Banir + apagar" };
+
+            if (!Object.keys(campos).length) {
+                const c = await AutomodRepository.get(guild.id);
+                return interaction.reply({
+                    content: `🖼️ **Anti-Scam visual**\nStatus: ${c.image_enabled ? "🟢 Ativado" : "🔴 Desativado"}\nAção: ${nomesAcao[c.image_action] || c.image_action}\nSensibilidade: ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}%`,
+                    flags: MessageFlags.Ephemeral
+                });
+            }
+
+            const c = await AutomodRepository.update(guild.id, campos);
+            return interaction.reply({
+                content: `🖼️ Anti-Scam visual atualizado.\nStatus: ${c.image_enabled ? "🟢 Ativado" : "🔴 Desativado"}\nAção: ${nomesAcao[c.image_action] || c.image_action}\nSensibilidade: ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}%`,
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
         if (!grupo && sub === "mute-duracao") {
 
             const minutos = interaction.options.getInteger("minutos");
@@ -298,6 +341,13 @@ module.exports = {
                         name: "🚨 Anti-raid",
                         value: c.raid_enabled
                             ? `Ativado — ${c.raid_join_threshold} entradas / ${c.raid_interval_seconds}s → ${c.raid_action}`
+                            : "Desativado"
+                    },
+
+                    {
+                        name: "🖼️ Anti-Scam visual",
+                        value: c.image_enabled
+                            ? `Ativado — ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}% → ${c.image_action}`
                             : "Desativado"
                     },
 

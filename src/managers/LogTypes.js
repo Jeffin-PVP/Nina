@@ -182,6 +182,8 @@ module.exports = {
 
     AI_ERROR: "AI_ERROR",
 
+    ANTISCAM_ACTION: "ANTISCAM_ACTION",
+
 
 
 
