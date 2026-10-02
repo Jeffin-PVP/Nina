@@ -25,8 +25,8 @@ IMPORTANTE:
 - Responda SOMENTE em JSON válido.`;
 
 async function analisarImagem(urls) {
-    if (!process.env.GROQ_API_KEY) {
-        throw new Error("GROQ_API_KEY não configurada.");
+    if (!process.env.ANTISCAM_GROQ_API_KEY) {
+        throw new Error("ANTISCAM_GROQ_API_KEY não configurada.");
     }
 
     const imagens = urls.slice(0, 3).map(url => ({

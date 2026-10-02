@@ -5,7 +5,7 @@ const embedPrompt =
 
 const groq = new Groq({
 
-    apiKey: process.env.GROQ_API_KEY
+    apiKey: process.env.EMBED_GROQ_API_KEY
 
 });
 
