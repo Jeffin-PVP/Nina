@@ -5,6 +5,9 @@ const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const GiveawayRepository = require("../database/repositories/GiveawayRepository");
+const TicketRepository = require("../database/repositories/TicketRepository");
+const EconomyRepository = require("../database/repositories/EconomyRepository");
+const database = require("../database/database");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
 
 module.exports = (client) => {
@@ -206,6 +209,12 @@ module.exports = (client) => {
         const { roleId } = req.body || {};
 
         if (!roleId) return res.status(400).json({ error: "roleId é obrigatório." });
+        const role = req.painelGuild.roles.cache.get(roleId);
+        const botRole = req.painelGuild.members.me?.roles?.highest;
+        if (!role || role.managed) return res.status(400).json({ error: "Cargo inválido." });
+        if (botRole && role.comparePositionTo(botRole) >= 0) {
+            return res.status(400).json({ error: "A Nina precisa estar acima desse cargo para conseguir atribuí-lo." });
+        }
 
         const roleIds = await AutoroleRepository.addJoinRole(req.params.guildId, roleId);
 
@@ -219,6 +228,90 @@ module.exports = (client) => {
 
         res.json({ roleIds });
 
+    });
+
+
+    /*
+    =========================
+        TICKETS
+    =========================
+    */
+
+    router.get("/guilds/:guildId/tickets", async (req, res) => {
+        const config = await TicketRepository.getConfig(req.params.guildId);
+        const tickets = await TicketRepository.listOpen(req.params.guildId);
+        res.json({
+            config,
+            tickets,
+            openCount: tickets.length
+        });
+    });
+
+    router.post("/guilds/:guildId/tickets", async (req, res) => {
+        const permitido = ["enabled", "parent_channel_id", "support_role_id", "panel_channel_id"];
+        const campos = {};
+        for (const chave of permitido) {
+            if (req.body?.[chave] !== undefined) campos[chave] = req.body[chave] || null;
+        }
+        const config = await TicketRepository.setConfig(req.params.guildId, campos);
+        res.json({ config: await TicketRepository.getConfig(req.params.guildId) });
+    });
+
+    /*
+    =========================
+        AUTOROLE POR NÍVEL
+    =========================
+    */
+
+    router.get("/guilds/:guildId/autorole/levels", async (req, res) => {
+        res.json({ levels: await AutoroleRepository.listLevelRoles(req.params.guildId) });
+    });
+
+    router.post("/guilds/:guildId/autorole/levels", async (req, res) => {
+        const level = Number(req.body?.level);
+        const roleId = String(req.body?.roleId || "");
+        if (!Number.isInteger(level) || level < 1 || level > 10000 || !roleId) {
+            return res.status(400).json({ error: "Nível e cargo são obrigatórios." });
+        }
+        const role = req.painelGuild.roles.cache.get(roleId);
+        const botRole = req.painelGuild.members.me?.roles?.highest;
+        if (!role || role.managed) return res.status(400).json({ error: "Cargo inválido." });
+        if (botRole && role.comparePositionTo(botRole) >= 0) {
+            return res.status(400).json({ error: "A Nina precisa estar acima desse cargo para conseguir atribuí-lo." });
+        }
+        await AutoroleRepository.setLevelRole(req.params.guildId, level, roleId);
+        res.json({ ok: true });
+    });
+
+    router.delete("/guilds/:guildId/autorole/levels/:level", async (req, res) => {
+        const level = Number(req.params.level);
+        await AutoroleRepository.removeLevelRole(req.params.guildId, level);
+        res.json({ ok: true });
+    });
+
+    /*
+    =========================
+        ECONOMIA
+    =========================
+    */
+
+    router.get("/guilds/:guildId/economy", async (req, res) => {
+        const guildId = req.params.guildId;
+        const settings = await GuildRepository.getSettings(guildId);
+        const stats = await database.get(`
+            SELECT COUNT(*) AS users,
+                   COALESCE(SUM(wallet + bank), 0) AS totalWealth,
+                   COALESCE(SUM(xp), 0) AS totalXp
+            FROM economy_users WHERE guild_id = ?
+        `, [guildId]);
+        const leaderboard = await EconomyRepository.getLeaderboard(guildId, 10);
+        res.json({
+            enabled: !!settings.economy_enabled,
+            users: Number(stats?.users || 0),
+            totalWealth: Number(stats?.totalWealth || 0),
+            totalXp: Number(stats?.totalXp || 0),
+            leaderboard
+        });
     });
 
     /*

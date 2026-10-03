@@ -220,14 +220,12 @@ module.exports = (client) => {
 
     }
 
-    function requireGuildAccess(req, res, next) {
+    async function requireGuildAccess(req, res, next) {
 
         const guildInfo = req.painelSessao.guilds.find(g => g.id === req.params.guildId);
 
         if (!guildInfo) {
-
             return res.status(403).json({ error: "Você não tem permissão de gerenciar este servidor." });
-
         }
 
         if (!guildInfo.botPresent) {
@@ -239,9 +237,22 @@ module.exports = (client) => {
         const guild = client.guilds.cache.get(req.params.guildId);
 
         if (!guild) {
-
             return res.status(404).json({ error: "O bot não está neste servidor." });
+        }
 
+        // Revalida a permissão no Discord para evitar que uma sessão antiga
+        // continue administrando um servidor depois que os cargos/permissões mudarem.
+        const isOwner = String(req.painelSessao.user.id) === String(guild.ownerId) || !!req.painelSessao.user.isOwner;
+        if (!isOwner) {
+            try {
+                const member = await guild.members.fetch(req.painelSessao.user.id);
+                const perms = member.permissions;
+                if (!perms.has("Administrator") && !perms.has("ManageGuild")) {
+                    return res.status(403).json({ error: "Sua permissão de gerenciamento neste servidor mudou. Atualize o login do painel." });
+                }
+            } catch {
+                return res.status(403).json({ error: "Não consegui confirmar suas permissões no servidor." });
+            }
         }
 
         req.painelGuild = guild;
