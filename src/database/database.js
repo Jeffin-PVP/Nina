@@ -58,15 +58,61 @@ async function all(sql, params = []) {
     return rows;
 }
 
-async function testConnection() {
-    const connection = await pool.getConnection();
+const DB_RETRY_ATTEMPTS = Math.max(1, Number(process.env.DB_RETRY_ATTEMPTS || 5));
+const DB_RETRY_DELAY_MS = Math.max(500, Number(process.env.DB_RETRY_DELAY_MS || 2000));
 
-    try {
-        await connection.ping();
-        console.log("🗄️ MySQL da InjectCloud conectado");
-    } finally {
-        connection.release();
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function withDatabaseRetry(operation, label = "operação MySQL") {
+    let lastError;
+
+    for (let attempt = 1; attempt <= DB_RETRY_ATTEMPTS; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+
+            const transient = [
+                "ENOTFOUND",
+                "EAI_AGAIN",
+                "ECONNREFUSED",
+                "ETIMEDOUT",
+                "ECONNRESET",
+                "PROTOCOL_CONNECTION_LOST"
+            ].includes(error?.code);
+
+            if (!transient || attempt >= DB_RETRY_ATTEMPTS) {
+                throw error;
+            }
+
+            const delay = DB_RETRY_DELAY_MS * (2 ** (attempt - 1));
+
+            console.warn(
+                `⚠️ ${label} falhou (${error.code || error.message}). ` +
+                `Tentativa ${attempt}/${DB_RETRY_ATTEMPTS}. ` +
+                `Nova tentativa em ${delay}ms...`
+            );
+
+            await sleep(delay);
+        }
     }
+
+    throw lastError;
+}
+
+async function testConnection() {
+    return withDatabaseRetry(async () => {
+        const connection = await pool.getConnection();
+
+        try {
+            await connection.ping();
+            console.log("🗄️ MySQL da InjectCloud conectado");
+        } finally {
+            connection.release();
+        }
+    }, "Conexão com MySQL");
 }
 
 async function initializeDatabase() {
