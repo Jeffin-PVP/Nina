@@ -1,4 +1,4 @@
-const groq = require("../ai/groq");
+const groq = require("./groq");
 
 const MODEL = process.env.ANTISCAM_MODEL || "qwen/qwen3.8-27b";
 
