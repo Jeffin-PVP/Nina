@@ -1,16 +1,13 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder
-} = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
 
 module.exports = {
 
     data: new SlashCommandBuilder()
-
         .setName("userinfo")
-
         .setDescription("Mostra informações sobre um membro.")
-
         .addUserOption(option =>
             option
                 .setName("membro")
@@ -20,39 +17,84 @@ module.exports = {
 
     async execute(interaction) {
 
-        const user = interaction.options.getUser("membro") ?? interaction.user;
-        const member = interaction.options.getMember("membro") ?? interaction.member;
+        const picked = interaction.options.getUser("membro") ?? interaction.user;
+
+        // fetch(true) traz banner e cor de destaque
+        const user = await picked.fetch(true).catch(() => picked);
+        const member = interaction.options.getMember("membro") ?? (picked.id === interaction.user.id ? interaction.member : null);
 
         const roles = member?.roles?.cache
             ?.filter(role => role.id !== interaction.guild.id)
-            .sort((a, b) => b.position - a.position)
-            .map(role => `${role}`) ?? [];
+            .sort((a, b) => b.position - a.position) ?? null;
 
-        const embed = new EmbedBuilder()
-            .setColor(member?.displayHexColor && member.displayHexColor !== "#000000" ? member.displayHexColor : "#5865F2")
-            .setTitle(`👤 ${user.tag}`)
+        const color =
+            member?.displayColor
+            || user.accentColor
+            || ui.COLORS.brand;
+
+        const embed = ui.titled(color, "user", user.displayName ?? user.username, null, interaction)
             .setThumbnail(user.displayAvatarURL({ size: 256 }))
-            .addFields(
-                { name: "ID", value: `\`${user.id}\``, inline: true },
-                { name: "Conta criada", value: `<t:${Math.floor(user.createdTimestamp / 1000)}:R>`, inline: true }
-            );
+            .setDescription(
+                `${user}${user.bot ? "  •  🤖 **Bot**" : ""}\n` +
+                `${e("id")} \`${user.id}\``
+            )
+            .addFields({
+                name: `${e("calendar")} Conta criada`,
+                value: `${ui.ts(user.createdTimestamp, "D")}\n${ui.ts(user.createdTimestamp)}`,
+                inline: true
+            });
 
         if (member) {
 
-            embed.addFields(
-                { name: "Entrou no servidor", value: member.joinedTimestamp ? `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>` : "Desconhecido", inline: true },
-                { name: `Cargos (${roles.length})`, value: roles.length ? roles.slice(0, 20).join(", ") : "Nenhum" }
-            );
+            embed.addFields({
+                name: `${e("sparkle")} Entrou no servidor`,
+                value: member.joinedTimestamp
+                    ? `${ui.ts(member.joinedTimestamp, "D")}\n${ui.ts(member.joinedTimestamp)}`
+                    : "Desconhecido",
+                inline: true
+            });
 
             if (member.premiumSinceTimestamp) {
 
                 embed.addFields({
-                    name: "Impulsionando desde",
-                    value: `<t:${Math.floor(member.premiumSinceTimestamp / 1000)}:R>`,
+                    name: `${e("boost")} Impulsionando`,
+                    value: ui.ts(member.premiumSinceTimestamp),
                     inline: true
                 });
 
             }
+
+            if (member.nickname) {
+
+                embed.addFields({
+                    name: `${e("nick")} Apelido`,
+                    value: member.nickname,
+                    inline: true
+                });
+
+            }
+
+            if (roles?.size) {
+
+                embed.addFields(
+                    {
+                        name: `${e("crown")} Cargo mais alto`,
+                        value: `${roles.first()}`,
+                        inline: true
+                    },
+                    {
+                        name: `${e("role")} Cargos (${roles.size})`,
+                        value: roles.first(15).join(" ") + (roles.size > 15 ? ` +${roles.size - 15}` : "")
+                    }
+                );
+
+            }
+
+        }
+
+        if (user.banner) {
+
+            embed.setImage(user.bannerURL({ size: 1024 }));
 
         }
 

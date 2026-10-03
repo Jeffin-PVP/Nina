@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -128,13 +131,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Usuário não encontrado."
-                        )
+                    ui.error("Usuário não encontrado.", undefined, interaction)
 
                 ]
 
@@ -185,13 +182,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -199,53 +190,18 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
+            const UNITS = { seconds: "segundo(s)", minutes: "minuto(s)", hours: "hora(s)", days: "dia(s)" };
 
-                    .setColor(0x3498db)
-
-                    .setTitle("⏳ Timeout Aplicado")
-
-                    .addFields(
-
-                        {
-
-                            name: "👤 Usuário",
-
-                            value:
-                                `${user.tag}\n\`${user.id}\``
-
-                        },
-
-                        {
-
-                            name: "⏱️ Duração",
-
-                            value:
-                                `${time} ${unit}`
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value:
-                                interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: reason
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "timeout",
+                title: "Timeout aplicado",
+                color: ui.COLORS.info,
+                user,
+                moderator: interaction.user,
+                reason,
+                fields: [{ name: `${e("clock")} Duração`, value: `${time} ${UNITS[unit] ?? unit}`, inline: true }],
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -265,13 +221,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

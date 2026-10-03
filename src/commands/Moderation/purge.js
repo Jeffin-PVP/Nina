@@ -5,6 +5,9 @@ const {
     MessageFlags
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -110,13 +113,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -124,54 +121,18 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0x57F287)
-
-                    .setTitle("🧹 Mensagens Removidas")
-
-                    .addFields(
-
-                        {
-
-                            name: "📺 Canal",
-
-                            value: interaction.channel.name,
-
-                            inline: true
-
-                        },
-
-                        {
-
-                            name: "🧹 Quantidade",
-
-                            value: `${amount}`,
-
-                            inline: true
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value: interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: reason
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "purge",
+                title: "Mensagens removidas",
+                color: ui.COLORS.success,
+                moderator: interaction.user,
+                reason,
+                fields: [
+                    { name: `${e("channel")} Canal`, value: `${interaction.channel}`, inline: true },
+                    { name: `${e("purge")} Quantidade`, value: `${amount}`, inline: true }
+                ],
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -191,13 +152,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

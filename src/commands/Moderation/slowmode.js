@@ -5,6 +5,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -168,13 +171,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -182,55 +179,18 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0x5865F2)
-
-                    .setTitle("🐢 Slowmode Alterado")
-
-                    .addFields(
-
-                        {
-
-                            name: "📺 Canal",
-
-                            value:
-                                canal
-                                    ? `${canal}`
-                                    : `${interaction.channel}`
-
-                        },
-
-                        {
-
-                            name: "⏱️ Tempo",
-
-                            value:
-                                `${result.seconds} segundos`
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value:
-                                interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: motivo
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "clock",
+                title: "Slowmode alterado",
+                color: ui.COLORS.info,
+                moderator: interaction.user,
+                reason: motivo,
+                fields: [
+                    { name: `${e("channel")} Canal`, value: canal ? `${canal}` : `${interaction.channel}`, inline: true },
+                    { name: `${e("clock")} Tempo`, value: result.seconds ? ui.duration(result.seconds * 1000) : "Desativado", inline: true }
+                ],
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -250,13 +210,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

@@ -15,6 +15,9 @@ const PresenceManager =
 const StatsHistoryManager =
     require("./src/managers/StatsHistoryManager");
 
+const Emojis =
+    require("./src/utils/emojis");
+
 const {
     Client,
     GatewayIntentBits,
@@ -185,6 +188,8 @@ client.once(
         PresenceManager.start(client);
 
         StatsHistoryManager.start(client);
+
+        Emojis.sync(client);
 
         console.log(
             `🆔 ID: ${client.user.id}`

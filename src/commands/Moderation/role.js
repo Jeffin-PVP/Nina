@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -45,7 +48,7 @@ module.exports = {
         if (!member) {
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Membro não encontrado no servidor.")]
+                embeds: [ui.error("Membro não encontrado no servidor.", undefined, interaction)]
             });
 
         }
@@ -55,7 +58,7 @@ module.exports = {
         if (role.managed || role.id === interaction.guild.id) {
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Esse cargo não pode ser gerenciado manualmente (é um cargo de integração ou o @everyone).")]
+                embeds: [ui.error("Esse cargo não pode ser gerenciado manualmente (é um cargo de integração ou o @everyone).", undefined, interaction)]
             });
 
         }
@@ -63,7 +66,7 @@ module.exports = {
         if (role.position >= botMember.roles.highest.position) {
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Esse cargo está em uma posição igual ou superior ao meu cargo mais alto.")]
+                embeds: [ui.error("Esse cargo está em uma posição igual ou superior ao meu cargo mais alto.", undefined, interaction)]
             });
 
         }
@@ -75,7 +78,7 @@ module.exports = {
                 if (member.roles.cache.has(role.id)) {
 
                     return interaction.editReply({
-                        embeds: [new EmbedBuilder().setColor("Yellow").setDescription(`⚠️ ${member} já tem o cargo ${role}.`)]
+                        embeds: [ui.warn(`${member} já tem o cargo ${role}.`, undefined, interaction)]
                     });
 
                 }
@@ -83,7 +86,7 @@ module.exports = {
                 await member.roles.add(role, `Adicionado por ${interaction.user.tag}`);
 
                 return interaction.editReply({
-                    embeds: [new EmbedBuilder().setColor(0x30D158).setDescription(`✅ Cargo ${role} adicionado a ${member}.`)]
+                    embeds: [ui.success(`Cargo ${role} adicionado a ${member}.`, undefined, interaction)]
                 });
 
             }
@@ -91,7 +94,7 @@ module.exports = {
             if (!member.roles.cache.has(role.id)) {
 
                 return interaction.editReply({
-                    embeds: [new EmbedBuilder().setColor("Yellow").setDescription(`⚠️ ${member} não tem o cargo ${role}.`)]
+                    embeds: [ui.warn(`${member} não tem o cargo ${role}.`, undefined, interaction)]
                 });
 
             }
@@ -99,7 +102,7 @@ module.exports = {
             await member.roles.remove(role, `Removido por ${interaction.user.tag}`);
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor(0x30D158).setDescription(`✅ Cargo ${role} removido de ${member}.`)]
+                embeds: [ui.success(`Cargo ${role} removido de ${member}.`, undefined, interaction)]
             });
 
         } catch (error) {
@@ -107,7 +110,7 @@ module.exports = {
             console.error(error);
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Não consegui alterar os cargos desse membro.")]
+                embeds: [ui.error("Não consegui alterar os cargos desse membro.", undefined, interaction)]
             });
 
         }

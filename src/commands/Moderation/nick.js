@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -39,7 +42,7 @@ module.exports = {
         if (!member) {
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Membro não encontrado no servidor.")]
+                embeds: [ui.error("Membro não encontrado no servidor.", undefined, interaction)]
             });
 
         }
@@ -47,7 +50,7 @@ module.exports = {
         if (!member.manageable) {
 
             return interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Não posso alterar o apelido desse membro (cargo igual/superior ao meu, ou é o dono do servidor).")]
+                embeds: [ui.error("Não posso alterar o apelido desse membro (cargo igual/superior ao meu, ou é o dono do servidor).", undefined, interaction)]
             });
 
         }
@@ -56,13 +59,13 @@ module.exports = {
 
             await member.setNickname(nickname, `Alterado por ${interaction.user.tag}`);
 
-            const embed = new EmbedBuilder()
-                .setColor(0x30D158)
-                .setDescription(
-                    nickname
-                        ? `✅ Apelido de ${member} alterado para **${nickname}**.`
-                        : `✅ Apelido de ${member} removido.`
-                );
+            const embed = ui.success(
+                nickname
+                    ? `Apelido de ${member} alterado para **${nickname}**.`
+                    : `Apelido de ${member} removido.`,
+                "Apelido atualizado",
+                interaction
+            );
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -71,7 +74,7 @@ module.exports = {
             console.error(error);
 
             await interaction.editReply({
-                embeds: [new EmbedBuilder().setColor("Red").setDescription("❌ Não consegui alterar o apelido.")]
+                embeds: [ui.error("Não consegui alterar o apelido.", undefined, interaction)]
             });
 
         }

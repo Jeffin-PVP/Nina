@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager = require("../../ai/ToolManager");
 
 module.exports = {
@@ -49,19 +52,13 @@ module.exports = {
 
                 return interaction.editReply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor("Red")
-                            .setDescription(`❌ ${result.error}`)
+                        ui.error(result.error, undefined, interaction)
                     ]
                 });
 
             }
 
-            const embed = new EmbedBuilder()
-                .setColor(0x30D158)
-                .setDescription(
-                    `✅ Advertência \`#${warningId}\` removida de <@${result.userId}>. Restam **${result.remaining}** advertência(s).`
-                );
+            const embed = ui.success(`Advertência \`#${warningId}\` removida de <@${result.userId}>. Restam **${result.remaining}** advertência(s).`, undefined, interaction);
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -71,9 +68,7 @@ module.exports = {
 
             await interaction.editReply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor("Red")
-                        .setDescription("❌ Ocorreu um erro ao executar o comando.")
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
                 ]
             });
 

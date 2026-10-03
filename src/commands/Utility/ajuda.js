@@ -1,17 +1,155 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
-    MessageFlags
+    ActionRowBuilder,
+    StringSelectMenuBuilder,
+    ComponentType,
+    MessageFlags,
+    PermissionsBitField
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e, component } = require("../../utils/emojis");
+
+// Ícone de cada categoria (casa pelo nome, ignorando o emoji do rótulo)
+const CATEGORY_ICONS = {
+    "Economia": "coin",
+    "Moderação": "shield",
+    "Jogos": "dice",
+    "Tickets": "ticket",
+    "Sorteios": "gift",
+    "Utilidade": "sparkle",
+    "Configuração": "config",
+    "Inteligência Artificial": "ai",
+    "Boas-vindas": "heart",
+    "Cargos automáticos": "role",
+    "Servidor": "server"
+};
+
+const stripEmoji = label => label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
+const iconFor = label => CATEGORY_ICONS[stripEmoji(label)] ?? "star";
+
+function groupByCategory(commands) {
+
+    const groups = new Map();
+
+    for (const command of commands.values()) {
+
+        const label = command.category || "📌 Geral";
+
+        if (!groups.has(label)) groups.set(label, []);
+
+        groups.get(label).push(command);
+
+    }
+
+    return new Map(
+        [...groups.entries()]
+            .sort(([a], [b]) => stripEmoji(a).localeCompare(stripEmoji(b)))
+            .map(([label, list]) => [label, list.sort((a, b) => a.data.name.localeCompare(b.data.name))])
+    );
+
+}
+
+function overviewEmbed(interaction, groups, total) {
+
+    const lines = [...groups.entries()].map(([label, list]) =>
+        `${e(iconFor(label))} **${stripEmoji(label)}** — ${list.length} comando${list.length > 1 ? "s" : ""}`
+    );
+
+    return ui.titled(
+        ui.COLORS.brand,
+        "help",
+        "Central de ajuda da Nina",
+        `${ui.mood("oi")} Oi! Escolha uma categoria no menu abaixo para ver os comandos.\n\n` +
+        `${lines.join("\n")}\n\n` +
+        `${ui.LINE}\n` +
+        `${e("sparkle")} **${total}** comandos • use \`/ajuda comando:<nome>\` para detalhes`,
+        interaction
+    ).setThumbnail(interaction.client.user.displayAvatarURL({ size: 256 }));
+
+}
+
+function categoryEmbed(interaction, label, list) {
+
+    let text = list
+        .map(c => `${e(iconFor(label))} **/${c.data.name}**\n┗ ${c.data.description}`)
+        .join("\n");
+
+    if (text.length > 3900) text = `${text.slice(0, 3900)}…`;
+
+    return ui.titled(ui.COLORS.brand, iconFor(label), stripEmoji(label), text, interaction)
+        .addFields({ name: "\u200b", value: `${e("info")} \`/ajuda comando:<nome>\` mostra o uso completo.` });
+
+}
+
+function usageOf(command) {
+
+    const json = command.data.toJSON();
+    const options = json.options ?? [];
+
+    const subs = options.filter(o => o.type === 1 || o.type === 2);
+
+    if (subs.length) {
+
+        return subs.map(s => `/${json.name} ${s.name}`).join("\n");
+
+    }
+
+    const args = options.map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(" ");
+
+    return `/${json.name}${args ? ` ${args}` : ""}`;
+
+}
+
+function permissionsOf(command) {
+
+    const raw = command.data.default_member_permissions;
+
+    if (!raw) return null;
+
+    try {
+
+        return new PermissionsBitField(BigInt(raw)).toArray().join(", ");
+
+    } catch {
+
+        return null;
+
+    }
+
+}
+
+function detailEmbed(interaction, command) {
+
+    const embed = ui.titled(ui.COLORS.brand, iconFor(command.category ?? ""), `/${command.data.name}`, command.data.description || "Sem descrição.", interaction)
+        .addFields(
+            { name: `${e("config")} Uso`, value: `\`\`\`${usageOf(command)}\`\`\`` },
+            { name: `${e("star")} Categoria`, value: command.category || "📌 Geral", inline: true }
+        );
+
+    if (command.cooldown) {
+
+        embed.addFields({ name: `${e("clock")} Cooldown`, value: `${command.cooldown}s`, inline: true });
+
+    }
+
+    const perms = permissionsOf(command);
+
+    if (perms) {
+
+        embed.addFields({ name: `${e("lock")} Permissão`, value: perms, inline: true });
+
+    }
+
+    return embed;
+
+}
 
 module.exports = {
 
     data: new SlashCommandBuilder()
-
         .setName("ajuda")
-
-        .setDescription("Mostra todos os comandos do bot, organizados por categoria.")
-
+        .setDescription("Mostra todos os comandos da Nina, organizados por categoria.")
         .addStringOption(o =>
             o.setName("comando")
                 .setDescription("Nome de um comando específico para ver detalhes.")
@@ -21,83 +159,85 @@ module.exports = {
     async execute(interaction) {
 
         const commands = interaction.client.commands;
-        const nomeComando = interaction.options.getString("comando")?.replace(/^\//, "").trim();
+        const name = interaction.options.getString("comando")?.replace(/^\//, "").trim().toLowerCase();
 
-        /*
-        =========================
-            DETALHE DE UM COMANDO
-        =========================
-        */
+        /* DETALHE DE UM COMANDO */
 
-        if (nomeComando) {
+        if (name) {
 
-            const command = commands.get(nomeComando);
+            const command = commands.get(name);
 
             if (!command) {
 
                 return interaction.reply({
-                    content: `⚠️ Não encontrei nenhum comando chamado \`${nomeComando}\`.`,
+                    embeds: [ui.error(`Não encontrei nenhum comando chamado \`${name}\`.\nUse \`/ajuda\` para ver a lista completa.`, "Comando não encontrado", interaction)],
                     flags: MessageFlags.Ephemeral
                 });
 
             }
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle(`/${command.data.name}`)
-                .setDescription(command.data.description || "Sem descrição.")
-                .addFields({ name: "Categoria", value: command.category || "📌 Geral", inline: true });
-
-            if (command.cooldown) {
-
-                embed.addFields({ name: "Cooldown", value: `${command.cooldown}s`, inline: true });
-
-            }
-
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-        }
-
-        /*
-        =========================
-            LISTA COMPLETA
-        =========================
-        */
-
-        const porCategoria = new Map();
-
-        for (const command of commands.values()) {
-
-            const categoria = command.category || "📌 Geral";
-
-            if (!porCategoria.has(categoria)) porCategoria.set(categoria, []);
-
-            porCategoria.get(categoria).push(command.data.name);
-
-        }
-
-        const embed = new EmbedBuilder()
-            .setColor("#5865F2")
-            .setTitle("📚 Comandos da Nina")
-            .setDescription(
-                `Use \`/ajuda comando:<nome>\` para ver detalhes de um comando específico.\n` +
-                `**Total:** ${commands.size} comandos.`
-            )
-            .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setFooter({ text: "Nina • Desenvolvida por JeffinPVP" });
-
-        for (const [categoria, nomes] of [...porCategoria.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-
-            const lista = nomes.sort().map(n => `\`/${n}\``).join(", ");
-
-            embed.addFields({
-                name: categoria,
-                value: lista.length > 1000 ? `${lista.slice(0, 1000)}…` : lista
+            return interaction.reply({
+                embeds: [detailEmbed(interaction, command)],
+                flags: MessageFlags.Ephemeral
             });
 
         }
 
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        /* LISTA COM MENU DE CATEGORIAS */
+
+        const groups = groupByCategory(commands);
+
+        const menu = disabled => new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId(`ajuda_menu_${interaction.id}`)
+                .setPlaceholder("Escolha uma categoria...")
+                .setDisabled(disabled)
+                .addOptions([
+                    {
+                        label: "Visão geral",
+                        value: "__home",
+                        description: "Voltar para o início",
+                        emoji: component("help")
+                    },
+                    ...[...groups.entries()].slice(0, 24).map(([label, list]) => ({
+                        label: stripEmoji(label).slice(0, 100),
+                        value: label,
+                        description: `${list.length} comando${list.length > 1 ? "s" : ""}`.slice(0, 100),
+                        emoji: component(iconFor(label))
+                    }))
+                ])
+        );
+
+        const message = await interaction.reply({
+            embeds: [overviewEmbed(interaction, groups, commands.size)],
+            components: [menu(false)],
+            flags: MessageFlags.Ephemeral,
+            fetchReply: true
+        });
+
+        const collector = message.createMessageComponentCollector({
+            componentType: ComponentType.StringSelect,
+            filter: i => i.user.id === interaction.user.id,
+            time: 120_000
+        });
+
+        collector.on("collect", async i => {
+
+            const value = i.values[0];
+
+            const embed = value === "__home"
+                ? overviewEmbed(interaction, groups, commands.size)
+                : categoryEmbed(interaction, value, groups.get(value) ?? []);
+
+            await i.update({ embeds: [embed], components: [menu(false)] }).catch(() => null);
+
+        });
+
+        collector.on("end", () => {
+
+            interaction.editReply({ components: [menu(true)] }).catch(() => null);
+
+        });
 
     }
 

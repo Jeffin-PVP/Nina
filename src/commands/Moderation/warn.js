@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -67,13 +70,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Usuário não encontrado."
-                        )
+                    ui.error("Usuário não encontrado.", undefined, interaction)
 
                 ]
 
@@ -120,13 +117,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -134,68 +125,19 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0xffcc00)
-
-                    .setTitle("⚠️ Advertência Aplicada")
-
-                    .addFields(
-
-                        {
-
-                            name: "👤 Usuário",
-
-                            value:
-                                `${user.tag}\n\`${user.id}\``
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value:
-                                interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: reason
-
-                        },
-
-                        {
-
-                            name: "📄 Advertências",
-
-                            value:
-                                `${result.warnings}`,
-
-                            inline: true
-
-                        },
-
-                        {
-
-                            name: "📨 DM enviada",
-
-                            value:
-                                result.dmSent
-                                    ? "✅ Sim"
-                                    : "❌ Não",
-
-                            inline: true
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "warn",
+                title: "Advertência aplicada",
+                color: ui.COLORS.warn,
+                user,
+                moderator: interaction.user,
+                reason,
+                fields: [
+                    { name: `${e("log")} Advertências`, value: `${result.warnings}`, inline: true },
+                    { name: `${e("mail")} DM enviada`, value: result.dmSent ? `${e("ok")} Sim` : `${e("error")} Não`, inline: true }
+                ],
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -211,13 +153,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

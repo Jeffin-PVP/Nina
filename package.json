@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
-    "start": "node index.js"
+    "start": "node index.js",
+    "emojis": "node scripts/uploadEmojis.js",
+    "emojis:build": "python3 scripts/generateEmojis.py"
   },
   "keywords": [],
   "author": "",

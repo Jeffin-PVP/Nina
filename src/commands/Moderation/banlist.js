@@ -5,6 +5,9 @@ const {
     MessageFlags
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 module.exports = {
 
     data: new SlashCommandBuilder()
@@ -24,7 +27,7 @@ module.exports = {
         if (!bans || bans.size === 0) {
 
             return interaction.editReply({
-                content: "📭 Nenhum usuário banido neste servidor."
+                embeds: [ui.info("Nenhum usuário banido neste servidor.", "Banlist vazia", interaction)]
             });
 
         }
@@ -34,10 +37,7 @@ module.exports = {
             .map(ban => `\`${ban.user.id}\` — ${ban.user.tag}${ban.reason ? ` (${ban.reason})` : ""}`)
             .join("\n");
 
-        const embed = new EmbedBuilder()
-            .setColor("#5865F2")
-            .setTitle(`🔨 Usuários Banidos (${bans.size})`)
-            .setDescription(list)
+        const embed = ui.titled(ui.COLORS.mod, "ban", `Usuários banidos (${bans.size})`, list, interaction)
             .setFooter({
                 text: bans.size > 25
                     ? `Mostrando 25 de ${bans.size}. Use /unban com o ID.`

@@ -1,133 +1,66 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder
-} = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 
-const EconomyManager =
-    require("../../managers/EconomyManager");
+const EconomyManager = require("../../managers/EconomyManager");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
+const MEDALS = ["🥇", "🥈", "🥉"];
 
 module.exports = {
 
     data: new SlashCommandBuilder()
-
         .setName("leaderboard")
-
-        .setDescription(
-            "Mostra os usuários mais ricos do servidor."
-        ),
+        .setDescription("Mostra os usuários mais ricos do servidor."),
 
     async execute(interaction) {
 
-        const guildId =
-            interaction.guild.id;
-
-        const ranking =
-            await EconomyManager.getLeaderboard(
-                guildId,
-                10
-            );
+        const ranking = await EconomyManager.getLeaderboard(interaction.guild.id, 10);
 
         if (!ranking.length) {
 
             return interaction.reply({
-
-                embeds: [
-
-                    new EmbedBuilder()
-
-                        .setColor(0xe74c3c)
-
-                        .setTitle(
-                            "🏆 Ranking"
-                        )
-
-                        .setDescription(
-                            "Ainda não há usuários na economia."
-                        )
-
-                ]
-
+                embeds: [ui.info("Ainda não há ninguém na economia deste servidor.", "Ranking vazio", interaction)]
             });
 
         }
 
-        const medals = [
-
-            "🥇",
-
-            "🥈",
-
-            "🥉"
-
-        ];
-
-        let description = "";
-
+        const lines = [];
         let position = 1;
+        let top = 0;
 
         for (const user of ranking) {
 
-            const member =
-                await interaction.guild.members
-                    .fetch(user.user_id)
-                    .catch(() => null);
+            const member = await interaction.guild.members.fetch(user.user_id).catch(() => null);
 
-            if (!member)
-                continue;
+            if (!member) continue;
 
-            const icon =
-                medals[position - 1] ??
-                `**${position}.**`;
+            if (position === 1) top = user.total;
 
-            description +=
+            const icon = MEDALS[position - 1] ?? `\`${String(position).padStart(2, "0")}\``;
 
-                `${icon} ${member.user.username} (${member.id})\n` +
-
-                `💵 Carteira: **${user.wallet.toLocaleString("pt-BR")}**\n` +
-
-                `🏦 Banco: **${user.bank.toLocaleString("pt-BR")}**\n` +
-
-                `💰 Total: **${user.total.toLocaleString("pt-BR")}**\n\n`;
+            lines.push(
+                `${icon} **${member.user.displayName ?? member.user.username}**\n` +
+                `┗ ${ui.money(user.total)}  \`${ui.bar(user.total, top, 8)}\``
+            );
 
             position++;
 
         }
 
-        if (!description.length) {
+        const embed = ui.titled(
+            ui.COLORS.economy,
+            "trophy",
+            "Ranking econômico",
+            lines.length ? lines.join("\n") : "Nenhum usuário encontrado.",
+            interaction
+        );
 
-            description =
-                "Nenhum usuário encontrado.";
+        if (interaction.guild.iconURL()) embed.setThumbnail(interaction.guild.iconURL({ size: 256 }));
 
-        }
+        embed.setFooter({ text: `${interaction.guild.name} • Nina`, iconURL: interaction.client.user.displayAvatarURL() });
 
-        return interaction.reply({
-
-            embeds: [
-
-                new EmbedBuilder()
-
-                    .setColor(0xf1c40f)
-
-                    .setTitle(
-                        "🏆 Ranking Econômico"
-                    )
-
-                    .setDescription(
-                        description
-                    )
-
-                    .setFooter({
-
-                        text:
-                            `${interaction.guild.name}`
-
-                    })
-
-                    .setTimestamp()
-
-            ]
-
-        });
+        return interaction.reply({ embeds: [embed] });
 
     }
 

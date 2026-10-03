@@ -1,10 +1,12 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
     MessageFlags
 } = require("discord.js");
 
 const EconomyManager = require("../../managers/EconomyManager");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
 
 const WORK_COOLDOWN = 60 * 60 * 1000; // 1 hora
 
@@ -63,145 +65,54 @@ const jobs = [
 module.exports = {
 
     data: new SlashCommandBuilder()
-
         .setName("work")
-
-        .setDescription(
-            "Trabalhe para ganhar moedas."
-        ),
+        .setDescription("Trabalhe para ganhar moedas."),
 
     async execute(interaction) {
 
         const guildId = interaction.guild.id;
         const userId = interaction.user.id;
 
-        const profile =
-            await EconomyManager.getProfile(
-                guildId,
-                userId
-            );
+        const profile = await EconomyManager.getProfile(guildId, userId);
 
         const now = Date.now();
-
-        const remaining =
-            (profile.work_at || 0) +
-            WORK_COOLDOWN -
-            now;
+        const remaining = (profile.work_at || 0) + WORK_COOLDOWN - now;
 
         if (remaining > 0) {
 
-            const minutes =
-                Math.floor(
-                    remaining / 60000
-                );
+            const embed = ui.titled(
+                ui.COLORS.warn,
+                "work",
+                "Você está cansado!",
+                `${ui.mood("dormindo")} Descanse um pouco.\n\n` +
+                `Volte ${ui.ts(now + remaining)} (**${ui.duration(remaining)}**).\n` +
+                `\`${ui.bar(WORK_COOLDOWN - remaining, WORK_COOLDOWN, 12)}\``,
+                interaction
+            );
 
-            const seconds =
-                Math.floor(
-                    (remaining % 60000) / 1000
-                );
-
-            return interaction.reply({
-
-                embeds: [
-
-                    new EmbedBuilder()
-
-                        .setColor(0xff9900)
-
-                        .setTitle(
-                            "💼 Você já trabalhou!"
-                        )
-
-                        .setDescription(
-
-                            `Você poderá trabalhar novamente em **${minutes}m ${seconds}s**.`
-
-                        )
-
-                ],
-
-                flags: MessageFlags.Ephemeral
-
-            });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
         }
 
-        const job =
-            jobs[
-                Math.floor(
-                    Math.random() *
-                    jobs.length
-                )
-            ];
+        const job = jobs[Math.floor(Math.random() * jobs.length)];
+        const reward = Math.floor(Math.random() * (job.max - job.min + 1)) + job.min;
 
-        const reward =
+        await EconomyManager.addCoins(guildId, userId, reward, `Work (${job.name})`);
+        await EconomyManager.updateWork(guildId, userId, now);
 
-            Math.floor(
+        const updated = await EconomyManager.getProfile(guildId, userId);
 
-                Math.random() *
+        const embed = ui.titled(
+            ui.COLORS.success,
+            "work",
+            "Trabalho concluído!",
+            `${ui.mood("satisfeita")} Você trabalhou como **${job.name}**.\n\n` +
+            `${e("pay")} Ganhou ${ui.money(reward)}\n` +
+            `${e("wallet")} Carteira: ${ui.money(updated.wallet)}`,
+            interaction
+        ).setThumbnail(interaction.user.displayAvatarURL({ size: 128 }));
 
-                (job.max - job.min + 1)
-
-            ) + job.min;
-
-        await EconomyManager.addCoins(
-
-            guildId,
-
-            userId,
-
-            reward,
-
-            `Work (${job.name})`
-
-        );
-
-        await EconomyManager.updateWork(
-
-            guildId,
-
-            userId,
-
-            now
-
-        );
-
-        const updated =
-            await EconomyManager.getProfile(
-
-                guildId,
-
-                userId
-
-            );
-
-        return interaction.reply({
-
-            embeds: [
-
-                new EmbedBuilder()
-
-                    .setColor(0x2ecc71)
-
-                    .setTitle(
-                        "💼 Trabalho concluído!"
-                    )
-
-                    .setDescription(
-
-                        `Você trabalhou como **${job.name}**.\n\n` +
-
-                        `💰 Ganhou **${reward.toLocaleString("pt-BR")} moedas**.\n\n` +
-
-                        `💵 Carteira: **${updated.coins.toLocaleString("pt-BR")} moedas**`
-
-                    )
-
-                    .setTimestamp()
-
-            ]
-
-        });
+        return interaction.reply({ embeds: [embed] });
 
     }
 

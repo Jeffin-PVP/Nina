@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -50,13 +53,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Usuário não encontrado."
-                        )
+                    ui.error("Usuário não encontrado.", undefined, interaction)
 
                 ]
 
@@ -101,13 +98,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -116,29 +107,13 @@ module.exports = {
             }
 
             const embed =
-                new EmbedBuilder()
-
-                    .setColor(0xffcc00)
-
-                    .setTitle("📄 Advertências")
-
-                    .setDescription(
-
-                        `Advertências de ${user.tag}`
-
-                    )
-
-                    .setTimestamp();
-
-            embed.addFields({
-
-                name: "Total",
-
-                value: `${result.total}`,
-
-                inline: true
-
-            });
+                ui.titled(
+                    ui.COLORS.warn,
+                    "log",
+                    "Advertências",
+                    `${user} possui **${result.total}** advertência(s).`,
+                    interaction
+                ).setThumbnail(user.displayAvatarURL({ size: 256 }));
 
             if (
                 result.warnings &&
@@ -147,7 +122,7 @@ module.exports = {
 
                 embed.addFields({
 
-                    name: "Lista",
+                    name: `${e("log")} Registros`,
 
                     value:
 
@@ -169,7 +144,7 @@ module.exports = {
 
                 embed.addFields({
 
-                    name: "Lista",
+                    name: `${e("log")} Registros`,
 
                     value: "Nenhuma advertência."
 
@@ -195,15 +170,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-
-                            "❌ Ocorreu um erro ao executar o comando."
-
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

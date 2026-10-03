@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager = require("../../ai/ToolManager");
 
 module.exports = {
@@ -41,9 +44,7 @@ module.exports = {
 
             return interaction.editReply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor("Red")
-                        .setDescription("❌ Isso não parece um ID de usuário válido. Use `/banlist` para conferir.")
+                    ui.error("Isso não parece um ID de usuário válido. Use `/banlist` para conferir.", undefined, interaction)
                 ]
             });
 
@@ -69,23 +70,21 @@ module.exports = {
 
                 return interaction.editReply({
                     embeds: [
-                        new EmbedBuilder()
-                            .setColor("Red")
-                            .setDescription(`❌ ${result.error}`)
+                        ui.error(result.error, undefined, interaction)
                     ]
                 });
 
             }
 
-            const embed = new EmbedBuilder()
-                .setColor(0x30D158)
-                .setTitle("🔓 Usuário Desbanido")
-                .addFields(
-                    { name: "👤 Usuário", value: `\`${userId}\`` },
-                    { name: "🛡️ Moderador", value: interaction.user.tag },
-                    { name: "📝 Motivo", value: reason }
-                )
-                .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "unban",
+                title: "Usuário desbanido",
+                color: ui.COLORS.success,
+                moderator: interaction.user,
+                reason,
+                fields: [{ name: `${e("user")} Usuário`, value: `<@${userId}>\n\`${userId}\``, inline: true }],
+                source: interaction
+            });
 
             await interaction.editReply({ embeds: [embed] });
 
@@ -95,9 +94,7 @@ module.exports = {
 
             await interaction.editReply({
                 embeds: [
-                    new EmbedBuilder()
-                        .setColor("Red")
-                        .setDescription("❌ Ocorreu um erro ao executar o comando.")
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
                 ]
             });
 

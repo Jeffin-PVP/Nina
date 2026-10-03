@@ -1,16 +1,18 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder
+    PermissionFlagsBits
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
+const yesNo = value => value ? `${e("ok")} Sim` : `${e("error")} Não`;
 
 module.exports = {
 
     data: new SlashCommandBuilder()
-
         .setName("roleinfo")
-
         .setDescription("Mostra informações sobre um cargo.")
-
         .addRoleOption(option =>
             option
                 .setName("cargo")
@@ -22,19 +24,22 @@ module.exports = {
 
         const role = interaction.options.getRole("cargo");
 
-        const embed = new EmbedBuilder()
-            .setColor(role.color || "#5865F2")
-            .setTitle(`🎭 ${role.name}`)
+        const embed = ui.titled(role.color || ui.COLORS.brand, "role", role.name, null, interaction)
             .addFields(
-                { name: "ID", value: `\`${role.id}\``, inline: true },
-                { name: "Cor", value: role.hexColor, inline: true },
-                { name: "Posição", value: `${role.position}`, inline: true },
-                { name: "Membros", value: `${role.members.size}`, inline: true },
-                { name: "Mencionável", value: role.mentionable ? "Sim" : "Não", inline: true },
-                { name: "Exibido separadamente", value: role.hoist ? "Sim" : "Não", inline: true },
-                { name: "Gerenciado por integração", value: role.managed ? "Sim" : "Não", inline: true },
-                { name: "Criado em", value: `<t:${Math.floor(role.createdTimestamp / 1000)}:R>`, inline: true }
+                { name: `${e("id")} ID`, value: `\`${role.id}\``, inline: true },
+                { name: `${e("sparkle")} Cor`, value: `\`${role.hexColor}\``, inline: true },
+                { name: `${e("crown")} Posição`, value: `${role.position}`, inline: true },
+                { name: `${e("user")} Membros`, value: ui.num(role.members.size), inline: true },
+                { name: `${e("calendar")} Criado`, value: ui.ts(role.createdTimestamp, "D"), inline: true },
+                { name: `${e("shield")} Administrador`, value: yesNo(role.permissions.has(PermissionFlagsBits.Administrator)), inline: true },
+                { name: "Mencionável", value: yesNo(role.mentionable), inline: true },
+                { name: "Separado na lista", value: yesNo(role.hoist), inline: true },
+                { name: "Integração", value: yesNo(role.managed), inline: true }
             );
+
+        const icon = role.iconURL?.({ size: 128 });
+
+        if (icon) embed.setThumbnail(icon);
 
         return interaction.reply({ embeds: [embed] });
 

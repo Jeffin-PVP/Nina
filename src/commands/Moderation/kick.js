@@ -4,6 +4,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -71,13 +74,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Usuário não encontrado."
-                        )
+                    ui.error("Usuário não encontrado.", undefined, interaction)
 
                 ]
 
@@ -124,13 +121,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -138,44 +129,15 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0xff9900)
-
-                    .setTitle("👢 Membro Expulso")
-
-                    .addFields(
-
-                        {
-
-                            name: "👤 Usuário",
-
-                            value:
-                                `${user.tag}\n\`${user.id}\``
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value:
-                                interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: reason
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "kick",
+                title: "Membro expulso",
+                color: ui.COLORS.warn,
+                user,
+                moderator: interaction.user,
+                reason,
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -191,13 +153,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 

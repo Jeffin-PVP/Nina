@@ -1,290 +1,121 @@
-const {
-    SlashCommandBuilder,
-    EmbedBuilder
-} = require("discord.js");
+const { SlashCommandBuilder } = require("discord.js");
 
-const EconomyManager =
-    require("../../managers/EconomyManager");
+const EconomyManager = require("../../managers/EconomyManager");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
+const FRAMES = ["🪙", "⚪", "🟡", "⚪", "🟡", "🪙"];
 
 module.exports = {
 
     cooldown: 5,
 
     data: new SlashCommandBuilder()
-
         .setName("coinflip")
-
-        .setDescription(
-            "Aposte cara ou coroa."
-        )
-
+        .setDescription("Aposte cara ou coroa.")
         .addIntegerOption(option =>
-
             option
-
                 .setName("aposta")
-
-                .setDescription(
-                    "Quantidade de moedas."
-                )
-
+                .setDescription("Quantidade de moedas.")
                 .setRequired(true)
-
                 .setMinValue(100)
-
         )
-
         .addStringOption(option =>
-
             option
-
                 .setName("escolha")
-
-                .setDescription(
-                    "Cara ou Coroa."
-                )
-
+                .setDescription("Cara ou Coroa.")
                 .setRequired(true)
-
                 .addChoices(
-
-                    {
-
-                        name: "Cara",
-
-                        value: "cara"
-
-                    },
-
-                    {
-
-                        name: "Coroa",
-
-                        value: "coroa"
-
-                    }
-
+                    { name: "Cara", value: "cara" },
+                    { name: "Coroa", value: "coroa" }
                 )
-
         ),
 
     async execute(interaction) {
 
-        const guildId =
-            interaction.guild.id;
+        const guildId = interaction.guild.id;
+        const userId = interaction.user.id;
 
-        const userId =
-            interaction.user.id;
+        const bet = interaction.options.getInteger("aposta");
+        const choice = interaction.options.getString("escolha");
 
-        const bet =
-            interaction.options.getInteger(
-                "aposta"
-            );
-
-        const choice =
-            interaction.options.getString(
-                "escolha"
-            );
-
-        const profile =
-            await EconomyManager.getProfile(
-
-                guildId,
-
-                userId
-
-            );
+        const profile = await EconomyManager.getProfile(guildId, userId);
 
         if (profile.wallet < bet) {
 
             return interaction.reply({
-
-                embeds: [
-
-                    new EmbedBuilder()
-
-                        .setColor(0xe74c3c)
-
-                        .setTitle(
-                            "❌ Saldo insuficiente"
-                        )
-
-                        .setDescription(
-
-                            `Você possui apenas **${profile.wallet.toLocaleString("pt-BR")} moedas**.`
-
-                        )
-
-                ]
-
+                embeds: [ui.error(
+                    `Você tem apenas ${ui.money(profile.wallet)} na carteira.`,
+                    "Saldo insuficiente",
+                    interaction
+                )]
             });
 
         }
 
-        await EconomyManager.removeMoney(
-
-            guildId,
-
-            userId,
-
-            bet
-
-        );
+        await EconomyManager.removeMoney(guildId, userId, bet);
 
         await interaction.deferReply();
-                const animation = [
 
-            "🪙",
+        for (const frame of FRAMES) {
 
-            "⚪",
+            const embed = ui.titled(
+                ui.COLORS.game,
+                "coin",
+                "Cara ou Coroa",
+                `## ${frame}\n${ui.mood("piscando")} Lançando a moeda...\n\n` +
+                `Você escolheu **${choice.toUpperCase()}**`,
+                interaction
+            ).setFooter({ text: `Aposta: ${ui.num(bet)} moedas` });
 
-            "🟡",
+            await interaction.editReply({ embeds: [embed] });
 
-            "⚪",
-
-            "🟡",
-
-            "🪙"
-
-        ];
-
-        for (const frame of animation) {
-
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0xf1c40f)
-
-                    .setTitle(
-                        "🪙 Cara ou Coroa"
-                    )
-
-                    .setDescription(
-
-                        "## Lançando a moeda...\n\n" +
-
-                        `${frame}`
-
-                    )
-
-                    .setFooter({
-
-                        text:
-                            `Aposta: ${bet.toLocaleString("pt-BR")} moedas`
-
-                    });
-
-            await interaction.editReply({
-
-                embeds: [embed]
-
-            });
-
-            await new Promise(resolve =>
-
-                setTimeout(
-
-                    resolve,
-
-                    350
-
-                )
-
-            );
+            await new Promise(resolve => setTimeout(resolve, 350));
 
         }
 
-        const result =
+        const result = Math.random() < 0.5 ? "cara" : "coroa";
+        const win = result === choice;
 
-            Math.random() < 0.5
-
-                ? "cara"
-
-                : "coroa";
-
-        const win =
-            result === choice;
-
-        let color;
-
-        let title;
-
-        let description;
+        let embed;
 
         if (win) {
 
-            const reward =
-                bet * 2;
+            const reward = bet * 2;
 
-            await EconomyManager.addMoney(
+            await EconomyManager.addMoney(guildId, userId, reward);
 
-                guildId,
-
-                userId,
-
-                reward
-
+            embed = ui.titled(
+                ui.COLORS.success,
+                "trophy",
+                "Você venceu!",
+                `## ${e("coin")} ${result.toUpperCase()}\n` +
+                `${ui.mood("uau")} Você apostou em **${choice.toUpperCase()}** e acertou!\n\n` +
+                `${e("pay")} Prêmio: ${ui.money(reward)}`,
+                interaction
             );
-
-            color = 0x2ecc71;
-
-            title = "🎉 Você venceu!";
-
-            description =
-
-                `## 🪙 ${result.toUpperCase()}\n\n` +
-
-                `Você apostou em **${choice.toUpperCase()}** e acertou!\n\n` +
-
-                `💰 Você recebeu **${reward.toLocaleString("pt-BR")} moedas**.`;
 
         } else {
 
-            color = 0xe74c3c;
-
-            title = "😢 Você perdeu!";
-
-            description =
-
-                `## 🪙 ${result.toUpperCase()}\n\n` +
-
-                `Você apostou em **${choice.toUpperCase()}**.\n\n` +
-
-                `💸 Você perdeu **${bet.toLocaleString("pt-BR")} moedas**.`;
+            embed = ui.titled(
+                ui.COLORS.error,
+                "coin",
+                "Você perdeu!",
+                `## ${e("coin")} ${result.toUpperCase()}\n` +
+                `${ui.mood("triste")} Você apostou em **${choice.toUpperCase()}**.\n\n` +
+                `${e("withdraw")} Perdeu: ${ui.money(bet)}`,
+                interaction
+            );
 
         }
 
-        const updated =
-            await EconomyManager.getProfile(
+        const updated = await EconomyManager.getProfile(guildId, userId);
 
-                guildId,
+        embed.addFields({ name: `${e("wallet")} Carteira`, value: ui.money(updated.wallet), inline: true });
+        embed.setFooter({ text: `Aposta: ${ui.num(bet)} moedas • Nina`, iconURL: interaction.client.user.displayAvatarURL() });
 
-                userId
-
-            );
-
-        const embed =
-            new EmbedBuilder()
-
-                .setColor(color)
-
-                .setTitle(title)
-
-                .setDescription(
-
-                    description +
-
-                    `\n\n💵 Carteira: **${updated.wallet.toLocaleString("pt-BR")} moedas**`
-
-                )
-
-                .setTimestamp();
-
-        return interaction.editReply({
-
-            embeds: [embed]
-
-        });
+        return interaction.editReply({ embeds: [embed] });
 
     }
 

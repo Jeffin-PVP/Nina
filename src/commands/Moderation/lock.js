@@ -5,6 +5,9 @@ const {
     EmbedBuilder
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
+
 const ToolManager =
     require("../../ai/ToolManager");
 
@@ -109,13 +112,7 @@ module.exports = {
 
                     embeds: [
 
-                        new EmbedBuilder()
-
-                            .setColor("Red")
-
-                            .setDescription(
-                                `❌ ${result.error}`
-                            )
+                        ui.error(result.error, undefined, interaction)
 
                     ]
 
@@ -123,42 +120,15 @@ module.exports = {
 
             }
 
-            const embed =
-                new EmbedBuilder()
-
-                    .setColor(0xED4245)
-
-                    .setTitle("🔒 Canal Bloqueado")
-
-                    .addFields(
-
-                        {
-
-                            name: "📺 Canal",
-
-                            value: `${channel}`
-
-                        },
-
-                        {
-
-                            name: "🛡️ Moderador",
-
-                            value: interaction.user.tag
-
-                        },
-
-                        {
-
-                            name: "📝 Motivo",
-
-                            value: reason
-
-                        }
-
-                    )
-
-                    .setTimestamp();
+            const embed = ui.modEmbed({
+                emoji: "lock",
+                title: "Canal bloqueado",
+                color: ui.COLORS.error,
+                moderator: interaction.user,
+                reason,
+                fields: [{ name: `${e("channel")} Canal`, value: `${channel}`, inline: true }],
+                source: interaction
+            });
 
             await interaction.editReply({
 
@@ -178,13 +148,7 @@ module.exports = {
 
                 embeds: [
 
-                    new EmbedBuilder()
-
-                        .setColor("Red")
-
-                        .setDescription(
-                            "❌ Ocorreu um erro ao executar o comando."
-                        )
+                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
 
                 ]
 
