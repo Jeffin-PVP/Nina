@@ -2,12 +2,13 @@ const {
     SlashCommandBuilder,
     PermissionFlagsBits,
     ChannelType,
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
-    MessageFlags
+    ButtonStyle
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e, component } = require("../../utils/emojis");
 
 const TicketRepository = require("../../database/repositories/TicketRepository");
 const { ticketActionRow } = require("../../interactions/tickets/buttonHandler");
@@ -120,10 +121,7 @@ module.exports = {
 
             if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild)) {
 
-                return interaction.reply({
-                    content: "⚠️ Você precisa de **Gerenciar Servidor** para configurar os tickets.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para configurar os tickets.", "Sem permissão");
 
             }
 
@@ -138,10 +136,11 @@ module.exports = {
                 !botPermissions.has(PermissionFlagsBits.CreatePrivateThreads)
             ) {
 
-                return interaction.reply({
-                    content: "❌ Preciso de permissão para ver o canal, criar tópicos privados e enviar mensagens em tópicos ali.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.fail(
+                    interaction,
+                    `Em ${channel} eu preciso de:\n${ui.bullets(["Ver o canal", "Criar tópicos privados", "Enviar mensagens em tópicos"])}`,
+                    "Faltam permissões"
+                );
 
             }
 
@@ -151,10 +150,17 @@ module.exports = {
                 enabled: 1
             });
 
-            return interaction.reply({
-                content: `✅ Tickets configurados! Novos tópicos serão criados em ${channel}${role ? `, com acesso para ${role}` : ""}.\nUse \`/ticket painel\` no canal onde quer o botão de abrir ticket.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "ticket",
+                title: "Tickets configurados!",
+                description: "Tudo pronto. Agora use `/ticket painel` no canal onde quer o botão de abrir ticket.",
+                fields: [
+                    ui.field("channel", "Tópicos criados em", `${channel}`),
+                    ui.field("shield", "Equipe de suporte", role ? `${role}` : "*Somente quem gerencia tópicos*")
+                ],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -168,10 +174,7 @@ module.exports = {
 
             if (!interaction.memberPermissions.has(PermissionFlagsBits.ManageGuild)) {
 
-                return interaction.reply({
-                    content: "⚠️ Você precisa de **Gerenciar Servidor** para enviar o painel.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para enviar o painel.", "Sem permissão");
 
             }
 
@@ -179,38 +182,36 @@ module.exports = {
 
             if (!config.parent_channel_id) {
 
-                return interaction.reply({
-                    content: "⚠️ Configure o sistema primeiro com `/ticket setup`.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Configure o sistema primeiro com `/ticket setup`.", "Tickets não configurados");
 
             }
 
-            const titulo = interaction.options.getString("titulo") || "🎫 Central de Suporte";
+            const titulo = interaction.options.getString("titulo") || "Central de Suporte";
             const descricao = interaction.options.getString("descricao") ||
                 "Clique no botão abaixo para abrir um ticket com a nossa equipe.";
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle(titulo)
-                .setDescription(descricao);
+            const embed = ui.panel({
+                color: ui.COLORS.info,
+                emoji: "ticket",
+                title: titulo,
+                description: descricao,
+                thumbnail: guild.iconURL({ size: 256 }),
+                source: interaction
+            });
 
             const row = new ActionRowBuilder().addComponents(
 
                 new ButtonBuilder()
                     .setCustomId("ticket_open")
                     .setLabel("Abrir Ticket")
-                    .setEmoji("🎫")
+                    .setEmoji(component("ticket"))
                     .setStyle(ButtonStyle.Primary)
 
             );
 
             await interaction.channel.send({ embeds: [embed], components: [row] });
 
-            return interaction.reply({
-                content: "✅ Painel enviado!",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, `O painel de tickets foi enviado em ${interaction.channel}.`, "Painel enviado");
 
         }
 
@@ -226,10 +227,7 @@ module.exports = {
 
             if (!ticket) {
 
-                return interaction.reply({
-                    content: "⚠️ Este comando só funciona dentro de um tópico de ticket.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Este comando só funciona dentro de um tópico de ticket.", "Não é um ticket");
 
             }
 
@@ -241,10 +239,7 @@ module.exports = {
 
             if (!isOwner && !isStaff) {
 
-                return interaction.reply({
-                    content: "⚠️ Você não tem permissão para fechar este ticket.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só quem abriu o ticket ou a equipe de suporte pode fechá-lo.", "Sem permissão");
 
             }
 
@@ -263,10 +258,13 @@ module.exports = {
                 extra: { number: paddedNumber }
             });
 
-            await interaction.reply({
-                content: `🔒 Ticket fechado por ${interaction.user}.`,
-                components: [ticketActionRow("closed")]
-            });
+            await ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "lock",
+                title: `Ticket #${paddedNumber} fechado`,
+                description: `Fechado por ${interaction.user}.\nA equipe pode reabri-lo pelos botões abaixo.`,
+                source: interaction
+            }), { components: [ticketActionRow("closed")] });
 
             await interaction.channel
                 .setName(`fechado-${paddedNumber}`.slice(0, 100))
@@ -291,10 +289,7 @@ module.exports = {
 
             if (!ticket) {
 
-                return interaction.reply({
-                    content: "⚠️ Este comando só funciona dentro de um tópico de ticket.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Este comando só funciona dentro de um tópico de ticket.", "Não é um ticket");
 
             }
 
@@ -305,10 +300,7 @@ module.exports = {
 
             if (!isStaff) {
 
-                return interaction.reply({
-                    content: "⚠️ Só a equipe de suporte pode gerenciar membros do ticket.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só a equipe de suporte pode gerenciar os membros do ticket.", "Sem permissão");
 
             }
 
@@ -318,17 +310,13 @@ module.exports = {
 
                 await interaction.channel.members.add(target.id);
 
-                return interaction.reply({
-                    content: `✅ ${target} foi adicionado ao ticket.`
-                });
+                return ui.respond(interaction, ui.success(`${target} foi adicionado ao ticket.`, "Membro adicionado", interaction));
 
             }
 
             await interaction.channel.members.remove(target.id);
 
-            return interaction.reply({
-                content: `✅ ${target} foi removido do ticket.`
-            });
+            return ui.respond(interaction, ui.success(`${target} foi removido do ticket.`, "Membro removido", interaction));
 
         }
 
@@ -344,10 +332,7 @@ module.exports = {
 
             if (!openTickets.length) {
 
-                return interaction.reply({
-                    content: "📭 Nenhum ticket aberto no momento.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.nothing(interaction, "Nenhum ticket aberto no momento.", "Sem tickets abertos");
 
             }
 
@@ -357,20 +342,18 @@ module.exports = {
                     const number = String(ticket.number).padStart(4, "0");
                     const claimed = ticket.claimed_by ? ` — assumido por <@${ticket.claimed_by}>` : "";
 
-                    return `**#${number}** — <#${ticket.thread_id}> — aberto por <@${ticket.user_id}>${claimed}`;
+                    return `${e("ticket")} **#${number}** • <#${ticket.thread_id}>\n┗ aberto por <@${ticket.user_id}>${claimed}`;
 
                 })
                 .join("\n");
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle(`🎫 Tickets Abertos (${openTickets.length})`)
-                .setDescription(description);
-
-            return interaction.reply({
-                embeds: [embed],
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.info,
+                emoji: "ticket",
+                title: `Tickets abertos (${openTickets.length})`,
+                description: ui.clip(description, 4000),
+                source: interaction
+            }), { ephemeral: true });
 
         }
 

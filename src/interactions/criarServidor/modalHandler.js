@@ -1,5 +1,4 @@
 const {
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
@@ -8,6 +7,8 @@ const {
 } = require("discord.js");
 
 const ServerBuilder = require("../../managers/ServerBuilderManager");
+const ui = require("../../utils/ui");
+const { component } = require("../../utils/emojis");
 
 module.exports = {
 
@@ -15,10 +16,7 @@ module.exports = {
 
         if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
 
-            return interaction.reply({
-                content: "❌ Você precisa ser Administrador para usar isso.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.fail(interaction, "Você precisa ser Administrador para usar isso.", "Sem permissão");
 
         }
 
@@ -44,38 +42,36 @@ module.exports = {
             guildId: interaction.guild.id
         });
 
-        const embed = new EmbedBuilder()
-
-            .setColor("#ED4245")
-
-            .setTitle("🧭 Confirmação — Criar Servidor com IA")
-
-            .setDescription(
-                `> **Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n` +
-                `> **Divisória (Categoria):** \`${divisoriaCategoria}\`  •  **Divisória (Canal):** \`${divisoriaCanal}\`\n` +
-                `> **Emojis nos nomes:** ${usarEmojis ? "✅ Sim" : "❌ Não"}  •  **Segurança Reforçada:** ${segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`
-            )
-
-            .addFields({
-                name: "⚠️ Atenção antes de confirmar",
-                value: "Ao confirmar, **todos os canais e cargos atuais** deste servidor serão apagados e " +
-                    "substituídos por uma nova estrutura gerada por IA. Essa ação **não pode ser desfeita**."
-            })
-
-            .setFooter({ text: "Essa confirmação expira em 5 minutos." });
+        const embed = ui.panel({
+            color: ui.COLORS.error,
+            emoji: "server",
+            title: "Confirmação: criar servidor com IA",
+            description: ui.quote(
+                `**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n` +
+                `**Divisória (categoria):** \`${divisoriaCategoria}\`  •  **Divisória (canal):** \`${divisoriaCanal}\`\n` +
+                `**Emojis nos nomes:** ${usarEmojis ? "✅ Sim" : "❌ Não"}  •  **Segurança reforçada:** ${segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`
+            ),
+            fields: [
+                ui.field("warn", "Atenção antes de confirmar",
+                    "Ao confirmar, **todos os canais e cargos atuais** deste servidor serão apagados e " +
+                    "substituídos por uma nova estrutura gerada por IA. Essa ação **não pode ser desfeita**.", false)
+            ],
+            footer: "Essa confirmação expira em 5 minutos.",
+            source: interaction
+        });
 
         const row = new ActionRowBuilder().addComponents(
 
             new ButtonBuilder()
                 .setCustomId(`criarservidor_confirmar_${interaction.user.id}`)
                 .setLabel("Confirmar e Criar")
-                .setEmoji("✅")
+                .setEmoji(component("ok"))
                 .setStyle(ButtonStyle.Danger),
 
             new ButtonBuilder()
                 .setCustomId(`criarservidor_cancelar_${interaction.user.id}`)
                 .setLabel("Cancelar")
-                .setEmoji("✖️")
+                .setEmoji(component("error"))
                 .setStyle(ButtonStyle.Secondary)
 
         );

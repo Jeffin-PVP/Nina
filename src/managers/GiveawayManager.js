@@ -1,5 +1,4 @@
 const {
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle
@@ -8,6 +7,8 @@ const {
 const GiveawayRepository = require("../database/repositories/GiveawayRepository");
 const LogManager = require("./LogManager");
 const LogTypes = require("./LogTypes");
+const ui = require("../utils/ui");
+const { e, component } = require("../utils/emojis");
 
 const CHECK_INTERVAL_MS = 10 * 1000; // checa sorteios pra encerrar a cada 10s
 
@@ -156,7 +157,7 @@ function buildBotaoParticipar(giveawayId, encerrado = false) {
         new ButtonBuilder()
             .setCustomId(`giveaway_entrar_${giveawayId}`)
             .setLabel(encerrado ? "Sorteio encerrado" : "Participar")
-            .setEmoji("🎉")
+            .setEmoji(component("gift"))
             .setStyle(encerrado ? ButtonStyle.Secondary : ButtonStyle.Success)
             .setDisabled(encerrado)
 
@@ -171,25 +172,26 @@ function buildEmbedAtivo(giveaway, totalParticipantes) {
     const fimSegundos = Math.floor(giveaway.ends_at / 1000);
 
     const linhas = [
-        `🎁 **Prêmio:** ${giveaway.prize}`,
-        `🏆 **Vencedores:** ${giveaway.winners_count}`,
-        `👤 **Anfitrião:** <@${giveaway.host_id}>`,
-        `👥 **Participantes:** ${totalParticipantes}`,
-        `⏰ **Termina:** <t:${fimSegundos}:R> (<t:${fimSegundos}:f>)`
+        `${e("gift")} **Prêmio:** ${giveaway.prize}`,
+        `${e("trophy")} **Vencedores:** ${giveaway.winners_count}`,
+        `${e("crown")} **Anfitrião:** <@${giveaway.host_id}>`,
+        `${e("user")} **Participantes:** ${ui.num(totalParticipantes)}`,
+        `${e("clock")} **Termina:** <t:${fimSegundos}:R> (<t:${fimSegundos}:f>)`
     ];
 
     if (giveaway.required_role_id) {
 
-        linhas.splice(3, 0, `🔒 **Cargo necessário:** <@&${giveaway.required_role_id}>`);
+        linhas.splice(3, 0, `${e("lock")} **Cargo necessário:** <@&${giveaway.required_role_id}>`);
 
     }
 
-    return new EmbedBuilder()
-        .setColor("#57F287")
-        .setTitle("🎉 SORTEIO 🎉")
-        .setDescription(linhas.join("\n"))
-        .setFooter({ text: `ID do sorteio: ${giveaway.id}` })
-        .setTimestamp(giveaway.ends_at);
+    return ui.panel({
+        color: ui.COLORS.success,
+        emoji: "gift",
+        title: "Sorteio",
+        description: `${linhas.join("\n")}\n\n${ui.LINE}\nClique em **Participar** para entrar!`,
+        footer: `ID do sorteio: ${giveaway.id}`
+    }).setTimestamp(giveaway.ends_at);
 
 }
 
@@ -199,22 +201,23 @@ function buildEmbedEncerrado(giveaway, vencedoresIds, totalParticipantes) {
 
     const linhaVencedores = vencedoresIds.length
         ? vencedoresIds.map(id => `<@${id}>`).join(", ")
-        : "Ninguém participou 😕";
+        : "Ninguém participou";
 
     const linhas = [
-        `🎁 **Prêmio:** ${giveaway.prize}`,
-        `🏆 **Vencedor(es):** ${linhaVencedores}`,
-        `👤 **Anfitrião:** <@${giveaway.host_id}>`,
-        `👥 **Participantes:** ${totalParticipantes}`,
-        `⏰ **Encerrado:** <t:${fimSegundos}:f>`
+        `${e("gift")} **Prêmio:** ${giveaway.prize}`,
+        `${e("trophy")} **Vencedor(es):** ${linhaVencedores}`,
+        `${e("crown")} **Anfitrião:** <@${giveaway.host_id}>`,
+        `${e("user")} **Participantes:** ${ui.num(totalParticipantes)}`,
+        `${e("clock")} **Encerrado:** <t:${fimSegundos}:f>`
     ];
 
-    return new EmbedBuilder()
-        .setColor(vencedoresIds.length ? "#FEE75C" : "#99AAB5")
-        .setTitle("🎉 SORTEIO ENCERRADO 🎉")
-        .setDescription(linhas.join("\n"))
-        .setFooter({ text: `ID do sorteio: ${giveaway.id}` })
-        .setTimestamp();
+    return ui.panel({
+        color: vencedoresIds.length ? ui.COLORS.economy : ui.COLORS.neutral,
+        emoji: "trophy",
+        title: "Sorteio encerrado",
+        description: linhas.join("\n"),
+        footer: `ID do sorteio: ${giveaway.id}`
+    });
 
 }
 
@@ -268,13 +271,19 @@ async function encerrarSorteio(client, giveaway) {
         if (vencedores.length) {
 
             await canal.send({
-                content: `🎉 Parabéns ${vencedores.map(id => `<@${id}>`).join(", ")}! Você(s) ganhou/ganharam **${giveaway.prize}**!`
+                content: vencedores.map(id => `<@${id}>`).join(" "),
+                embeds: [ui.panel({
+                    color: ui.COLORS.economy,
+                    emoji: "trophy",
+                    title: "Temos vencedor(es)!",
+                    description: `Parabéns ${vencedores.map(id => `<@${id}>`).join(", ")}!\nVocê(s) ganhou/ganharam **${giveaway.prize}**.`
+                })]
             }).catch(() => {});
 
         } else {
 
             await canal.send({
-                content: `😕 O sorteio de **${giveaway.prize}** terminou, mas ninguém participou.`
+                embeds: [ui.empty(`O sorteio de **${giveaway.prize}** terminou, mas ninguém participou.`, "Sorteio sem participantes")]
             }).catch(() => {});
 
         }
@@ -336,7 +345,13 @@ async function rerollSorteio(client, giveawayId, quantidade, executor) {
     if (canal) {
 
         await canal.send({
-            content: `🔁 Novo sorteio para **${giveaway.prize}**! Parabéns ${vencedores.map(id => `<@${id}>`).join(", ")}!`
+            content: vencedores.map(id => `<@${id}>`).join(" "),
+            embeds: [ui.panel({
+                color: ui.COLORS.economy,
+                emoji: "trophy",
+                title: "Novo sorteio!",
+                description: `Novo(s) vencedor(es) de **${giveaway.prize}**:\n${vencedores.map(id => `<@${id}>`).join(", ")}`
+            })]
         }).catch(() => {});
 
         await LogManager.send({

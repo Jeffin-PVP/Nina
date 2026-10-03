@@ -1,10 +1,10 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType,
-    EmbedBuilder,
-    MessageFlags
+    ChannelType
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
 
 const GuildRepository = require("../../database/repositories/GuildRepository");
 const { CATEGORIES } = require("../../managers/LogCategories");
@@ -95,10 +95,15 @@ module.exports = {
                 channelId: channel.id
             });
 
-            return interaction.reply({
-                content: `✅ Canal de logs definido como ${channel}.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "log",
+                title: "Canal de logs definido",
+                description: `Os registros do servidor agora serão enviados em ${channel}.`,
+                fields: [ui.field("channel", "Canal", `${channel}`, false)],
+                footer: "Use /logs categoria para escolher o que registrar",
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -109,10 +114,13 @@ module.exports = {
                 channelId: null
             });
 
-            return interaction.reply({
-                content: "✅ Logs desativados.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "log",
+                title: "Logs desativados",
+                description: "Nenhum registro será enviado até você definir um canal com `/logs set`.",
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -129,12 +137,14 @@ module.exports = {
 
             const category = CATEGORIES[categoryKey];
 
-            return interaction.reply({
-                content: enabled
-                    ? `✅ Categoria **${category.label}** ativada.`
-                    : `✅ Categoria **${category.label}** desativada.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: enabled ? ui.COLORS.success : ui.COLORS.neutral,
+                emoji: "log",
+                title: `Categoria ${enabled ? "ativada" : "desativada"}`,
+                description: `${category.emoji} **${category.label}**`,
+                fields: [ui.field("config", "Estado", ui.toggle(enabled), false)],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -145,36 +155,31 @@ module.exports = {
 
             const channelText = settings.log_channel
                 ? `<#${settings.log_channel}>`
-                : "*Não configurado*";
+                : "*Não configurado — use `/logs set`*";
 
-            const categoryLines = Object.entries(CATEGORIES)
+            const entries = Object.entries(CATEGORIES);
+            const activeCount = entries.filter(([key]) => !disabled.includes(key)).length;
+
+            const categoryLines = entries
                 .map(([key, category]) => {
                     const isEnabled = !disabled.includes(key);
                     return `${isEnabled ? "🟢" : "🔴"} ${category.emoji} ${category.label}`;
                 })
                 .join("\n");
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle("📋 Configuração de Logs")
-                .addFields(
-                    {
-                        name: "Canal",
-                        value: channelText
-                    },
-                    {
-                        name: "Categorias",
-                        value: categoryLines
-                    }
-                )
-                .setFooter({
-                    text: "Use /logs categoria para ativar ou desativar cada uma."
-                });
-
-            return interaction.reply({
-                embeds: [embed],
-                flags: MessageFlags.Ephemeral
+            const embed = ui.panel({
+                color: ui.COLORS.info,
+                emoji: "log",
+                title: "Configuração de logs",
+                fields: [
+                    ui.field("channel", "Canal", channelText, false),
+                    ui.field("config", `Categorias (${activeCount}/${entries.length} ativas)`, ui.clip(categoryLines), false)
+                ],
+                footer: "Use /logs categoria para ativar ou desativar cada uma",
+                source: interaction
             });
+
+            return ui.respond(interaction, embed, { ephemeral: true });
 
         }
 

@@ -1,8 +1,14 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder,
-    MessageFlags
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { component } = require("../../utils/emojis");
+
+const PANEL_URL = "https://nina.injectcloud.space/panel";
 
 module.exports = {
 
@@ -14,17 +20,30 @@ module.exports = {
 
     async execute(interaction) {
 
-        const embed = new EmbedBuilder()
-            .setColor("#5f9fff")
-            .setTitle("🖥 Painel de Controle")
-            .setDescription(
-                `Acesse [https://nina.injectcloud.space/panel] para acessar o painel de controle do bot para gerenciar o bot/servidor **Somente nos servidores que você é dono ou administrador!**.\n`
-            )
-            .setThumbnail(interaction.client.user.displayAvatarURL())
-            .setFooter({ text: "Nina • Desenvolvida por JeffinPVP" });
+        const embed = ui.panel({
+            color: ui.COLORS.info,
+            emoji: "config",
+            title: "Painel de controle",
+            description:
+                "Gerencie a Nina e o seu servidor pelo navegador.\n\n" +
+                `${ui.bullets([
+                    "Entre com a sua conta do Discord",
+                    "Disponível **somente** nos servidores em que você é dono ou administrador"
+                ])}`,
+            thumbnail: interaction.client.user.displayAvatarURL({ size: 256 }),
+            footer: "Nina • Desenvolvida por JeffinPVP",
+            source: interaction
+        });
 
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setLabel("Abrir painel")
+                .setEmoji(component("config"))
+                .setStyle(ButtonStyle.Link)
+                .setURL(PANEL_URL)
+        );
 
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        return ui.respond(interaction, embed, { ephemeral: true, components: [row] });
 
     }
 

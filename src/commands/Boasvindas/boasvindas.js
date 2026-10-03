@@ -1,11 +1,12 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder,
     AttachmentBuilder,
     ChannelType,
     MessageFlags
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
 
 const WelcomeRepository = require("../../database/repositories/WelcomeRepository");
 const WelcomeCardManager = require("../../managers/WelcomeCardManager");
@@ -112,19 +113,23 @@ module.exports = {
 
             if (!permissoes || !permissoes.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.AttachFiles])) {
 
-                return interaction.reply({
-                    content: `⚠️ Preciso de permissão pra ver, enviar mensagens e anexar arquivos em ${canal}.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(
+                    interaction,
+                    `Em ${canal} eu preciso de:\n${ui.bullets(["Ver o canal", "Enviar mensagens", "Anexar arquivos"])}`,
+                    "Faltam permissões"
+                );
 
             }
 
             await WelcomeRepository.update(guild.id, { enabled: true, channel_id: canal.id });
 
-            return interaction.reply({
-                content: `✅ Boas-vindas ativadas em ${canal}! Use \`/boasvindas testar\` pra ver uma prévia.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "heart",
+                title: "Boas-vindas ativadas!",
+                description: `Novos membros serão recebidos em ${canal}.\nUse \`/boasvindas testar\` para ver uma prévia.`,
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -138,10 +143,13 @@ module.exports = {
 
             await WelcomeRepository.update(guild.id, { enabled: false });
 
-            return interaction.reply({
-                content: "✅ Boas-vindas desativadas.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "heart",
+                title: "Boas-vindas desativadas",
+                description: "Ninguém será recebido até você ativar de novo com `/boasvindas ativar`.",
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -159,37 +167,25 @@ module.exports = {
 
                 await WelcomeRepository.update(guild.id, { background_url: null });
 
-                return interaction.reply({
-                    content: "✅ Fundo removido — o cartão volta a usar o gradiente padrão.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, "O cartão volta a usar o gradiente padrão.", "Fundo removido");
 
             }
 
             if (!TIPOS_IMAGEM_ACEITOS.includes(anexo.contentType)) {
 
-                return interaction.reply({
-                    content: "⚠️ Envie uma imagem válida (PNG, JPEG, WEBP ou GIF).",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Envie uma imagem válida (PNG, JPEG, WEBP ou GIF).", "Imagem inválida");
 
             }
 
             if (anexo.size > 8 * 1024 * 1024) {
 
-                return interaction.reply({
-                    content: "⚠️ A imagem precisa ter até 8MB.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "A imagem precisa ter até **8 MB**.", "Imagem muito grande");
 
             }
 
             await WelcomeRepository.update(guild.id, { background_url: anexo.url });
 
-            return interaction.reply({
-                content: "✅ Fundo atualizado! Use `/boasvindas testar` pra ver como ficou.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, "Use `/boasvindas testar` para ver como ficou.", "Fundo atualizado");
 
         }
 
@@ -206,10 +202,7 @@ module.exports = {
 
             if (!titulo && !subtitulo) {
 
-                return interaction.reply({
-                    content: "⚠️ Informe pelo menos o título ou o subtítulo.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Informe pelo menos o título ou o subtítulo.", "Nada para alterar");
 
             }
 
@@ -220,10 +213,7 @@ module.exports = {
 
             await WelcomeRepository.update(guild.id, campos);
 
-            return interaction.reply({
-                content: "✅ Texto do cartão atualizado! Use `/boasvindas testar` pra conferir.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, "Use `/boasvindas testar` para conferir.", "Texto do cartão atualizado");
 
         }
 
@@ -239,10 +229,7 @@ module.exports = {
 
             await WelcomeRepository.update(guild.id, { message_content: conteudo });
 
-            return interaction.reply({
-                content: "✅ Mensagem de texto atualizada.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, "A mensagem enviada junto com o cartão foi atualizada.", "Mensagem atualizada");
 
         }
 
@@ -258,10 +245,7 @@ module.exports = {
 
             if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) {
 
-                return interaction.reply({
-                    content: "⚠️ Cor inválida. Use um hexadecimal, ex: `#5865F2`.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Use um hexadecimal, por exemplo `#5865F2`.", "Cor inválida");
 
             }
 
@@ -269,10 +253,13 @@ module.exports = {
 
             await WelcomeRepository.update(guild.id, { accent_color: corFormatada });
 
-            return interaction.reply({
-                content: `✅ Cor de destaque atualizada para \`${corFormatada}\`.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: parseInt(corFormatada.slice(1), 16),
+                emoji: "sparkle",
+                title: "Cor de destaque atualizada",
+                description: `Nova cor: ${ui.code(corFormatada)} (a lateral deste aviso mostra como fica).`,
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -295,18 +282,21 @@ module.exports = {
 
                 const conteudo = WelcomeCardManager.aplicarVariaveis(config.message_content, { member: interaction.member });
 
-                return interaction.editReply({
-                    content: `**Prévia** (isso é só um teste, ninguém mais vê):\n${conteudo}`,
-                    files: [anexo]
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: config.accent_color,
+                    emoji: "image",
+                    title: "Prévia das boas-vindas",
+                    description: `${conteudo}`,
+                    image: "attachment://boas-vindas.png",
+                    footer: "Isto é só um teste: ninguém mais vê",
+                    source: interaction
+                }), { files: [anexo] });
 
             } catch (error) {
 
                 console.error("[Boas-vindas] Erro ao gerar prévia:", error);
 
-                return interaction.editReply({
-                    content: `❌ Não consegui gerar a imagem: ${error.message}`
-                });
+                return ui.respond(interaction, ui.error(`Não consegui gerar a imagem: ${error.message}`, "Falha na prévia", interaction));
 
             }
 
@@ -322,20 +312,24 @@ module.exports = {
 
             const config = await WelcomeRepository.get(guild.id);
 
-            const embed = new EmbedBuilder()
-                .setColor(config.accent_color)
-                .setTitle("👋 Configuração de boas-vindas")
-                .addFields(
-                    { name: "Status", value: config.enabled ? "🟢 Ativado" : "🔴 Desativado", inline: true },
-                    { name: "Canal", value: config.channel_id ? `<#${config.channel_id}>` : "—", inline: true },
-                    { name: "Cor", value: config.accent_color, inline: true },
-                    { name: "Fundo", value: config.background_url ? `[Ver imagem](${config.background_url})` : "Padrão (gradiente)" },
-                    { name: "Título", value: config.title_text },
-                    { name: "Subtítulo", value: config.subtitle_text },
-                    { name: "Mensagem", value: config.message_content }
-                );
+            const embed = ui.panel({
+                color: config.accent_color,
+                emoji: "heart",
+                title: "Configuração de boas-vindas",
+                fields: [
+                    ui.field("config", "Status", ui.toggle(config.enabled)),
+                    ui.field("channel", "Canal", config.channel_id ? `<#${config.channel_id}>` : "—"),
+                    ui.field("sparkle", "Cor", ui.code(config.accent_color)),
+                    ui.field("image", "Fundo", config.background_url ? `[Ver imagem](${config.background_url})` : "Padrão (gradiente)", false),
+                    ui.field("star", "Título", config.title_text, false),
+                    ui.field("star", "Subtítulo", config.subtitle_text, false),
+                    ui.field("mail", "Mensagem", config.message_content, false)
+                ],
+                footer: "Use /boasvindas testar para ver uma prévia",
+                source: interaction
+            });
 
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return ui.respond(interaction, embed, { ephemeral: true });
 
         }
 

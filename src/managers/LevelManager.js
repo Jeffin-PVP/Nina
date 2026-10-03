@@ -1,6 +1,7 @@
 const EconomyRepository = require("../database/repositories/EconomyRepository");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const GuildRepository = require("../database/repositories/GuildRepository");
+const ui = require("../utils/ui");
 
 // Cooldown de XP por usuário (evita spam de mensagens gerando XP)
 const XP_COOLDOWN_MS = 60_000;
@@ -99,7 +100,14 @@ class LevelManager {
         if (settings.levelup_enabled) {
 
             await message.channel.send({
-                content: `🎉 ${message.author} subiu para o nível **${newLevel}**!`
+                embeds: [ui.panel({
+                    color: ui.COLORS.economy,
+                    emoji: "trophy",
+                    title: "Subiu de nível!",
+                    description: `${ui.mood("uau")} ${message.author} chegou ao nível **${newLevel}**!`,
+                    thumbnail: message.author.displayAvatarURL({ size: 128 }),
+                    source: message.client
+                })]
             }).catch(() => null);
 
         }

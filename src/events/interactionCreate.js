@@ -1,7 +1,8 @@
 const {
-    Events,
-    MessageFlags
+    Events
 } = require("discord.js");
+
+const ui = require("../utils/ui");
 
 const CommandManager =
     require("../managers/CommandManager");
@@ -130,27 +131,16 @@ module.exports = {
 
             try {
 
-                if (interaction.replied || interaction.deferred) {
-
-                    await interaction.followUp({
-
-                        content: "❌ Ocorreu um erro ao processar a interação.",
-
-                        flags: MessageFlags.Ephemeral
-
-                    });
-
-                } else {
-
-                    await interaction.reply({
-
-                        content: "❌ Ocorreu um erro ao processar a interação.",
-
-                        flags: MessageFlags.Ephemeral
-
-                    });
-
-                }
+                // ui.respond escolhe reply / editReply / followUp conforme o estado da interação
+                await ui.respond(
+                    interaction,
+                    ui.error(
+                        "Algo deu errado ao processar isso. Tente de novo em instantes; se continuar, avise um administrador.",
+                        "Ocorreu um erro",
+                        interaction
+                    ),
+                    { ephemeral: true }
+                );
 
             } catch { }
 

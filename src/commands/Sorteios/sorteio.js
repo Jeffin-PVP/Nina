@@ -1,10 +1,11 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder,
-    ChannelType,
-    MessageFlags
+    ChannelType
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
 
 const GiveawayRepository = require("../../database/repositories/GiveawayRepository");
 const GiveawayManager = require("../../managers/GiveawayManager");
@@ -123,10 +124,13 @@ module.exports = {
 
                 await GiveawayRepository.addMultiplier(guild.id, cargo.id, valor);
 
-                return interaction.reply({
-                    content: `✅ Quem tiver o cargo ${cargo} agora vale **${valor}x** entradas nos sorteios.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.success,
+                    emoji: "gift",
+                    title: "Multiplicador adicionado",
+                    description: `Quem tiver o cargo ${cargo} agora vale **${valor}x** entradas nos sorteios.`,
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -136,10 +140,7 @@ module.exports = {
 
                 await GiveawayRepository.removeMultiplier(guild.id, cargo.id);
 
-                return interaction.reply({
-                    content: `✅ Multiplicador do cargo ${cargo} removido.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `O multiplicador do cargo ${cargo} foi removido.`, "Multiplicador removido");
 
             }
 
@@ -149,19 +150,19 @@ module.exports = {
 
                 if (!lista.length) {
 
-                    return interaction.reply({
-                        content: "📭 Nenhum cargo com multiplicador configurado neste servidor.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.nothing(interaction, "Nenhum cargo com multiplicador configurado neste servidor.\nUse `/sorteio multiplicador adicionar` para criar um.", "Sem multiplicadores");
 
                 }
 
                 const descricao = lista.map(m => `<@&${m.role_id}> — **${m.multiplier}x** entradas`).join("\n");
 
-                return interaction.reply({
-                    embeds: [new EmbedBuilder().setColor("#5865F2").setTitle("🔢 Multiplicadores de entrada").setDescription(descricao)],
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.info,
+                    emoji: "gift",
+                    title: `Multiplicadores de entrada (${lista.length})`,
+                    description: ui.clip(descricao, 4000),
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -185,10 +186,7 @@ module.exports = {
 
             if (!duracaoMs || duracaoMs < 10 * 1000) {
 
-                return interaction.reply({
-                    content: "⚠️ Duração inválida. Use algo como `10m`, `2h`, `1d` ou `1d12h` (mínimo de 10 segundos).",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Use algo como `10m`, `2h`, `1d` ou `1d12h` (mínimo de 10 segundos).", "Duração inválida");
 
             }
 
@@ -197,10 +195,7 @@ module.exports = {
 
             if (!permissoesCanal || !permissoesCanal.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])) {
 
-                return interaction.reply({
-                    content: `⚠️ Não tenho permissão para enviar mensagens/embeds em ${canal}.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, `Preciso de **Ver canal**, **Enviar mensagens** e **Inserir links** em ${canal}.`, "Sem permissão no canal");
 
             }
 
@@ -236,10 +231,19 @@ module.exports = {
                 extra: { prize: premio, winners: vencedores, channelId: canal.id }
             }).catch(() => {});
 
-            return interaction.reply({
-                content: `✅ Sorteio de **${premio}** criado em ${canal}! Termina em **${GiveawayManager.formatarDuracao(duracaoMs)}**. (ID: \`${giveawayId}\`)`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "gift",
+                title: "Sorteio criado!",
+                description: `O sorteio já está no ar em ${canal}.`,
+                fields: [
+                    ui.field("gift", "Prêmio", premio),
+                    ui.field("trophy", "Vencedores", ui.num(vencedores)),
+                    ui.field("clock", "Termina", ui.ts(endsAt)),
+                    ui.field("id", "ID", ui.code(giveawayId))
+                ],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -260,28 +264,19 @@ module.exports = {
 
             if (!giveaway || giveaway.guild_id !== guild.id) {
 
-                return interaction.reply({
-                    content: "⚠️ Sorteio não encontrado neste servidor.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Não encontrei esse sorteio neste servidor. Veja os IDs com `/sorteio listar`.", "Sorteio não encontrado");
 
             }
 
             if (giveaway.status !== "running") {
 
-                return interaction.reply({
-                    content: "⚠️ Só é possível editar um sorteio que ainda está em andamento.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só é possível editar um sorteio que ainda está em andamento.", "Sorteio encerrado");
 
             }
 
             if (!novoPremio && !novaDuracaoTexto && !novosVencedores) {
 
-                return interaction.reply({
-                    content: "⚠️ Informe pelo menos um campo pra alterar (prêmio, duração ou vencedores).",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Informe pelo menos um campo para alterar: prêmio, duração ou vencedores.", "Nada para editar");
 
             }
 
@@ -304,10 +299,7 @@ module.exports = {
 
                 if (!duracaoMs || duracaoMs < 10 * 1000) {
 
-                    return interaction.reply({
-                        content: "⚠️ Duração inválida. Use algo como `10m`, `2h`, `1d` ou `1d12h`.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "Use algo como `10m`, `2h`, `1d` ou `1d12h`.", "Duração inválida");
 
                 }
 
@@ -346,10 +338,13 @@ module.exports = {
                 extra: { prize: giveawayAtualizado.prize, mudancas: mudancas.join("\n") }
             }).catch(() => {});
 
-            return interaction.reply({
-                content: `✅ Sorteio \`${id}\` atualizado:\n${mudancas.join("\n")}`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "gift",
+                title: `Sorteio ${id} atualizado`,
+                description: ui.bullets(mudancas),
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -366,19 +361,13 @@ module.exports = {
 
             if (!giveaway || giveaway.guild_id !== guild.id) {
 
-                return interaction.reply({
-                    content: "⚠️ Sorteio não encontrado neste servidor.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Não encontrei esse sorteio neste servidor. Veja os IDs com `/sorteio listar`.", "Sorteio não encontrado");
 
             }
 
             if (giveaway.status !== "running") {
 
-                return interaction.reply({
-                    content: "⚠️ Esse sorteio já não está mais em andamento.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Esse sorteio já não está mais em andamento.", "Sorteio encerrado");
 
             }
 
@@ -392,11 +381,14 @@ module.exports = {
 
                     const mensagem = await canal.messages.fetch(giveaway.message_id);
 
-                    const embedCancelado = new EmbedBuilder()
-                        .setColor("#ED4245")
-                        .setTitle("🎉 SORTEIO CANCELADO 🎉")
-                        .setDescription(`🎁 **Prêmio:** ${giveaway.prize}\n\nEste sorteio foi cancelado por um administrador.`)
-                        .setFooter({ text: `ID do sorteio: ${giveaway.id}` });
+                    const embedCancelado = ui.panel({
+                        color: ui.COLORS.error,
+                        emoji: "gift",
+                        title: "Sorteio cancelado",
+                        description: `${e("gift")} **Prêmio:** ${giveaway.prize}\n\nEste sorteio foi cancelado por um administrador.`,
+                        footer: `ID do sorteio: ${giveaway.id}`,
+                        source: interaction
+                    });
 
                     await mensagem.edit({
                         embeds: [embedCancelado],
@@ -416,10 +408,7 @@ module.exports = {
                 extra: { prize: giveaway.prize }
             }).catch(() => {});
 
-            return interaction.reply({
-                content: `✅ Sorteio \`${id}\` cancelado.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, `O sorteio ${ui.code(id)} (**${giveaway.prize}**) foi cancelado.`, "Sorteio cancelado");
 
         }
 
@@ -438,10 +427,7 @@ module.exports = {
 
             if (!giveaway || giveaway.guild_id !== guild.id) {
 
-                return interaction.reply({
-                    content: "⚠️ Sorteio não encontrado neste servidor.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Não encontrei esse sorteio neste servidor. Veja os IDs com `/sorteio listar`.", "Sorteio não encontrado");
 
             }
 
@@ -449,17 +435,17 @@ module.exports = {
 
             if (!resultado.sucesso) {
 
-                return interaction.reply({
-                    content: `⚠️ ${resultado.motivo}`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, resultado.motivo, "Não foi possível sortear");
 
             }
 
-            return interaction.reply({
-                content: `✅ Novo(s) vencedor(es) sorteado(s): ${resultado.vencedores.map(uid => `<@${uid}>`).join(", ")}`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "trophy",
+                title: "Novo sorteio realizado",
+                description: `${e("trophy")} ${resultado.vencedores.map(uid => `<@${uid}>`).join(", ")}`,
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -475,10 +461,7 @@ module.exports = {
 
             if (!sorteios.length) {
 
-                return interaction.reply({
-                    content: "📭 Nenhum sorteio em andamento neste servidor.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.nothing(interaction, "Nenhum sorteio em andamento neste servidor.\nCrie um com `/sorteio criar`.", "Sem sorteios");
 
             }
 
@@ -486,19 +469,17 @@ module.exports = {
 
                 const fimSegundos = Math.floor(g.ends_at / 1000);
 
-                return `**ID \`${g.id}\`** — ${g.prize} em <#${g.channel_id}> • termina <t:${fimSegundos}:R>`;
+                return `${e("gift")} **${g.prize}**\n┗ ID ${ui.code(g.id)} • <#${g.channel_id}> • termina <t:${fimSegundos}:R>`;
 
             }).join("\n");
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle("🎉 Sorteios em andamento")
-                .setDescription(descricao);
-
-            return interaction.reply({
-                embeds: [embed],
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.info,
+                emoji: "gift",
+                title: `Sorteios em andamento (${sorteios.length})`,
+                description: ui.clip(descricao, 4000),
+                source: interaction
+            }), { ephemeral: true });
 
         }
 

@@ -1,9 +1,10 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType,
-    MessageFlags
+    ChannelType
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
 
 module.exports = {
 
@@ -40,19 +41,17 @@ module.exports = {
 
         if (!botPermissions?.has(PermissionFlagsBits.SendMessages)) {
 
-            return interaction.reply({
-                content: `❌ Não tenho permissão para enviar mensagens em ${channel}.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.fail(
+                interaction,
+                `Não tenho permissão para enviar mensagens em ${channel}.`,
+                "Sem permissão"
+            );
 
         }
 
         await channel.send({ content: text });
 
-        return interaction.reply({
-            content: `✅ Mensagem enviada em ${channel}.`,
-            flags: MessageFlags.Ephemeral
-        });
+        return ui.ok(interaction, `Mensagem enviada em ${channel}.`, "Mensagem enviada");
 
     }
 

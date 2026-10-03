@@ -4,9 +4,10 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ActionRowBuilder,
-    MessageFlags
+    ActionRowBuilder
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
 
 const ServerBuilder = require("../../managers/ServerBuilderManager");
 
@@ -28,10 +29,7 @@ module.exports = {
 
         if (!guild) {
 
-            return interaction.reply({
-                content: "⚠️ Este comando só funciona dentro de um servidor.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(interaction, "Este comando só funciona dentro de um servidor.", "Somente em servidores");
 
         }
 
@@ -45,10 +43,11 @@ module.exports = {
 
         if (!botMember.permissions.has(permissoesNecessarias)) {
 
-            return interaction.reply({
-                content: "⚠️ Preciso das permissões **Gerenciar Servidor**, **Gerenciar Canais** e **Gerenciar Cargos** para recriar o servidor.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(
+                interaction,
+                "Preciso das permissões **Gerenciar Servidor**, **Gerenciar Canais** e **Gerenciar Cargos** para recriar o servidor.",
+                "Faltam permissões"
+            );
 
         }
 

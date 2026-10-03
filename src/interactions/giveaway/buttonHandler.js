@@ -1,6 +1,6 @@
-const { MessageFlags } = require("discord.js");
 const GiveawayRepository = require("../../database/repositories/GiveawayRepository");
 const GiveawayManager = require("../../managers/GiveawayManager");
+const ui = require("../../utils/ui");
 
 module.exports = {
 
@@ -12,19 +12,17 @@ module.exports = {
 
         if (!giveaway || giveaway.status !== "running") {
 
-            return interaction.reply({
-                content: "⚠️ Esse sorteio não está mais ativo.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(interaction, "Esse sorteio não está mais ativo.", "Sorteio encerrado");
 
         }
 
         if (giveaway.required_role_id && !interaction.member.roles.cache.has(giveaway.required_role_id)) {
 
-            return interaction.reply({
-                content: `⚠️ Você precisa do cargo <@&${giveaway.required_role_id}> para participar deste sorteio.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(
+                interaction,
+                `Você precisa do cargo <@&${giveaway.required_role_id}> para participar deste sorteio.`,
+                "Cargo necessário"
+            );
 
         }
 
@@ -34,19 +32,25 @@ module.exports = {
 
             await GiveawayRepository.removeEntry(giveawayId, interaction.user.id);
 
-            await interaction.reply({
-                content: "❌ Você saiu do sorteio.",
-                flags: MessageFlags.Ephemeral
-            });
+            await ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "gift",
+                title: "Você saiu do sorteio",
+                description: `Sua participação em **${giveaway.prize}** foi removida. Clique em **Participar** de novo se mudar de ideia.`,
+                source: interaction
+            }), { ephemeral: true });
 
         } else {
 
             await GiveawayRepository.addEntry(giveawayId, interaction.user.id);
 
-            await interaction.reply({
-                content: "🎉 Você entrou no sorteio! Boa sorte!",
-                flags: MessageFlags.Ephemeral
-            });
+            await ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "gift",
+                title: "Você entrou no sorteio!",
+                description: `Boa sorte! Você está concorrendo a **${giveaway.prize}**.\nO resultado sai ${ui.ts(giveaway.ends_at)}.`,
+                source: interaction
+            }), { ephemeral: true });
 
         }
 

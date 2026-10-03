@@ -1,12 +1,13 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle,
-    MessageFlags
+    ButtonStyle
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
 
 const AutoroleRepository = require("../../database/repositories/AutoroleRepository");
 const GuildRepository = require("../../database/repositories/GuildRepository");
@@ -134,19 +135,13 @@ module.exports = {
 
                 if (role.managed || role.id === guild.id) {
 
-                    return interaction.reply({
-                        content: "⚠️ Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).", "Cargo inválido");
 
                 }
 
                 await AutoroleRepository.addJoinRole(guild.id, role.id);
 
-                return interaction.reply({
-                    content: `✅ ${role} agora é dado automaticamente para quem entrar no servidor.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `${role} agora é dado automaticamente para quem entrar no servidor.`, "Cargo de entrada adicionado");
 
             }
 
@@ -156,10 +151,7 @@ module.exports = {
 
                 await AutoroleRepository.removeJoinRole(guild.id, role.id);
 
-                return interaction.reply({
-                    content: `✅ ${role} removido dos cargos de entrada.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `${role} foi removido dos cargos de entrada.`, "Cargo de entrada removido");
 
             }
 
@@ -169,17 +161,17 @@ module.exports = {
 
                 if (!roleIds.length) {
 
-                    return interaction.reply({
-                        content: "📭 Nenhum cargo de entrada configurado.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.nothing(interaction, "Nenhum cargo de entrada configurado.\nUse `/autorole entrada adicionar`.", "Sem cargos de entrada");
 
                 }
 
-                return interaction.reply({
-                    content: `🚪 Cargos de entrada: ${roleIds.map(id => `<@&${id}>`).join(", ")}`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.info,
+                    emoji: "role",
+                    title: `Cargos de entrada (${roleIds.length})`,
+                    description: `Dados automaticamente a quem entra no servidor:\n\n${ui.bullets(roleIds.map(id => `<@&${id}>`))}`,
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -201,10 +193,7 @@ module.exports = {
 
                 if (role.managed || role.id === guild.id) {
 
-                    return interaction.reply({
-                        content: "⚠️ Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).", "Cargo inválido");
 
                 }
 
@@ -212,19 +201,13 @@ module.exports = {
 
                 if (current.length >= 25) {
 
-                    return interaction.reply({
-                        content: "⚠️ Limite de 25 cargos por painel de self-role atingido.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "O painel de self-role comporta no máximo **25** cargos.", "Limite atingido");
 
                 }
 
                 await AutoroleRepository.addSelfRole(guild.id, role.id, label, emoji);
 
-                return interaction.reply({
-                    content: `✅ ${role} adicionado ao painel de self-role. Use \`/autorole selfrole painel\` para publicar/atualizar.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `${role} entrou no painel de self-role.\nUse \`/autorole selfrole painel\` para publicar ou atualizar.`, "Self-role adicionado");
 
             }
 
@@ -234,10 +217,7 @@ module.exports = {
 
                 await AutoroleRepository.removeSelfRole(guild.id, role.id);
 
-                return interaction.reply({
-                    content: `✅ ${role} removido do painel de self-role.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `${role} saiu do painel de self-role.`, "Self-role removido");
 
             }
 
@@ -247,21 +227,21 @@ module.exports = {
 
                 if (!roles.length) {
 
-                    return interaction.reply({
-                        content: "⚠️ Nenhum cargo configurado ainda. Use `/autorole selfrole adicionar` primeiro.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "Nenhum cargo configurado ainda. Use `/autorole selfrole adicionar` primeiro.", "Painel vazio");
 
                 }
 
-                const titulo = interaction.options.getString("titulo") || "🎭 Escolha seus cargos";
+                const titulo = interaction.options.getString("titulo") || "Escolha seus cargos";
                 const descricao = interaction.options.getString("descricao") ||
                     "Clique em um botão para adicionar ou remover o cargo correspondente.";
 
-                const embed = new EmbedBuilder()
-                    .setColor("#5865F2")
-                    .setTitle(titulo)
-                    .setDescription(descricao);
+                const embed = ui.panel({
+                    color: ui.COLORS.brand,
+                    emoji: "role",
+                    title: titulo,
+                    description: `${descricao}\n\n${ui.LINE}\n${ui.bullets(roles.map(r => `<@&${r.role_id}>`))}`,
+                    source: interaction
+                });
 
                 const rows = [];
 
@@ -297,10 +277,7 @@ module.exports = {
 
                 await interaction.channel.send({ embeds: [embed], components: rows });
 
-                return interaction.reply({
-                    content: "✅ Painel de self-role enviado!",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `O painel de self-role foi enviado em ${interaction.channel}.`, "Painel enviado");
 
             }
 
@@ -321,19 +298,13 @@ module.exports = {
 
                 if (role.managed || role.id === guild.id) {
 
-                    return interaction.reply({
-                        content: "⚠️ Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.caution(interaction, "Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).", "Cargo inválido");
 
                 }
 
                 await AutoroleRepository.setLevelRole(guild.id, level, role.id);
 
-                return interaction.reply({
-                    content: `✅ Quem atingir o nível **${level}** vai ganhar o cargo ${role}.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `Quem atingir o nível **${level}** vai ganhar o cargo ${role}.`, "Recompensa de nível definida");
 
             }
 
@@ -343,10 +314,7 @@ module.exports = {
 
                 await AutoroleRepository.removeLevelRole(guild.id, level);
 
-                return interaction.reply({
-                    content: `✅ Recompensa do nível **${level}** removida.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.ok(interaction, `A recompensa do nível **${level}** foi removida.`, "Recompensa removida");
 
             }
 
@@ -356,26 +324,21 @@ module.exports = {
 
                 if (!levels.length) {
 
-                    return interaction.reply({
-                        content: "📭 Nenhum cargo por nível configurado.",
-                        flags: MessageFlags.Ephemeral
-                    });
+                    return ui.nothing(interaction, "Nenhum cargo por nível configurado.\nUse `/autorole nivel adicionar`.", "Sem cargos por nível");
 
                 }
 
                 const description = levels
-                    .map(entry => `**Nível ${entry.level}** — <@&${entry.role_id}>`)
+                    .map(entry => `${e("trophy")} **Nível ${entry.level}** — <@&${entry.role_id}>`)
                     .join("\n");
 
-                const embed = new EmbedBuilder()
-                    .setColor("#5865F2")
-                    .setTitle("🏆 Cargos por Nível")
-                    .setDescription(description);
-
-                return interaction.reply({
-                    embeds: [embed],
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.info,
+                    emoji: "trophy",
+                    title: `Cargos por nível (${levels.length})`,
+                    description: ui.clip(description, 4000),
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -387,12 +350,15 @@ module.exports = {
                     levelup_enabled: enabled ? 1 : 0
                 });
 
-                return interaction.reply({
-                    content: enabled
-                        ? "✅ Avisos de level-up ativados."
-                        : "✅ Avisos de level-up desativados.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: enabled ? ui.COLORS.success : ui.COLORS.neutral,
+                    emoji: "trophy",
+                    title: `Avisos de level-up ${enabled ? "ativados" : "desativados"}`,
+                    description: enabled
+                        ? "O chat vai avisar quando alguém subir de nível."
+                        : "Ninguém será avisado no chat ao subir de nível.",
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 

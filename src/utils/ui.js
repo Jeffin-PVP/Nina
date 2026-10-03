@@ -6,7 +6,7 @@ Tudo que é visual (cores, rodapé, embeds de sucesso/erro, barras...)
 fica aqui para os comandos ficarem consistentes e fáceis de ajustar.
 */
 
-const { EmbedBuilder } = require("discord.js");
+const { EmbedBuilder, MessageFlags } = require("discord.js");
 
 const { e } = require("./emojis");
 
@@ -70,6 +70,100 @@ const warn = (description, title = "Atenção", source = null) =>
 
 const info = (description, title = "Informação", source = null) =>
     titled(COLORS.info, "info", title, description, source);
+
+
+/** Embed neutro para listas vazias ("nada por aqui"). */
+const empty = (description, title = "Nada por aqui", source = null) =>
+    titled(COLORS.neutral, "log", title, description, source);
+
+/** Campo de embed com ícone: field("shield", "Moderador", "...") */
+const field = (emoji, name, value, inline = true) => ({
+    name: `${e(emoji)} ${name}`,
+    value: String(value ?? "—").slice(0, 1024) || "—",
+    inline
+});
+
+/** 🟢 / 🔴 para estados ligado/desligado. */
+const toggle = (enabled, on = "Ativado", off = "Desativado") =>
+    enabled ? `🟢 ${on}` : `🔴 ${off}`;
+
+/** Bloco de código para destacar comandos/valores. */
+const code = text => `\`${String(text ?? "")}\``;
+
+/** Limita um texto ao tamanho máximo, adicionando "…". */
+const clip = (text, max = 1024) => {
+
+    const value = String(text ?? "");
+
+    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+
+};
+
+/** Lista com marcadores padronizados: bullets(["a", "b"]) */
+const bullets = (items, marker = "•") => items.map(i => `${marker} ${i}`).join("\n");
+
+/**
+ * Painel completo (título + descrição + campos + thumbnail) num só lugar.
+ * panel({ color, emoji, title, description, fields, thumbnail, image, footer, source })
+ */
+function panel({ color = COLORS.brand, emoji = "sparkle", title, description, fields = [], thumbnail, image, footer, source } = {}) {
+
+    const embed = titled(color, emoji, title, description, source);
+
+    if (fields.length) embed.addFields(fields);
+    if (thumbnail) embed.setThumbnail(thumbnail);
+    if (image) embed.setImage(image);
+
+    if (footer) {
+
+        const current = embed.data.footer ?? {};
+
+        embed.setFooter({ text: footer, ...(current.icon_url ? { iconURL: current.icon_url } : {}) });
+
+    }
+
+    return embed;
+
+}
+
+/**
+ * Responde a uma interação do jeito certo, qualquer que seja o estado dela:
+ * ainda não respondida (reply), adiada (editReply) ou já respondida (followUp).
+ * respond(interaction, embed, { ephemeral: true, components: [...] })
+ */
+function respond(interaction, embed, { ephemeral = false, ...extra } = {}) {
+
+    const payload = {
+        ...(embed ? { embeds: Array.isArray(embed) ? embed : [embed] } : {}),
+        ...extra
+    };
+
+    if (interaction.deferred && !interaction.replied) {
+
+        return interaction.editReply(payload);
+
+    }
+
+    if (ephemeral) payload.flags = MessageFlags.Ephemeral;
+
+    return interaction.replied
+        ? interaction.followUp(payload)
+        : interaction.reply(payload);
+
+}
+
+/** Atalhos: ui.ok(interaction, "texto") / ui.fail / ui.caution — sempre efêmeros por padrão. */
+const ok = (interaction, description, title, opts = {}) =>
+    respond(interaction, success(description, title, interaction), { ephemeral: true, ...opts });
+
+const fail = (interaction, description, title, opts = {}) =>
+    respond(interaction, error(description, title, interaction), { ephemeral: true, ...opts });
+
+const caution = (interaction, description, title, opts = {}) =>
+    respond(interaction, warn(description, title, interaction), { ephemeral: true, ...opts });
+
+const nothing = (interaction, description, title, opts = {}) =>
+    respond(interaction, empty(description, title, interaction), { ephemeral: true, ...opts });
 
 /** Formata números no padrão brasileiro. */
 const num = n => Number(n ?? 0).toLocaleString("pt-BR");
@@ -163,6 +257,18 @@ module.exports = {
     error,
     warn,
     info,
+    empty,
+    field,
+    toggle,
+    code,
+    clip,
+    bullets,
+    panel,
+    respond,
+    ok,
+    fail,
+    caution,
+    nothing,
     num,
     money,
     ts,

@@ -1,4 +1,5 @@
-const { MessageFlags } = require("discord.js");
+const ui = require("../../utils/ui");
+
 module.exports = {
 
     async execute(interaction) {
@@ -11,10 +12,7 @@ module.exports = {
 
         if (!role) {
 
-            return interaction.reply({
-                content: "⚠️ Esse cargo não existe mais.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(interaction, "Esse cargo não existe mais. Avise um administrador.", "Cargo não encontrado");
 
         }
 
@@ -25,10 +23,11 @@ module.exports = {
             role.position >= botMember.roles.highest.position
         ) {
 
-            return interaction.reply({
-                content: "⚠️ Não consigo gerenciar esse cargo (posição dele é maior ou igual à minha).",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.caution(
+                interaction,
+                "Não consigo gerenciar esse cargo: a posição dele é maior ou igual à minha. Peça a um administrador para subir o meu cargo.",
+                "Não consigo dar esse cargo"
+            );
 
         }
 
@@ -38,19 +37,25 @@ module.exports = {
 
             await interaction.member.roles.remove(role).catch(() => null);
 
-            return interaction.reply({
-                content: `➖ Cargo **${role.name}** removido.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "role",
+                title: "Cargo removido",
+                description: `Você não tem mais o cargo ${role}.`,
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
         await interaction.member.roles.add(role).catch(() => null);
 
-        return interaction.reply({
-            content: `➕ Cargo **${role.name}** adicionado.`,
-            flags: MessageFlags.Ephemeral
-        });
+        return ui.respond(interaction, ui.panel({
+            color: ui.COLORS.success,
+            emoji: "role",
+            title: "Cargo adicionado",
+            description: `Agora você tem o cargo ${role}.`,
+            source: interaction
+        }), { ephemeral: true });
 
     }
 

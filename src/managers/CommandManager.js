@@ -1,4 +1,4 @@
-const { MessageFlags } = require("discord.js");
+const ui = require("../utils/ui");
 const commands = require("../commands");
 const CooldownManager = require("./CooldownManager");
 
@@ -28,10 +28,15 @@ class CommandManager {
 
             if (restanteMs > 0) {
 
-                return interaction.reply({
-                    content: `⏳ Calma aí! Você pode usar \`/${interaction.commandName}\` de novo em **${(restanteMs / 1000).toFixed(1)}s**.`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.warn,
+                    emoji: "clock",
+                    title: "Calma aí!",
+                    description:
+                        `${ui.mood("nervosa")} Você pode usar \`/${interaction.commandName}\` de novo ${ui.ts(Date.now() + restanteMs)} ` +
+                        `(**${(restanteMs / 1000).toFixed(1)}s**).`,
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 

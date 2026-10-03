@@ -1,41 +1,38 @@
 const {
-    EmbedBuilder,
-    PermissionFlagsBits,
-    MessageFlags
+    PermissionFlagsBits
 } = require("discord.js");
 
 const ServerBuilder = require("../../managers/ServerBuilderManager");
+const ui = require("../../utils/ui");
+
+/** Atualiza a mensagem do fluxo trocando o conteúdo por um embed e removendo os botões. */
+const trocarPorEmbed = (interaction, embed) =>
+    interaction.update({ content: null, embeds: [embed], components: [] });
 
 function buildResumoEmbed(sessao, resultado) {
 
-    const embed = new EmbedBuilder()
-
-        .setColor(resultado.erros.length ? "#FEE75C" : "#57F287")
-
-        .setTitle("<:Nina_engenheira:1552064823976529951> Servidor criado com sucesso!")
-
-        .setDescription(
-            `> **Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n` +
-            `> **Segurança Reforçada:** ${sessao.segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`
-        )
-
-        .addFields(
-            { name: "👑 Cargos criados", value: `${resultado.cargosCriados}`, inline: true },
-            { name: "🗂️ Categorias criadas", value: `${resultado.categoriasCriadas}`, inline: true },
-            { name: "💬 Canais criados", value: `${resultado.canaisCriados}`, inline: true }
-        );
+    const embed = ui.panel({
+        color: resultado.erros.length ? ui.COLORS.warn : ui.COLORS.success,
+        emoji: "server",
+        title: "Servidor criado com sucesso!",
+        description:
+            `<:Nina_engenheira:1552064823976529951> Tudo pronto!\n\n` +
+            `${ui.quote(`**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n**Segurança reforçada:** ${sessao.segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`)}`,
+        fields: [
+            ui.field("crown", "Cargos criados", ui.num(resultado.cargosCriados)),
+            ui.field("server", "Categorias criadas", ui.num(resultado.categoriasCriadas)),
+            ui.field("channel", "Canais criados", ui.num(resultado.canaisCriados))
+        ]
+    });
 
     if (resultado.erros.length) {
 
-        const lista = resultado.erros.slice(0, 6).map(e => `- ${e}`).join("\n");
+        const lista = ui.bullets(resultado.erros.slice(0, 6));
         const extra = resultado.erros.length > 6
             ? `\n-# +${resultado.erros.length - 6} outro(s) aviso(s) omitido(s)`
             : "";
 
-        embed.addFields({
-            name: "⚠️ Avisos durante a criação",
-            value: `${lista}${extra}`
-        });
+        embed.addFields(ui.field("warn", "Avisos durante a criação", ui.clip(`${lista}${extra}`), false));
 
     }
 
@@ -51,10 +48,7 @@ module.exports = {
 
         if (interaction.user.id !== userId) {
 
-            return interaction.reply({
-                content: "❌ Só quem iniciou a criação pode usar este botão.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.fail(interaction, "Só quem iniciou a criação pode usar este botão.", "Botão bloqueado");
 
         }
 
@@ -62,11 +56,13 @@ module.exports = {
 
             ServerBuilder.encerrarSessao(userId);
 
-            return interaction.update({
-                content: "❎ Criação cancelada.",
-                embeds: [],
-                components: []
-            });
+            return trocarPorEmbed(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "error",
+                title: "Criação cancelada",
+                description: "Nada foi alterado no servidor.",
+                source: interaction
+            }));
 
         }
 
@@ -76,31 +72,25 @@ module.exports = {
 
         if (!sessao || sessao.guildId !== interaction.guild.id) {
 
-            return interaction.update({
-                content: "❌ Essa sessão expirou. Use `/criar-servidor` novamente.",
-                embeds: [],
-                components: []
-            });
+            return trocarPorEmbed(interaction, ui.warn("Essa sessão expirou. Use `/criar-servidor` novamente.", "Sessão expirada", interaction));
 
         }
 
         if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
 
-            return interaction.update({
-                content: "❌ Você precisa ser Administrador para confirmar.",
-                embeds: [],
-                components: []
-            });
+            return trocarPorEmbed(interaction, ui.error("Você precisa ser Administrador para confirmar.", "Sem permissão", interaction));
 
         }
 
         ServerBuilder.encerrarSessao(userId);
 
-        await interaction.update({
-            content: "🛠️ Criando o servidor... Isso pode levar de 10 a 60 segundos dependendo do tamanho do servidor.",
-            embeds: [],
-            components: []
-        });
+        await trocarPorEmbed(interaction, ui.panel({
+            color: ui.COLORS.info,
+            emoji: "config",
+            title: "Criando o servidor...",
+            description: "Isso pode levar de **10 a 60 segundos**, dependendo do tamanho do servidor.\nNão apague nada enquanto eu trabalho.",
+            source: interaction
+        }));
 
         try {
 
@@ -137,10 +127,7 @@ module.exports = {
 
             console.error("[Criar Servidor IA] Erro:", error);
 
-            const erroEmbed = new EmbedBuilder()
-                .setColor("#ED4245")
-                .setTitle("❌ Erro ao criar o servidor")
-                .setDescription(error.message || "Erro inesperado ao criar o servidor.");
+            const erroEmbed = ui.error(error.message || "Erro inesperado ao criar o servidor.", "Erro ao criar o servidor");
 
             try {
                 await interaction.editReply({ content: null, embeds: [erroEmbed] });

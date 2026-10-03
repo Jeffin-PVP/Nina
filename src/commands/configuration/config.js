@@ -1,9 +1,10 @@
 const {
     SlashCommandBuilder,
-    PermissionFlagsBits,
-    EmbedBuilder,
-    MessageFlags
+    PermissionFlagsBits
 } = require("discord.js");
+
+const ui = require("../../utils/ui");
+const { e } = require("../../utils/emojis");
 
 const GuildRepository = require("../../database/repositories/GuildRepository");
 const TicketRepository = require("../../database/repositories/TicketRepository");
@@ -56,12 +57,16 @@ module.exports = {
 
             await GuildRepository.setEconomyEnabled(guild.id, enabled);
 
-            return interaction.reply({
-                content: enabled
-                    ? "✅ Economia ativada."
-                    : "✅ Economia desativada.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: enabled ? ui.COLORS.success : ui.COLORS.neutral,
+                emoji: "coin",
+                title: `Economia ${enabled ? "ativada" : "desativada"}`,
+                description: enabled
+                    ? "Moedas, XP e jogos já estão liberados neste servidor."
+                    : "Moedas, XP e jogos foram pausados. Nada se perde: os saldos ficam guardados.",
+                fields: [ui.field("config", "Estado", ui.toggle(enabled), false)],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -71,12 +76,16 @@ module.exports = {
 
             await GuildRepository.setModerationEnabled(guild.id, enabled);
 
-            return interaction.reply({
-                content: enabled
-                    ? "✅ Moderação ativada."
-                    : "✅ Moderação desativada (comandos e IA não vão banir/kickar/silenciar/etc até você reativar).",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: enabled ? ui.COLORS.success : ui.COLORS.warn,
+                emoji: "shield",
+                title: `Moderação ${enabled ? "ativada" : "desativada"}`,
+                description: enabled
+                    ? "Os comandos e a IA já podem banir, expulsar e silenciar membros."
+                    : "Comandos e IA **não vão** banir, expulsar ou silenciar até você reativar.",
+                fields: [ui.field("config", "Estado", ui.toggle(enabled), false)],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -88,68 +97,31 @@ module.exports = {
             const selfRoles = await AutoroleRepository.listSelfRoles(guild.id);
             const levelRoles = await AutoroleRepository.listLevelRoles(guild.id);
 
-            const embed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle(`⚙️ Configurações — ${guild.name}`)
-                .addFields(
+            const count = list => list.length ? `${ui.num(list.length)} configurado(s)` : "Nenhum";
 
-                    {
-                        name: "💰 Economia",
-                        value: settings.economy_enabled ? "🟢 Ativada" : "🔴 Desativada",
-                        inline: true
-                    },
-
-                    {
-                        name: "🛡️ Moderação",
-                        value: settings.moderation_enabled ? "🟢 Ativada" : "🔴 Desativada",
-                        inline: true
-                    },
-
-                    {
-                        name: "📢 Aviso de level-up",
-                        value: settings.levelup_enabled ? "🟢 Ativado" : "🔴 Desativado",
-                        inline: true
-                    },
-
-                    {
-                        name: "📋 Canal de logs",
-                        value: settings.log_channel ? `<#${settings.log_channel}>` : "*Não configurado*",
-                        inline: true
-                    },
-
-                    {
-                        name: "🎫 Tickets",
-                        value: ticketConfig.parent_channel_id
-                            ? `🟢 <#${ticketConfig.parent_channel_id}>`
-                            : "🔴 Não configurado",
-                        inline: true
-                    },
-
-                    {
-                        name: "🚪 Cargos de entrada",
-                        value: joinRoles.length ? `${joinRoles.length} configurado(s)` : "Nenhum",
-                        inline: true
-                    },
-
-                    {
-                        name: "🎭 Self-roles",
-                        value: selfRoles.length ? `${selfRoles.length} configurado(s)` : "Nenhum",
-                        inline: true
-                    },
-
-                    {
-                        name: "🏆 Cargos por nível",
-                        value: levelRoles.length ? `${levelRoles.length} configurado(s)` : "Nenhum",
-                        inline: true
-                    }
-
-                )
-                .setFooter({ text: "Use /logs, /ticket, /autorole e /config para ajustar cada área." });
-
-            return interaction.reply({
-                embeds: [embed],
-                flags: MessageFlags.Ephemeral
+            const embed = ui.panel({
+                color: ui.COLORS.info,
+                emoji: "config",
+                title: "Configurações do servidor",
+                description: `Resumo do que está ligado em **${guild.name}**.`,
+                thumbnail: guild.iconURL({ size: 256 }),
+                fields: [
+                    ui.field("coin", "Economia", ui.toggle(settings.economy_enabled, "Ativada", "Desativada")),
+                    ui.field("shield", "Moderação", ui.toggle(settings.moderation_enabled, "Ativada", "Desativada")),
+                    ui.field("trophy", "Aviso de level-up", ui.toggle(settings.levelup_enabled)),
+                    ui.field("log", "Canal de logs", settings.log_channel ? `<#${settings.log_channel}>` : "*Não configurado*"),
+                    ui.field("ticket", "Tickets", ticketConfig.parent_channel_id
+                        ? `🟢 <#${ticketConfig.parent_channel_id}>`
+                        : "🔴 Não configurado"),
+                    ui.field("user", "Cargos de entrada", count(joinRoles)),
+                    ui.field("role", "Self-roles", count(selfRoles)),
+                    ui.field("star", "Cargos por nível", count(levelRoles))
+                ],
+                footer: "Ajuste cada área com /logs, /ticket, /autorole e /config",
+                source: interaction
             });
+
+            return ui.respond(interaction, embed, { ephemeral: true });
 
         }
 

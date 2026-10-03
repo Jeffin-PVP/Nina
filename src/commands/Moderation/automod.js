@@ -1,13 +1,17 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder,
     ChannelType,
     MessageFlags
 } = require("discord.js");
 
+const ui = require("../../utils/ui");
+
 const AutomodRepository = require("../../database/repositories/AutomodRepository");
 const AutomodManager = require("../../managers/AutomodManager");
+
+const NOMES_REGRA = { spam: "Spam de mensagens", emoji: "Spam de emojis", palavrao: "Palavrão", mencao: "Spam de menções", convite: "Links de convite" };
+const NOMES_RAID = { lockdown: "Lockdown", kick_new: "Expulsar recém-chegados", ban_new: "Banir recém-chegados" };
 
 function acoesParaTexto(csv) {
 
@@ -238,10 +242,13 @@ module.exports = {
 
             await AutomodRepository.update(guild.id, { enabled: true });
 
-            return interaction.reply({
-                content: "✅ AutoMod **ativado**! Use `/automod status` pra ver o que está configurado.",
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "shield",
+                title: "AutoMod ativado",
+                description: "A moderação automática já está de olho no servidor.\nUse `/automod status` para ver o que está configurado.",
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -249,7 +256,13 @@ module.exports = {
 
             await AutomodRepository.update(guild.id, { enabled: false });
 
-            return interaction.reply({ content: "✅ AutoMod **desativado**.", flags: MessageFlags.Ephemeral });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "shield",
+                title: "AutoMod desativado",
+                description: "Nenhuma regra automática será aplicada até você reativar com `/automod ativar`.",
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -266,19 +279,25 @@ module.exports = {
 
             const nomesAcao = { ignore: "Ignorar", delete: "Apagar imagem", warn: "Advertir + apagar", kick: "Expulsar + apagar", ban: "Banir + apagar" };
 
+            const painelImagem = (c, atualizado) => ui.panel({
+                color: atualizado ? ui.COLORS.success : ui.COLORS.info,
+                emoji: "image",
+                title: atualizado ? "Anti-Scam visual atualizado" : "Anti-Scam visual",
+                fields: [
+                    ui.field("config", "Status", ui.toggle(c.image_enabled)),
+                    ui.field("shield", "Ação", nomesAcao[c.image_action] || c.image_action),
+                    ui.field("sparkle", "Sensibilidade", `${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}%`)
+                ],
+                source: interaction
+            });
+
             if (!Object.keys(campos).length) {
                 const c = await AutomodRepository.get(guild.id);
-                return interaction.reply({
-                    content: `🖼️ **Anti-Scam visual**\nStatus: ${c.image_enabled ? "🟢 Ativado" : "🔴 Desativado"}\nAção: ${nomesAcao[c.image_action] || c.image_action}\nSensibilidade: ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}%`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, painelImagem(c, false), { ephemeral: true });
             }
 
             const c = await AutomodRepository.update(guild.id, campos);
-            return interaction.reply({
-                content: `🖼️ Anti-Scam visual atualizado.\nStatus: ${c.image_enabled ? "🟢 Ativado" : "🔴 Desativado"}\nAção: ${nomesAcao[c.image_action] || c.image_action}\nSensibilidade: ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}%`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, painelImagem(c, true), { ephemeral: true });
         }
 
         if (!grupo && sub === "mute-duracao") {
@@ -287,10 +306,7 @@ module.exports = {
 
             await AutomodRepository.update(guild.id, { mute_duration_minutes: minutos });
 
-            return interaction.reply({
-                content: `✅ A ação "mutar" agora aplica timeout de **${minutos} minuto(s)**.`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.ok(interaction, `A ação "mutar" agora aplica timeout de **${minutos} minuto(s)**.`, "Duração do mute atualizada");
 
         }
 
@@ -298,80 +314,37 @@ module.exports = {
 
             const c = await AutomodRepository.get(guild.id);
 
-            const embed = new EmbedBuilder()
-                .setColor(c.enabled ? "#57F287" : "#99AAB5")
-                .setTitle("🛡️ Configuração do AutoMod")
-                .setDescription(c.enabled ? "🟢 **Ativado**" : "🔴 **Desativado**")
-                .addFields(
+            const regra = (emoji, nome, ativo, detalhe) =>
+                ui.field(emoji, nome, ativo ? `🟢 ${detalhe}` : "🔴 Desativado", false);
 
-                    {
-                        name: "💬 Spam de mensagens",
-                        value: c.spam_enabled
-                            ? `Ativado — máx. ${c.spam_max_messages} msgs / ${c.spam_interval_seconds}s\nAções: ${acoesParaTexto(c.spam_actions)}`
-                            : "Desativado"
-                    },
+            const embed = ui.panel({
+                color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
+                emoji: "shield",
+                title: "Configuração do AutoMod",
+                description: `${ui.toggle(c.enabled, "**Ativado**", "**Desativado**")}\n${ui.LINE}`,
+                fields: [
+                    regra("mail", NOMES_REGRA.spam, c.spam_enabled,
+                        `máx. ${c.spam_max_messages} msgs / ${c.spam_interval_seconds}s\nAções: ${acoesParaTexto(c.spam_actions)}`),
+                    regra("sparkle", NOMES_REGRA.emoji, c.emoji_enabled,
+                        `máx. ${c.emoji_max_count} por mensagem\nAções: ${acoesParaTexto(c.emoji_actions)}`),
+                    regra("warn", NOMES_REGRA.palavrao, c.swear_enabled,
+                        `${AutomodRepository.parseLista(c.swear_custom_words).length} palavra(s) customizada(s)\nAções: ${acoesParaTexto(c.swear_actions)}`),
+                    regra("user", NOMES_REGRA.mencao, c.mention_enabled,
+                        `máx. ${c.mention_max_count} por mensagem\nAções: ${acoesParaTexto(c.mention_actions)}`),
+                    regra("channel", NOMES_REGRA.convite, c.invite_enabled,
+                        `Ações: ${acoesParaTexto(c.invite_actions)}`),
+                    regra("ban", "Anti-raid", c.raid_enabled,
+                        `${c.raid_join_threshold} entradas / ${c.raid_interval_seconds}s → ${NOMES_RAID[c.raid_action] || c.raid_action}`),
+                    regra("image", "Anti-Scam visual", c.image_enabled,
+                        `${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}% → ${c.image_action}`),
+                    ui.field("timeout", "Duração do mute", `${c.mute_duration_minutes} minuto(s)`),
+                    ui.field("channel", "Canais ignorados", String(AutomodRepository.parseLista(c.ignored_channels).length)),
+                    ui.field("role", "Cargos ignorados", String(AutomodRepository.parseLista(c.ignored_roles).length))
+                ],
+                source: interaction
+            });
 
-                    {
-                        name: "😃 Spam de emojis",
-                        value: c.emoji_enabled
-                            ? `Ativado — máx. ${c.emoji_max_count} por mensagem\nAções: ${acoesParaTexto(c.emoji_actions)}`
-                            : "Desativado"
-                    },
-
-                    {
-                        name: "🤬 Palavrão",
-                        value: c.swear_enabled
-                            ? `Ativado — ${AutomodRepository.parseLista(c.swear_custom_words).length} palavra(s) customizada(s)\nAções: ${acoesParaTexto(c.swear_actions)}`
-                            : "Desativado"
-                    },
-
-                    {
-                        name: "📣 Spam de menções",
-                        value: c.mention_enabled
-                            ? `Ativado — máx. ${c.mention_max_count} por mensagem\nAções: ${acoesParaTexto(c.mention_actions)}`
-                            : "Desativado"
-                    },
-
-                    {
-                        name: "🔗 Links de convite",
-                        value: c.invite_enabled ? `Ativado\nAções: ${acoesParaTexto(c.invite_actions)}` : "Desativado"
-                    },
-
-                    {
-                        name: "🚨 Anti-raid",
-                        value: c.raid_enabled
-                            ? `Ativado — ${c.raid_join_threshold} entradas / ${c.raid_interval_seconds}s → ${c.raid_action}`
-                            : "Desativado"
-                    },
-
-                    {
-                        name: "🖼️ Anti-Scam visual",
-                        value: c.image_enabled
-                            ? `Ativado — ${(Number(c.image_threshold || 0.85) * 100).toFixed(0)}% → ${c.image_action}`
-                            : "Desativado"
-                    },
-
-                    {
-                        name: "⏱️ Duração do mute",
-                        value: `${c.mute_duration_minutes} minuto(s)`,
-                        inline: true
-                    },
-
-                    {
-                        name: "🙈 Canais ignorados",
-                        value: String(AutomodRepository.parseLista(c.ignored_channels).length),
-                        inline: true
-                    },
-
-                    {
-                        name: "🙈 Cargos ignorados",
-                        value: String(AutomodRepository.parseLista(c.ignored_roles).length),
-                        inline: true
-                    }
-
-                );
-
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            return ui.respond(interaction, embed, { ephemeral: true });
 
         }
 
@@ -448,22 +421,22 @@ module.exports = {
 
             if (!Object.keys(campos).length) {
 
-                return interaction.reply({
-                    content: "⚠️ Informe pelo menos uma opção pra alterar.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Informe pelo menos uma opção para alterar.", "Nada para alterar");
 
             }
 
             const atualizado = await AutomodRepository.update(guild.id, campos);
 
-            return interaction.reply({
-                content:
-                    `✅ Regra **${sub}** atualizada.\n` +
-                    `Status: ${atualizado[enabledField] ? "🟢 Ativada" : "🔴 Desativada"}\n` +
-                    `Ações: ${acoesParaTexto(atualizado[actionsField])}`,
-                flags: MessageFlags.Ephemeral
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "shield",
+                title: `Regra atualizada: ${NOMES_REGRA[sub] || sub}`,
+                fields: [
+                    ui.field("config", "Status", ui.toggle(atualizado[enabledField], "Ativada", "Desativada")),
+                    ui.field("shield", "Ações", acoesParaTexto(atualizado[actionsField]))
+                ],
+                source: interaction
+            }), { ephemeral: true });
 
         }
 
@@ -481,7 +454,7 @@ module.exports = {
 
                 await AutomodRepository.adicionarNaLista(guild.id, "swear_custom_words", palavra);
 
-                return interaction.reply({ content: `✅ Palavra adicionada à lista de bloqueio.`, flags: MessageFlags.Ephemeral });
+                return ui.ok(interaction, "A palavra foi adicionada à lista de bloqueio.", "Palavra bloqueada");
 
             }
 
@@ -491,7 +464,7 @@ module.exports = {
 
                 await AutomodRepository.removerDaLista(guild.id, "swear_custom_words", palavra);
 
-                return interaction.reply({ content: `✅ Palavra removida da lista de bloqueio.`, flags: MessageFlags.Ephemeral });
+                return ui.ok(interaction, "A palavra foi removida da lista de bloqueio.", "Palavra liberada");
 
             }
 
@@ -500,12 +473,20 @@ module.exports = {
                 const config = await AutomodRepository.get(guild.id);
                 const lista = AutomodRepository.parseLista(config.swear_custom_words);
 
-                return interaction.reply({
-                    content: lista.length
-                        ? `📋 Palavras customizadas (${lista.length}): ||${lista.join(", ")}||`
-                        : "📭 Nenhuma palavra customizada adicionada ainda. O filtro básico embutido continua ativo.",
-                    flags: MessageFlags.Ephemeral
-                });
+                if (!lista.length) {
+
+                    return ui.nothing(interaction, "Nenhuma palavra customizada adicionada ainda.\nO filtro básico embutido continua ativo.", "Lista vazia");
+
+                }
+
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.info,
+                    emoji: "warn",
+                    title: `Palavras bloqueadas (${lista.length})`,
+                    description: ui.clip(`||${lista.join(", ")}||`, 4000),
+                    footer: "A lista fica escondida: clique para revelar",
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -535,20 +516,23 @@ module.exports = {
 
                 if (!Object.keys(campos).length) {
 
-                    return interaction.reply({ content: "⚠️ Informe pelo menos uma opção pra alterar.", flags: MessageFlags.Ephemeral });
+                    return ui.caution(interaction, "Informe pelo menos uma opção para alterar.", "Nada para alterar");
 
                 }
 
                 const atualizado = await AutomodRepository.update(guild.id, campos);
 
-                return interaction.reply({
-                    content:
-                        `✅ Anti-raid atualizado.\n` +
-                        `Status: ${atualizado.raid_enabled ? "🟢 Ativado" : "🔴 Desativado"}\n` +
-                        `Gatilho: ${atualizado.raid_join_threshold} entradas em ${atualizado.raid_interval_seconds}s\n` +
-                        `Ação: ${atualizado.raid_action}`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.success,
+                    emoji: "ban",
+                    title: "Anti-raid atualizado",
+                    fields: [
+                        ui.field("config", "Status", ui.toggle(atualizado.raid_enabled)),
+                        ui.field("clock", "Gatilho", `${atualizado.raid_join_threshold} entradas em ${atualizado.raid_interval_seconds}s`),
+                        ui.field("shield", "Ação", NOMES_RAID[atualizado.raid_action] || atualizado.raid_action)
+                    ],
+                    source: interaction
+                }), { ephemeral: true });
 
             }
 
@@ -558,9 +542,7 @@ module.exports = {
 
                 const destravados = await AutomodManager.encerrarModoRaid(guild);
 
-                return interaction.editReply({
-                    content: `✅ Modo raid encerrado. ${destravados} canal(is) destravado(s).`
-                });
+                return ui.respond(interaction, ui.success(`${destravados} canal(is) destravado(s).`, "Modo raid encerrado", interaction));
 
             }
 
@@ -583,13 +565,13 @@ module.exports = {
                 if (jaIgnorado) {
 
                     await AutomodRepository.removerDaLista(guild.id, "ignored_channels", canal.id);
-                    return interaction.reply({ content: `✅ ${canal} removido das exceções — o AutoMod volta a agir nele.`, flags: MessageFlags.Ephemeral });
+                    return ui.ok(interaction, `${canal} saiu das exceções: o AutoMod volta a agir nele.`, "Exceção removida");
 
                 }
 
                 await AutomodRepository.adicionarNaLista(guild.id, "ignored_channels", canal.id);
 
-                return interaction.reply({ content: `✅ ${canal} adicionado às exceções — o AutoMod nunca vai mexer lá.`, flags: MessageFlags.Ephemeral });
+                return ui.ok(interaction, `${canal} entrou nas exceções: o AutoMod nunca vai mexer lá.`, "Canal ignorado");
 
             }
 
@@ -602,13 +584,13 @@ module.exports = {
                 if (jaIgnorado) {
 
                     await AutomodRepository.removerDaLista(guild.id, "ignored_roles", cargo.id);
-                    return interaction.reply({ content: `✅ ${cargo} removido das exceções.`, flags: MessageFlags.Ephemeral });
+                    return ui.ok(interaction, `${cargo} saiu das exceções.`, "Exceção removida");
 
                 }
 
                 await AutomodRepository.adicionarNaLista(guild.id, "ignored_roles", cargo.id);
 
-                return interaction.reply({ content: `✅ Quem tem o cargo ${cargo} agora é ignorado pelo AutoMod.`, flags: MessageFlags.Ephemeral });
+                return ui.ok(interaction, `Quem tem o cargo ${cargo} agora é ignorado pelo AutoMod.`, "Cargo ignorado");
 
             }
 

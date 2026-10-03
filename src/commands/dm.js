@@ -1,9 +1,10 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder,
-    MessageFlags
+    EmbedBuilder
 } = require("discord.js");
+
+const ui = require("../utils/ui");
 
 module.exports = {
 
@@ -89,6 +90,11 @@ module.exports = {
         const showAuthor =
             interaction.options.getBoolean("mostrar_autor") ?? false;
 
+        // Cor da embed: aceita "#5865F2" / "5865F2"; se for inválida, usa a cor da marca
+        const parsedColor = /^#?[0-9a-f]{6}$/i.test(color ?? "")
+            ? parseInt(color.replace("#", ""), 16)
+            : ui.COLORS.info;
+
         try {
 
             if (type === "message") {
@@ -109,7 +115,7 @@ module.exports = {
 
                     .setDescription(message)
 
-                    .setColor(color || 0x5865F2)
+                    .setColor(parsedColor)
 
                     .setTimestamp();
 
@@ -149,27 +155,28 @@ module.exports = {
 
             }
 
-            return interaction.reply({
-
-                content:
-                    `✅ Mensagem enviada para **${user.tag}**.`,
-
-                flags: MessageFlags.Ephemeral
-
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "mail",
+                title: "Mensagem enviada",
+                description: `Sua ${type === "embed" ? "embed" : "mensagem"} chegou na DM de ${user}.`,
+                thumbnail: user.displayAvatarURL({ size: 128 }),
+                fields: [
+                    ui.field("user", "Destinatário", `${user}\n\`${user.id}\``),
+                    ui.field("mail", "Formato", type === "embed" ? "Embed" : "Texto simples")
+                ],
+                source: interaction
+            }), { ephemeral: true });
 
         } catch (err) {
 
             console.error(err);
 
-            return interaction.reply({
-
-                content:
-                    "❌ Não foi possível enviar a DM.\nO usuário provavelmente está com mensagens privadas desativadas ou bloqueou o bot.",
-
-                flags: MessageFlags.Ephemeral
-
-            });
+            return ui.fail(
+                interaction,
+                "Não foi possível enviar a DM.\nO usuário provavelmente está com mensagens privadas desativadas ou bloqueou o bot.",
+                "DM não enviada"
+            );
 
         }
 

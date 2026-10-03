@@ -5,6 +5,7 @@ const WarningRepository = require("../database/repositories/WarningRepository");
 const LogManager = require("./LogManager");
 const LogTypes = require("./LogTypes");
 const AntiScamManager = require("../antiScam/AntiScamManager");
+const ui = require("../utils/ui");
 
 // "Executor" usado nos logs pra deixar claro que foi o AutoMod, não um humano
 const EXECUTOR_AUTOMOD = { tag: "🤖 AutoMod", username: "AutoMod" };
@@ -207,7 +208,8 @@ async function aplicarAcoes(message, acoesCsv, motivo, duracaoMuteMinutos) {
     if (acoes.includes("notify")) {
 
         const aviso = await message.channel.send({
-            content: `⚠️ ${message.author}, sua mensagem foi removida pelo AutoMod: **${motivo}**`
+            content: `${message.author}`,
+            embeds: [ui.warn(`Sua mensagem foi removida pelo AutoMod.\n${ui.quote(motivo)}`, "AutoMod", message)]
         }).catch(() => null);
 
         if (aviso) setTimeout(() => aviso.delete().catch(() => {}), 7000);

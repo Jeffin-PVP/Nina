@@ -82,24 +82,64 @@ function categoryEmbed(interaction, label, list) {
 
 }
 
-function usageOf(command) {
+const argsOf = options => (options ?? [])
+    .filter(o => o.type !== 1 && o.type !== 2)
+    .map(o => o.required ? `<${o.name}>` : `[${o.name}]`)
+    .join(" ");
+
+/** Todas as formas de usar o comando: um item por subcomando (inclusive dentro de grupos). */
+function usagesOf(command) {
 
     const json = command.data.toJSON();
     const options = json.options ?? [];
 
     const subs = options.filter(o => o.type === 1 || o.type === 2);
 
-    if (subs.length) {
+    if (!subs.length) {
 
-        return subs.map(s => `/${json.name} ${s.name}`).join("\n");
+        const args = argsOf(options);
+
+        return [{ path: `/${json.name}`, usage: `/${json.name}${args ? ` ${args}` : ""}`, description: null }];
 
     }
 
-    const args = options.map(o => o.required ? `<${o.name}>` : `[${o.name}]`).join(" ");
+    const list = [];
 
-    return `/${json.name}${args ? ` ${args}` : ""}`;
+    for (const sub of subs) {
+
+        if (sub.type === 2) {
+
+            for (const inner of sub.options ?? []) {
+
+                const args = argsOf(inner.options);
+
+                list.push({
+                    path: `/${json.name} ${sub.name} ${inner.name}`,
+                    usage: `/${json.name} ${sub.name} ${inner.name}${args ? ` ${args}` : ""}`,
+                    description: inner.description
+                });
+
+            }
+
+            continue;
+
+        }
+
+        const args = argsOf(sub.options);
+
+        list.push({
+            path: `/${json.name} ${sub.name}`,
+            usage: `/${json.name} ${sub.name}${args ? ` ${args}` : ""}`,
+            description: sub.description
+        });
+
+    }
+
+    return list;
 
 }
+
+const usageOf = command => usagesOf(command).map(u => u.usage).join("\n");
 
 function permissionsOf(command) {
 
@@ -121,11 +161,23 @@ function permissionsOf(command) {
 
 function detailEmbed(interaction, command) {
 
+    const usages = usagesOf(command);
+    const hasSubs = usages.some(u => u.description);
+
     const embed = ui.titled(ui.COLORS.brand, iconFor(command.category ?? ""), `/${command.data.name}`, command.data.description || "Sem descrição.", interaction)
         .addFields(
-            { name: `${e("config")} Uso`, value: `\`\`\`${usageOf(command)}\`\`\`` },
+            { name: `${e("config")} Uso`, value: ui.clip(`\`\`\`${usages.map(u => u.usage).join("\n")}\`\`\``, 1024) },
             { name: `${e("star")} Categoria`, value: command.category || "📌 Geral", inline: true }
         );
+
+    if (hasSubs) {
+
+        embed.addFields({
+            name: `${e("log")} Subcomandos (${usages.length})`,
+            value: ui.clip(usages.map(u => `**${u.path}**\n┗ ${u.description}`).join("\n"), 1024)
+        });
+
+    }
 
     if (command.cooldown) {
 

@@ -1,5 +1,4 @@
 const {
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
@@ -11,6 +10,8 @@ const {
 const TicketRepository = require("../../database/repositories/TicketRepository");
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
+const ui = require("../../utils/ui");
+const { component } = require("../../utils/emojis");
 
 /*
 =========================
@@ -41,13 +42,13 @@ function ticketActionRow(state) {
             new ButtonBuilder()
                 .setCustomId("ticket_claim")
                 .setLabel("Assumir")
-                .setEmoji("🙋")
+                .setEmoji(component("shield"))
                 .setStyle(ButtonStyle.Primary),
 
             new ButtonBuilder()
                 .setCustomId("ticket_close")
                 .setLabel("Fechar")
-                .setEmoji("🔒")
+                .setEmoji(component("lock"))
                 .setStyle(ButtonStyle.Danger)
 
         );
@@ -59,13 +60,13 @@ function ticketActionRow(state) {
             new ButtonBuilder()
                 .setCustomId("ticket_reopen")
                 .setLabel("Reabrir")
-                .setEmoji("🔓")
+                .setEmoji(component("unlock"))
                 .setStyle(ButtonStyle.Success),
 
             new ButtonBuilder()
                 .setCustomId("ticket_delete")
                 .setLabel("Deletar")
-                .setEmoji("🗑️")
+                .setEmoji(component("purge"))
                 .setStyle(ButtonStyle.Danger)
 
         );
@@ -99,10 +100,7 @@ module.exports = {
 
             if (!config.enabled || !config.parent_channel_id) {
 
-                return interaction.reply({
-                    content: "⚠️ O sistema de tickets não está configurado neste servidor.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "O sistema de tickets não está configurado neste servidor.", "Tickets indisponíveis");
 
             }
 
@@ -110,10 +108,7 @@ module.exports = {
 
             if (!parent) {
 
-                return interaction.reply({
-                    content: "⚠️ O canal configurado para tickets não existe mais. Avise um administrador.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "O canal configurado para tickets não existe mais. Avise um administrador.", "Canal não encontrado");
 
             }
 
@@ -121,10 +116,7 @@ module.exports = {
 
             if (existing) {
 
-                return interaction.reply({
-                    content: `⚠️ Você já tem um ticket aberto: <#${existing.thread_id}>`,
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, `Você já tem um ticket aberto: <#${existing.thread_id}>`, "Ticket já aberto");
 
             }
 
@@ -148,9 +140,11 @@ module.exports = {
 
                 console.error("[Tickets] Erro ao criar thread:", error);
 
-                return interaction.editReply({
-                    content: "❌ Não consegui criar o ticket. Verifique se tenho permissão para criar tópicos privados no canal configurado."
-                });
+                return ui.respond(interaction, ui.error(
+                    "Não consegui criar o ticket. Verifique se tenho permissão para criar tópicos privados no canal configurado.",
+                    "Ticket não criado",
+                    interaction
+                ));
 
             }
 
@@ -180,14 +174,20 @@ module.exports = {
                 userId: interaction.user.id
             });
 
-            const welcomeEmbed = new EmbedBuilder()
-                .setColor("#5865F2")
-                .setTitle(`🎫 Ticket #${paddedNumber}`)
-                .setDescription(
-                    `Olá ${interaction.user}! Descreva o motivo do seu ticket. ` +
-                    `A equipe de suporte foi notificada${config.support_role_id ? ` (<@&${config.support_role_id}>)` : ""} e vai te atender em breve.`
-                )
-                .setTimestamp();
+            const welcomeEmbed = ui.panel({
+                color: ui.COLORS.info,
+                emoji: "ticket",
+                title: `Ticket #${paddedNumber}`,
+                description:
+                    `Olá ${interaction.user}! Descreva o motivo do seu ticket com o máximo de detalhes.\n` +
+                    `A equipe de suporte foi notificada${config.support_role_id ? ` (<@&${config.support_role_id}>)` : ""} e vai te atender em breve.`,
+                thumbnail: interaction.user.displayAvatarURL({ size: 128 }),
+                fields: [
+                    ui.field("user", "Aberto por", `${interaction.user}`),
+                    ui.field("calendar", "Abertura", ui.ts(Date.now(), "f"))
+                ],
+                source: interaction
+            });
 
             await thread.send({
                 content: config.support_role_id ? `<@&${config.support_role_id}>` : undefined,
@@ -203,9 +203,7 @@ module.exports = {
                 extra: { number: paddedNumber }
             });
 
-            return interaction.editReply({
-                content: `✅ Ticket criado: <#${thread.id}>`
-            });
+            return ui.respond(interaction, ui.success(`Seu ticket foi criado: <#${thread.id}>`, "Ticket criado", interaction));
 
         }
 
@@ -220,25 +218,26 @@ module.exports = {
             const ticket = await TicketRepository.getByThread(interaction.channel.id);
 
             if (!ticket) {
-                return interaction.reply({ content: "⚠️ Este canal não é um ticket.", flags: MessageFlags.Ephemeral });
+                return ui.caution(interaction, "Este canal não é um ticket.", "Não é um ticket");
             }
 
             const config = await TicketRepository.getConfig(guild.id);
 
             if (!isStaff(interaction.member, config)) {
 
-                return interaction.reply({
-                    content: "⚠️ Só a equipe de suporte pode assumir tickets.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só a equipe de suporte pode assumir tickets.", "Sem permissão");
 
             }
 
             await TicketRepository.claim(interaction.channel.id, interaction.user.id);
 
-            return interaction.reply({
-                content: `🙋 ${interaction.user} assumiu este ticket.`
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "shield",
+                title: "Ticket assumido",
+                description: `${interaction.user} vai cuidar deste atendimento.`,
+                source: interaction
+            }));
 
         }
 
@@ -253,7 +252,7 @@ module.exports = {
             const ticket = await TicketRepository.getByThread(interaction.channel.id);
 
             if (!ticket) {
-                return interaction.reply({ content: "⚠️ Este canal não é um ticket.", flags: MessageFlags.Ephemeral });
+                return ui.caution(interaction, "Este canal não é um ticket.", "Não é um ticket");
             }
 
             const config = await TicketRepository.getConfig(guild.id);
@@ -261,10 +260,7 @@ module.exports = {
 
             if (!isOwner && !isStaff(interaction.member, config)) {
 
-                return interaction.reply({
-                    content: "⚠️ Você não tem permissão para fechar este ticket.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só quem abriu o ticket ou a equipe de suporte pode fechá-lo.", "Sem permissão");
 
             }
 
@@ -282,10 +278,13 @@ module.exports = {
                 extra: { number: paddedNumber }
             });
 
-            await interaction.editReply({
-                content: `🔒 Ticket fechado por ${interaction.user}.`,
-                components: [ticketActionRow("closed")]
-            });
+            await ui.respond(interaction, ui.panel({
+                color: ui.COLORS.neutral,
+                emoji: "lock",
+                title: `Ticket #${paddedNumber} fechado`,
+                description: `Fechado por ${interaction.user}.\nA equipe pode reabri-lo pelos botões abaixo.`,
+                source: interaction
+            }), { components: [ticketActionRow("closed")] });
 
             await interaction.channel
                 .setName(`fechado-${paddedNumber}`.slice(0, 100))
@@ -309,17 +308,14 @@ module.exports = {
             const ticket = await TicketRepository.getByThread(interaction.channel.id);
 
             if (!ticket) {
-                return interaction.reply({ content: "⚠️ Este canal não é um ticket.", flags: MessageFlags.Ephemeral });
+                return ui.caution(interaction, "Este canal não é um ticket.", "Não é um ticket");
             }
 
             const config = await TicketRepository.getConfig(guild.id);
 
             if (!isStaff(interaction.member, config)) {
 
-                return interaction.reply({
-                    content: "⚠️ Só a equipe de suporte pode reabrir tickets.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só a equipe de suporte pode reabrir tickets.", "Sem permissão");
 
             }
 
@@ -342,10 +338,13 @@ module.exports = {
                 extra: { number: paddedNumber }
             });
 
-            return interaction.reply({
-                content: `🔓 Ticket reaberto por ${interaction.user}.`,
-                components: [ticketActionRow("open")]
-            });
+            return ui.respond(interaction, ui.panel({
+                color: ui.COLORS.success,
+                emoji: "unlock",
+                title: `Ticket #${paddedNumber} reaberto`,
+                description: `Reaberto por ${interaction.user}.`,
+                source: interaction
+            }), { components: [ticketActionRow("open")] });
 
         }
 
@@ -360,17 +359,14 @@ module.exports = {
             const ticket = await TicketRepository.getByThread(interaction.channel.id);
 
             if (!ticket) {
-                return interaction.reply({ content: "⚠️ Este canal não é um ticket.", flags: MessageFlags.Ephemeral });
+                return ui.caution(interaction, "Este canal não é um ticket.", "Não é um ticket");
             }
 
             const config = await TicketRepository.getConfig(guild.id);
 
             if (!isStaff(interaction.member, config)) {
 
-                return interaction.reply({
-                    content: "⚠️ Só a equipe de suporte pode deletar tickets.",
-                    flags: MessageFlags.Ephemeral
-                });
+                return ui.caution(interaction, "Só a equipe de suporte pode deletar tickets.", "Sem permissão");
 
             }
 
@@ -386,7 +382,13 @@ module.exports = {
 
             await TicketRepository.remove(interaction.channel.id);
 
-            await interaction.reply({ content: "🗑️ Deletando ticket..." });
+            await ui.respond(interaction, ui.panel({
+                color: ui.COLORS.error,
+                emoji: "purge",
+                title: "Deletando ticket...",
+                description: "Este tópico será removido em instantes.",
+                source: interaction
+            }));
 
             await interaction.channel.delete().catch(() => null);
 
