@@ -26,6 +26,14 @@ const {
 const commands =
     require("./src/commands");
 
+process.on("unhandledRejection", error => {
+    console.error("❌ Promise rejeitada sem tratamento:", error);
+});
+
+process.on("uncaughtException", error => {
+    console.error("❌ Exceção não capturada:", error);
+});
+
 const client = new Client({
 
     intents: [
@@ -109,11 +117,17 @@ if (fs.existsSync(eventsPath)) {
         );
 
         client.on(
-
             event.name,
-
-            (...args) => event.execute(...args)
-
+            (...args) => {
+                Promise.resolve()
+                    .then(() => event.execute(...args))
+                    .catch(error => {
+                        console.error(
+                            `[Evento:${event.name}] Erro não tratado:`,
+                            error
+                        );
+                    });
+            }
         );
 
         console.log(

@@ -9,6 +9,18 @@ const XP_MAX = 25;
 
 const cooldowns = new Map();
 
+const cooldownCleanupTimer = setInterval(() => {
+    const agora = Date.now();
+
+    for (const [key, expiresAt] of cooldowns.entries()) {
+        if (agora - expiresAt > XP_COOLDOWN_MS) {
+            cooldowns.delete(key);
+        }
+    }
+}, 5 * 60 * 1000);
+
+cooldownCleanupTimer.unref?.();
+
 /**
  * XP necessário para SAIR do `level` e ir para o `level + 1`.
  */

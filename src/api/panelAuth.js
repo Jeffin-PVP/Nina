@@ -6,6 +6,12 @@ const PERM_MANAGE_GUILD = 0x20n;
 
 const sessoes = new Map(); // token -> { user, guilds, expiresAt }
 
+const sessionCleanupTimer = setInterval(() => {
+    limparSessoesExpiradas();
+}, 10 * 60 * 1000);
+
+sessionCleanupTimer.unref?.();
+
 function limparSessoesExpiradas() {
 
     const agora = Date.now();

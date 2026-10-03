@@ -1,5 +1,3 @@
-const { PermissionFlagsBits } = require("discord.js");
-
 /**
  * Verificações comuns antes de uma ação de moderação executada pela IA.
  * A IA não deve permitir que um moderador aja sobre alguém que ele não
@@ -55,6 +53,5 @@ function canModerateMember({ executor, target, botMember, permission }) {
 }
 
 module.exports = {
-    canModerateMember,
-    PermissionFlagsBits
+    canModerateMember
 };

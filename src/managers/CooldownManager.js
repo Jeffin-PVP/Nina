@@ -5,6 +5,16 @@
 
 const cooldowns = new Map(); // "comando:userId" -> expiresAt (timestamp)
 
+const cleanupTimer = setInterval(() => {
+    const agora = Date.now();
+
+    for (const [key, expiresAt] of cooldowns.entries()) {
+        if (expiresAt <= agora) cooldowns.delete(key);
+    }
+}, 60_000);
+
+cleanupTimer.unref?.();
+
 // Verifica o cooldown e, se não estiver ativo, já marca o novo cooldown.
 // Retorna 0 se pode usar, ou os ms restantes se ainda estiver de cooldown.
 function check(commandName, userId, seconds) {

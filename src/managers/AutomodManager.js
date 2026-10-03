@@ -106,6 +106,22 @@ function contarMencoes(message) {
 
 const historicoFlood = new Map(); // "guildId:userId" -> { timestamps: number[], ultimoConteudo, repeticoes }
 
+// Evita que usuários que pararam de falar permaneçam indefinidamente no Map.
+const FLOOD_CACHE_MAX_IDLE_MS = 15 * 60 * 1000;
+const floodCleanupTimer = setInterval(() => {
+    const agora = Date.now();
+
+    for (const [chave, registro] of historicoFlood.entries()) {
+        const ultimo = registro.timestamps?.at(-1) ?? 0;
+
+        if (!ultimo || agora - ultimo > FLOOD_CACHE_MAX_IDLE_MS) {
+            historicoFlood.delete(chave);
+        }
+    }
+}, 5 * 60 * 1000);
+
+floodCleanupTimer.unref?.();
+
 function checarFlood(message, config) {
 
     const chave = `${message.guild.id}:${message.author.id}`;

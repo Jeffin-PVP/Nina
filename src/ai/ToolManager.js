@@ -1,5 +1,6 @@
 const tools = require("../tools");
 const GuildRepository = require("../database/repositories/GuildRepository");
+const { canModerateMember } = require("./moderationSafety");
 
 class ToolManager {
 
@@ -104,6 +105,38 @@ class ToolManager {
 
             }
 
+        }
+
+        // Ações que alteram diretamente um membro precisam respeitar
+        // tanto a hierarquia do moderador quanto a hierarquia da Nina.
+        const actionsRequiringHierarchy = new Set([
+            "banMember",
+            "kickMember",
+            "timeoutMember",
+            "removeTimeout",
+            "warnMember"
+        ]);
+
+        if (
+            message.guild &&
+            tool.category === "Moderation" &&
+            actionsRequiringHierarchy.has(tool.name) &&
+            args?.userId
+        ) {
+            const targetMember = await this.getMember(message, args.userId);
+
+            const safety = canModerateMember({
+                executor: message.member,
+                target: targetMember,
+                botMember: message.guild.members.me
+            });
+
+            if (!safety.ok) {
+                return {
+                    success: false,
+                    error: safety.reason
+                };
+            }
         }
 
 

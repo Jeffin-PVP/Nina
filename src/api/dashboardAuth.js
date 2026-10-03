@@ -8,6 +8,12 @@ const BLOQUEIO_MS = 5 * 60 * 1000; // 5 minutos
 const sessoes = new Map(); // token -> expiresAt
 const tentativas = new Map(); // ip -> { count, bloqueadoAte }
 
+const sessionCleanupTimer = setInterval(() => {
+    limparSessoesExpiradas();
+}, 10 * 60 * 1000);
+
+sessionCleanupTimer.unref?.();
+
 function limparSessoesExpiradas() {
 
     const agora = Date.now();

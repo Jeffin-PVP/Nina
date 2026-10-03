@@ -22,6 +22,7 @@ const pool = mysql.createPool({
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
     queueLimit: 0,
+    connectTimeout: 10000,
     charset: "utf8mb4"
 });
 
