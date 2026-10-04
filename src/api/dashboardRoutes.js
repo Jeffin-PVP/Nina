@@ -6,6 +6,7 @@ const PresenceManager = require("../managers/PresenceManager");
 const BroadcastManager = require("../managers/BroadcastManager");
 const BroadcastRepository = require("../database/repositories/BroadcastRepository");
 const BannedGuildRepository = require("../database/repositories/BannedGuildRepository");
+const GlobalBanManager = require("../managers/GlobalBanManager");
 const StatsHistoryRepository = require("../database/repositories/StatsHistoryRepository");
 const { encontrarCanalDeAnuncio } = require("../utils/findAnnounceChannel");
 
@@ -45,6 +46,88 @@ module.exports = (client) => {
             node: process.version,
             memory: process.memoryUsage()
         });
+
+    });
+
+    /*
+    =========================
+        BANIMENTOS GLOBAIS DE USUÁRIOS
+    =========================
+    */
+
+    router.get("/users/banned", async (req, res) => {
+
+        try {
+            const banned = await GlobalBanManager.list();
+            res.json({ banned });
+        } catch (error) {
+            res.status(500).json({ error: `Não foi possível carregar os usuários banidos: ${error.message}` });
+        }
+
+    });
+
+    router.post("/users/:id/ban", async (req, res) => {
+
+        const userId = String(req.params.id || "").trim();
+        const { reason } = req.body || {};
+
+        if (!GlobalBanManager.isValidUserId(userId)) {
+            return res.status(400).json({ error: "ID de usuário do Discord inválido." });
+        }
+
+        if (client.user?.id === userId) {
+            return res.status(400).json({ error: "A Nina não pode ser banida globalmente." });
+        }
+
+        try {
+
+            let userTag = null;
+
+            try {
+                const user = await client.users.fetch(userId);
+                userTag = user.tag;
+            } catch {
+                userTag = String(req.body?.userTag || "").trim().slice(0, 255) || null;
+            }
+
+            await GlobalBanManager.ban(userId, {
+                userTag,
+                reason: reason ? String(reason).trim().slice(0, 1000) : null,
+                bannedBy: process.env.OWNER_ID || null
+            });
+
+            // Se o usuário banido for dono de algum servidor onde a Nina está,
+            // ela sai automaticamente desse servidor.
+            const guildsToLeave = client.guilds.cache.filter(guild => guild.ownerId === userId);
+
+            for (const guild of guildsToLeave.values()) {
+                await guild.leave().catch(error => {
+                    console.error(`❌ Não consegui sair do servidor do usuário banido ${guild.id}:`, error.message);
+                });
+            }
+
+            res.json({
+                ok: true,
+                message: userTag
+                    ? `Usuário ${userTag} banido globalmente.`
+                    : `Usuário ${userId} banido globalmente.`,
+                leftServers: guildsToLeave.size
+            });
+
+        } catch (error) {
+            res.status(500).json({ error: `Não foi possível banir o usuário globalmente: ${error.message}` });
+        }
+
+    });
+
+    router.post("/users/banned/:id/unban", async (req, res) => {
+
+        try {
+            await GlobalBanManager.unban(req.params.id);
+            res.json({ ok: true, message: "Usuário desbanido globalmente." });
+        } catch (error) {
+            res.status(500).json({ error: `Não foi possível desbanir o usuário: ${error.message}` });
+        }
 
     });
 

@@ -15,6 +15,9 @@ const PresenceManager =
 const StatsHistoryManager =
     require("./src/managers/StatsHistoryManager");
 
+const GlobalBanManager =
+    require("./src/managers/GlobalBanManager");
+
 const Emojis =
     require("./src/utils/emojis");
 
@@ -188,6 +191,10 @@ client.once(
         PresenceManager.start(client);
 
         StatsHistoryManager.start(client);
+
+        GlobalBanManager.start().catch(error => {
+            console.error("❌ Falha ao carregar banimentos globais:", error);
+        });
 
         Emojis.sync(client);
 

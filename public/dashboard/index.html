@@ -57,6 +57,7 @@
             <nav class="sidebar">
                 <button class="nav-item ativo" data-secao="visao-geral">Visão geral</button>
                 <button class="nav-item" data-secao="servidores">Servidores</button>
+                <button class="nav-item" data-secao="usuarios-banidos">Usuários banidos</button>
                 <button class="nav-item" data-secao="status">Status do bot</button>
                 <button class="nav-item" data-secao="comunicados">Comunicados</button>
                 <button class="nav-item" data-secao="reiniciar">Reiniciar</button>
@@ -125,6 +126,29 @@
                     <p class="secao-sub">O bot sai automaticamente se for adicionado de novo a um servidor banido.</p>
 
                     <div id="lista-banidos" class="lista-servidores"></div>
+
+                </section>
+
+                <!-- ===================== USUÁRIOS BANIDOS GLOBALMENTE ===================== -->
+                <section id="secao-usuarios-banidos" class="secao oculto">
+
+                    <h2>Usuários banidos globalmente</h2>
+                    <p class="secao-sub">Esses usuários não podem usar comandos, botões, menus ou conversar com a Nina. Se um usuário banido for dono de um servidor, a Nina também sai desse servidor.</p>
+
+                    <form id="form-ban-global" class="form-vertical">
+                        <label>ID do usuário</label>
+                        <input type="text" id="ban-global-id" placeholder="Ex: 123456789012345678" inputmode="numeric" required />
+
+                        <label>Motivo</label>
+                        <textarea id="ban-global-motivo" rows="4" placeholder="Motivo do banimento global (opcional)"></textarea>
+
+                        <button type="submit" class="btn-perigo">Banir usuário globalmente</button>
+                    </form>
+
+                    <div id="ban-global-resultado" class="resultado-broadcast"></div>
+
+                    <h3 class="subtitulo">Lista de banidos</h3>
+                    <div id="lista-usuarios-banidos" class="lista-servidores"></div>
 
                 </section>
 

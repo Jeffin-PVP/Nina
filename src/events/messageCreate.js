@@ -3,6 +3,7 @@ const ContextProvider = require("../ai/ContextProvider");
 const LevelManager = require("../managers/LevelManager");
 const AutomodManager = require("../managers/AutomodManager");
 const NinaEmojiManager = require("../ai/NinaEmojiManager");
+const GlobalBanManager = require("../managers/GlobalBanManager");
 
 module.exports = {
 
@@ -13,6 +14,9 @@ module.exports = {
         if (message.author.bot) return;
 
         if (!message.guild) return;
+
+        // Usuário banido globalmente não pode conversar com a Nina nem gerar XP.
+        if (await GlobalBanManager.isBanned(message.author.id)) return;
 
         // AutoMod: se a mensagem for barrada (spam/emoji/palavrão/menção/convite),
         // não processa XP nem resposta de IA em cima dela

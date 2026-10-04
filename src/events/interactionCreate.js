@@ -3,6 +3,7 @@ const {
 } = require("discord.js");
 
 const ui = require("../utils/ui");
+const GlobalBanManager = require("../managers/GlobalBanManager");
 
 const CommandManager =
     require("../managers/CommandManager");
@@ -41,6 +42,24 @@ module.exports = {
     async execute(interaction) {
 
         try {
+
+            // Usuário banido globalmente não pode usar comandos nem interações da Nina.
+            if (interaction.user && await GlobalBanManager.isBanned(interaction.user.id)) {
+
+                if (interaction.isChatInputCommand() || interaction.isButton() || interaction.isAnySelectMenu() || interaction.isModalSubmit()) {
+                    return ui.respond(
+                        interaction,
+                        ui.error(
+                            "Sua conta está bloqueada de usar a Nina globalmente.",
+                            "Acesso bloqueado",
+                            interaction
+                        ),
+                        { ephemeral: true }
+                    );
+                }
+
+                return;
+            }
 
             /*
             =========================

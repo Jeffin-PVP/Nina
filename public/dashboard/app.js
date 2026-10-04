@@ -129,6 +129,7 @@
 
             if (alvo === "visao-geral") carregarVisaoGeral();
             if (alvo === "servidores") { carregarServidores(); carregarBanidos(); }
+            if (alvo === "usuarios-banidos") carregarUsuariosBanidos();
             if (alvo === "status") carregarStatus();
             if (alvo === "comunicados") carregarHistoricoComunicados();
 
@@ -487,6 +488,123 @@
             alert(error.message);
             btn.disabled = false;
 
+        }
+
+    });
+
+    /*
+    =========================
+        USUÁRIOS BANIDOS GLOBALMENTE
+    =========================
+    */
+
+    const formBanGlobal = document.getElementById("form-ban-global");
+    const listaUsuariosBanidosEl = document.getElementById("lista-usuarios-banidos");
+    const banGlobalResultado = document.getElementById("ban-global-resultado");
+
+    async function carregarUsuariosBanidos() {
+
+        listaUsuariosBanidosEl.innerHTML = `<p class="carregando">Carregando...</p>`;
+
+        try {
+
+            const { banned } = await api("/users/banned");
+
+            if (!banned.length) {
+                listaUsuariosBanidosEl.innerHTML = `<p class="carregando">Nenhum usuário banido globalmente.</p>`;
+                return;
+            }
+
+            listaUsuariosBanidosEl.innerHTML = "";
+
+            banned.forEach(b => {
+
+                const el = document.createElement("div");
+                el.className = "servidor-item";
+
+                const nome = b.user_tag || b.user_id;
+                const data = b.banned_at ? new Date(b.banned_at).toLocaleString("pt-BR") : "—";
+
+                el.innerHTML = `
+                    <div class="servidor-info">
+                        <div class="servidor-nome">${escapeHtml(nome)}</div>
+                        <div class="servidor-meta">ID ${escapeHtml(b.user_id)} • ${escapeHtml(data)}</div>
+                        ${b.reason ? `<div class="servidor-meta">Motivo: ${escapeHtml(b.reason)}</div>` : ""}
+                    </div>
+                    <div class="servidor-acoes">
+                        <button class="btn-secundario" data-acao="desbanir-usuario" data-id="${escapeHtml(b.user_id)}">Desbanir</button>
+                    </div>
+                `;
+
+                listaUsuariosBanidosEl.appendChild(el);
+
+            });
+
+        } catch (error) {
+
+            listaUsuariosBanidosEl.innerHTML = `<p class="carregando">${escapeHtml(error.message)}</p>`;
+
+        }
+
+    }
+
+    formBanGlobal.addEventListener("submit", async (e) => {
+
+        e.preventDefault();
+        banGlobalResultado.textContent = "";
+
+        const id = document.getElementById("ban-global-id").value.trim();
+        const reason = document.getElementById("ban-global-motivo").value.trim();
+        const button = formBanGlobal.querySelector("button[type='submit']");
+
+        if (!/^\d{17,20}$/.test(id)) {
+            banGlobalResultado.textContent = "❌ Informe um ID de usuário Discord válido.";
+            return;
+        }
+
+        if (!confirm(`Banir o usuário ${id} globalmente?`)) return;
+
+        button.disabled = true;
+
+        try {
+
+            const data = await api(`/users/${id}/ban`, {
+                method: "POST",
+                body: { reason }
+            });
+
+            banGlobalResultado.textContent = `✅ ${data.message}${data.leftServers ? ` A Nina saiu de ${data.leftServers} servidor(es) desse usuário.` : ""}`;
+            formBanGlobal.reset();
+            carregarUsuariosBanidos();
+
+        } catch (error) {
+
+            banGlobalResultado.textContent = `❌ ${error.message}`;
+
+        } finally {
+
+            button.disabled = false;
+
+        }
+
+    });
+
+    listaUsuariosBanidosEl.addEventListener("click", async (e) => {
+
+        const btn = e.target.closest("button[data-acao='desbanir-usuario']");
+
+        if (!btn) return;
+
+        if (!confirm(`Desbanir globalmente o usuário ${btn.dataset.id}?`)) return;
+
+        btn.disabled = true;
+
+        try {
+            await api(`/users/banned/${btn.dataset.id}/unban`, { method: "POST" });
+            carregarUsuariosBanidos();
+        } catch (error) {
+            alert(error.message);
+            btn.disabled = false;
         }
 
     });

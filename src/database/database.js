@@ -315,6 +315,16 @@ async function initializeDatabase() {
             PRIMARY KEY (guild_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+        `CREATE TABLE IF NOT EXISTS global_bans (
+            user_id VARCHAR(32) NOT NULL,
+            user_tag VARCHAR(255) NULL,
+            reason TEXT NULL,
+            banned_by VARCHAR(32) NULL,
+            banned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id),
+            INDEX idx_global_bans_banned_at (banned_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
         `CREATE TABLE IF NOT EXISTS welcome_settings (
             guild_id VARCHAR(32) NOT NULL,
             enabled TINYINT(1) NOT NULL DEFAULT 0,
