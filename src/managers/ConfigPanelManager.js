@@ -143,8 +143,21 @@ async function buildAutomod(interaction) {
     const rows = [
         new ActionRowBuilder().addComponents(toggleButton("config_toggle:automod", !!c.enabled).setLabel(c.enabled ? "AutoMod: ON" : "AutoMod: OFF")),
         new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("config_modal:automod_spam").setLabel("Configurar Spam").setEmoji("🚨").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("config_modal:automod_raid").setLabel("Configurar Raid").setEmoji("🛑").setStyle(ButtonStyle.Secondary),
+            toggleButton("config_toggle:spam", !!c.spam_enabled).setLabel(`Spam: ${c.spam_enabled ? "ON" : "OFF"}`),
+            toggleButton("config_toggle:emoji", !!c.emoji_enabled).setLabel(`Emojis: ${c.emoji_enabled ? "ON" : "OFF"}`),
+            toggleButton("config_toggle:swear", !!c.swear_enabled).setLabel(`Palavrões: ${c.swear_enabled ? "ON" : "OFF"}`)
+        ),
+        new ActionRowBuilder().addComponents(
+            toggleButton("config_toggle:mention", !!c.mention_enabled).setLabel(`Menções: ${c.mention_enabled ? "ON" : "OFF"}`),
+            toggleButton("config_toggle:invite", !!c.invite_enabled).setLabel(`Convites: ${c.invite_enabled ? "ON" : "OFF"}`),
+            toggleButton("config_toggle:raid", !!c.raid_enabled).setLabel(`Anti-Raid: ${c.raid_enabled ? "ON" : "OFF"}`)
+        ),
+        new ActionRowBuilder().addComponents(
+            toggleButton("config_toggle:image", !!c.image_enabled).setLabel(`Anti-Scam: ${c.image_enabled ? "ON" : "OFF"}`),
+            new ButtonBuilder().setCustomId("config_modal:automod_spam").setLabel("Limites do Spam").setEmoji("🚨").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("config_modal:automod_raid").setLabel("Limites do Raid").setEmoji("🛑").setStyle(ButtonStyle.Secondary)
+        ),
+        new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId("config_modal:automod_image").setLabel("Configurar Anti-Scam").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
         ),
         backRow()
@@ -179,7 +192,8 @@ async function buildWelcome(interaction) {
                 ui.field("config", "Status", ui.toggle(c.enabled)),
                 ui.field("channel", "Canal", c.channel_id ? `<#${c.channel_id}>` : "Não configurado", false),
                 ui.field("info", "Título", c.title_text),
-                ui.field("log", "Mensagem", ui.clip(c.message_content, 1024), false)
+                ui.field("log", "Mensagem", ui.clip(c.message_content, 1024), false),
+                ui.field("image", "Fundo", c.background_url ? `[Ver imagem](${c.background_url})` : "Padrão (gradiente)", false)
             ],
             source: interaction
         })],
@@ -189,7 +203,11 @@ async function buildWelcome(interaction) {
                 new ChannelSelectMenuBuilder().setCustomId("config_channel:welcome").setPlaceholder("Escolher canal de boas-vindas").setChannelTypes(ChannelType.GuildText)
             ),
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_modal:welcome_text").setLabel("Editar textos").setEmoji("📝").setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId("config_modal:welcome_text").setLabel("Editar textos").setEmoji("📝").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_modal:welcome_background").setLabel("Imagem de fundo").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("config_clear:welcome_background").setLabel("Remover fundo").setEmoji("🗑️").setStyle(ButtonStyle.Danger)
             ),
             backRow()
         ]
@@ -271,13 +289,20 @@ async function buildAutorole(interaction) {
                 ui.field("user", "Cargos de entrada", `${join.length}`),
                 ui.field("role", "Self-roles", `${self.length}`),
                 ui.field("star", "Cargos por nível", `${level.length}`),
-                ui.field("info", "Edição", "A versão V1 do painel mostra o estado. A edição avançada continua disponível em `/autorole`.", false)
+                ui.field("info", "Configuração", "Cargos de entrada, self-roles e recompensas por nível podem ser gerenciados diretamente aqui.", false)
             ],
             source: interaction
         })],
         components: [
             new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_modal:autorole_note").setLabel("Como configurar").setEmoji("ℹ️").setStyle(ButtonStyle.Secondary)
+                new RoleSelectMenuBuilder().setCustomId("config_role:autorole_join").setPlaceholder("Adicionar cargo de entrada")
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("config_modal:autorole_selfrole").setLabel("Adicionar self-role").setEmoji("🎭").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_modal:autorole_level").setLabel("Cargo por nível").setEmoji("⭐").setStyle(ButtonStyle.Secondary)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("config_modal:autorole_note").setLabel("Comandos avançados").setEmoji("ℹ️").setStyle(ButtonStyle.Secondary)
             ),
             backRow()
         ]

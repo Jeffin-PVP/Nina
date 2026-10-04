@@ -10,6 +10,7 @@ const GuildRepository = require("../../database/repositories/GuildRepository");
 const AutomodRepository = require("../../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../../database/repositories/WelcomeRepository");
 const TicketRepository = require("../../database/repositories/TicketRepository");
+const AutoroleRepository = require("../../database/repositories/AutoroleRepository");
 const ui = require("../../utils/ui");
 const { CATEGORIES } = require("../../managers/LogCategories");
 
@@ -27,7 +28,13 @@ async function execute(interaction) {
     }
 
     if (id === "config_close") {
-        return interaction.update({ embeds: [], components: [] });
+        await interaction.deferUpdate();
+        try {
+            await interaction.deleteReply();
+        } catch {
+            try { await interaction.message?.delete(); } catch {}
+        }
+        return;
     }
 
     if (id === "config_category") {
@@ -83,6 +90,14 @@ async function execute(interaction) {
             await TicketRepository.setConfig(guildId, { enabled: current.enabled ? 0 : 1 });
             return interaction.update(await ConfigPanelManager.build(interaction, "tickets"));
         }
+
+        const automodFields = new Set(["spam", "emoji", "swear", "mention", "invite", "raid", "image"]);
+        if (automodFields.has(target)) {
+            const current = await AutomodRepository.get(guildId);
+            const field = `${target}_enabled`;
+            await AutomodRepository.update(guildId, { [field]: current[field] ? 0 : 1 });
+            return interaction.update(await ConfigPanelManager.build(interaction, "automod"));
+        }
     }
 
     if (id.startsWith("config_channel:")) {
@@ -111,6 +126,20 @@ async function execute(interaction) {
         if (!role) return ui.fail(interaction, "Não consegui identificar o cargo selecionado.", "Cargo inválido");
         await TicketRepository.setConfig(interaction.guild.id, { support_role_id: role.id });
         return interaction.update(await ConfigPanelManager.build(interaction, "tickets"));
+    }
+
+    if (id === "config_role:autorole_join") {
+        const role = interaction.roles.first();
+        if (!role || role.managed || role.id === interaction.guild.id) return ui.fail(interaction, "Esse cargo não pode ser usado como autorole.", "Cargo inválido");
+        const me = interaction.guild.members.me;
+        if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.fail(interaction, "A Nina não consegue atribuir esse cargo porque ele está acima ou no mesmo nível do cargo dela.", "Hierarquia inválida");
+        await AutoroleRepository.addJoinRole(interaction.guild.id, role.id);
+        return interaction.update(await ConfigPanelManager.build(interaction, "autorole"));
+    }
+
+    if (id === "config_clear:welcome_background") {
+        await WelcomeRepository.update(interaction.guild.id, { background_url: null });
+        return interaction.update(await ConfigPanelManager.build(interaction, "welcome"));
     }
 
     if (id.startsWith("config_modal:")) {
@@ -142,6 +171,34 @@ async function execute(interaction) {
             modal.addComponents(
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("threshold").setLabel("Confiança mínima (0.00 a 1.00)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.image_threshold))),
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("acao").setLabel("Ação: ignore, delete, warn, kick ou ban").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.image_action)))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "welcome_background") {
+            const c = await WelcomeRepository.get(interaction.guild.id);
+            const modal = new ModalBuilder().setCustomId("config_submit:welcome_background").setTitle("Imagem de fundo");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("url").setLabel("URL da imagem").setStyle(TextInputStyle.Short).setRequired(true).setValue(c.background_url || "").setPlaceholder("https://exemplo.com/imagem.png"))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "autorole_selfrole") {
+            const modal = new ModalBuilder().setCustomId("config_submit:autorole_selfrole").setTitle("Adicionar self-role");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("cargo").setLabel("ID do cargo").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("label").setLabel("Texto do botão").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("emoji").setLabel("Emoji (opcional)").setStyle(TextInputStyle.Short).setRequired(false))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "autorole_level") {
+            const modal = new ModalBuilder().setCustomId("config_submit:autorole_level").setTitle("Cargo por nível");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("nivel").setLabel("Nível").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("cargo").setLabel("ID do cargo").setStyle(TextInputStyle.Short).setRequired(true))
             );
             return interaction.showModal(modal);
         }
@@ -190,6 +247,40 @@ async function modal(interaction) {
         if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1 || !["ignore", "delete", "warn", "kick", "ban"].includes(action)) return ui.caution(interaction, "Confiança deve ficar entre 0 e 1 e a ação precisa ser ignore, delete, warn, kick ou ban.", "Valores inválidos");
         await AutomodRepository.update(guildId, { image_threshold: threshold, image_action: action });
         return ui.respond(interaction, ui.success("A configuração do Anti-Scam visual foi atualizada.", "Anti-Scam atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "welcome_background") {
+        const url = interaction.fields.getTextInputValue("url").trim();
+        let parsed;
+        try { parsed = new URL(url); } catch { return ui.caution(interaction, "Envie uma URL válida.", "URL inválida"); }
+        if (!/^https?:$/.test(parsed.protocol)) return ui.caution(interaction, "A URL precisa começar com http:// ou https://.", "URL inválida");
+        await WelcomeRepository.update(guildId, { background_url: url });
+        return ui.respond(interaction, ui.success("A imagem de fundo foi atualizada.", "Boas-vindas atualizadas", interaction), { ephemeral: true });
+    }
+
+    if (type === "autorole_selfrole") {
+        const roleId = interaction.fields.getTextInputValue("cargo").trim();
+        const role = interaction.guild.roles.cache.get(roleId);
+        const label = interaction.fields.getTextInputValue("label").trim();
+        const emoji = interaction.fields.getTextInputValue("emoji").trim() || null;
+        if (!role || role.managed || role.id === interaction.guild.id) return ui.caution(interaction, "ID de cargo inválido ou cargo gerenciado.", "Cargo inválido");
+        const me = interaction.guild.members.me;
+        if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.caution(interaction, "A Nina não consegue atribuir esse cargo por causa da hierarquia.", "Hierarquia inválida");
+        const current = await AutoroleRepository.listSelfRoles(guildId);
+        if (current.length >= 25) return ui.caution(interaction, "O painel de self-role aceita no máximo 25 cargos.", "Limite atingido");
+        await AutoroleRepository.addSelfRole(guildId, role.id, label, emoji);
+        return ui.respond(interaction, ui.success(`${role} foi adicionado aos self-roles.`, "Self-role atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "autorole_level") {
+        const nivel = Number.parseInt(interaction.fields.getTextInputValue("nivel"), 10);
+        const roleId = interaction.fields.getTextInputValue("cargo").trim();
+        const role = interaction.guild.roles.cache.get(roleId);
+        if (!Number.isInteger(nivel) || nivel < 1 || !role || role.managed || role.id === interaction.guild.id) return ui.caution(interaction, "Informe um nível válido e um ID de cargo válido.", "Valores inválidos");
+        const me = interaction.guild.members.me;
+        if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.caution(interaction, "A Nina não consegue atribuir esse cargo por causa da hierarquia.", "Hierarquia inválida");
+        await AutoroleRepository.setLevelRole(guildId, nivel, role.id);
+        return ui.respond(interaction, ui.success(`${role} agora é recompensa do nível ${nivel}.`, "Level-role atualizado", interaction), { ephemeral: true });
     }
 
     if (type === "welcome_text") {
