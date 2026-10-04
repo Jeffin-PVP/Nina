@@ -35,6 +35,9 @@ const criarServidorButtons =
 const giveawayButtons =
     require("../interactions/giveaway/buttonHandler");
 
+const configPanel =
+    require("../interactions/config/panelHandler");
+
 module.exports = {
 
     name: Events.InteractionCreate,
@@ -69,6 +72,10 @@ module.exports = {
 
             if (interaction.isModalSubmit()) {
 
+                if (interaction.customId.startsWith("config_submit:")) {
+                    return configPanel.modal(interaction);
+                }
+
                 if (interaction.customId.startsWith("embed_")) {
 
                     return embedModals.execute(interaction);
@@ -92,6 +99,10 @@ module.exports = {
             */
 
             if (interaction.isButton()) {
+
+                if (interaction.customId.startsWith("config_")) {
+                    return configPanel.execute(interaction);
+                }
 
                 if (interaction.customId.startsWith("ticket_")) {
 
@@ -129,7 +140,31 @@ module.exports = {
 
             if (interaction.isChannelSelectMenu()) {
 
+                if (interaction.customId.startsWith("config_channel:")) {
+                    return configPanel.execute(interaction);
+                }
+
                 return embedChannel.execute(interaction);
+
+            }
+
+            if (interaction.isRoleSelectMenu()) {
+
+                if (interaction.customId.startsWith("config_role:")) {
+                    return configPanel.execute(interaction);
+                }
+
+                return;
+
+            }
+
+            if (interaction.isStringSelectMenu()) {
+
+                if (interaction.customId === "config_category" || interaction.customId === "config_log_category") {
+                    return configPanel.execute(interaction);
+                }
+
+                return;
 
             }
 
