@@ -56,12 +56,12 @@ function backRow() {
     );
 }
 
-function toggleButton(id, enabled, label = "Ativar") {
+function toggleButton(id, enabled, label = "") {
     return new ButtonBuilder()
         .setCustomId(id)
-        .setLabel(enabled ? "Desativar" : label)
-        .setEmoji(enabled ? "🔴" : "🟢")
-        .setStyle(enabled ? ButtonStyle.Danger : ButtonStyle.Success);
+        .setLabel(label ? `${label}: ${enabled ? "ON" : "OFF"}` : (enabled ? "ON" : "OFF"))
+        .setEmoji(enabled ? "🟢" : "🔴")
+        .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Danger);
 }
 
 async function buildHome(interaction) {
