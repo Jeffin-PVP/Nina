@@ -6,6 +6,24 @@ const PERM_MANAGE_GUILD = 0x20n;
 
 const sessoes = new Map(); // token -> { user, guilds, expiresAt }
 
+const STATE_COOKIE = "nina_oauth_state";
+
+function lerCookie(req, nome) {
+
+    const header = req.headers.cookie || "";
+
+    for (const parte of header.split(";")) {
+
+        const [chave, ...resto] = parte.trim().split("=");
+
+        if (chave === nome) return decodeURIComponent(resto.join("="));
+
+    }
+
+    return null;
+
+}
+
 const sessionCleanupTimer = setInterval(() => {
     limparSessoesExpiradas();
 }, 10 * 60 * 1000);
@@ -66,12 +84,24 @@ module.exports = (client) => {
 
         }
 
+        // `state` aleatório preso ao navegador por cookie: bloqueia login forjado (CSRF)
+        const state = crypto.randomBytes(24).toString("hex");
+
+        res.cookie(STATE_COOKIE, state, {
+            httpOnly: true,
+            sameSite: "lax",
+            secure: String(process.env.PUBLIC_URL).startsWith("https://"),
+            maxAge: 10 * 60 * 1000,
+            path: "/api/panel"
+        });
+
         const params = new URLSearchParams({
             client_id: process.env.CLIENT_ID,
             redirect_uri: getRedirectUri(),
             response_type: "code",
             scope: "identify guilds",
-            prompt: "consent"
+            prompt: "consent",
+            state
         });
 
         res.json({ url: `https://discord.com/oauth2/authorize?${params.toString()}` });
@@ -86,7 +116,22 @@ module.exports = (client) => {
 
     async function callback(req, res) {
 
-        const { code, error } = req.query;
+        const { code, error, state } = req.query;
+
+        const estadoEsperado = lerCookie(req, STATE_COOKIE);
+
+        res.clearCookie(STATE_COOKIE, { path: "/api/panel" });
+
+        if (!error) {
+
+            const a = Buffer.from(String(state || ""));
+            const b = Buffer.from(String(estadoEsperado || ""));
+
+            if (!estadoEsperado || a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+                return res.redirect("/panel/?erro=estado_invalido");
+            }
+
+        }
 
         if (error) return res.redirect(`/panel/?erro=${encodeURIComponent(error)}`);
         if (!code) return res.redirect("/panel/?erro=sem_codigo");
@@ -186,12 +231,13 @@ module.exports = (client) => {
                 expiresAt: Date.now() + SESSAO_DURACAO_MS
             });
 
-            res.redirect(`/panel/?token=${token}`);
+            // Fragmento (#) não é enviado ao servidor nem vaza por Referer/logs de acesso
+            res.redirect(`/panel/#token=${token}`);
 
         } catch (err) {
 
             console.error("[Painel] Erro no login com Discord:", err);
-            res.redirect(`/panel/?erro=${encodeURIComponent(err.message)}`);
+            res.redirect("/panel/?erro=falha_no_login");
 
         }
 

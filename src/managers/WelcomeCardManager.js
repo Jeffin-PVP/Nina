@@ -1,5 +1,7 @@
 const { createCanvas, loadImage } = require("@napi-rs/canvas");
 
+const { fetchBuffer } = require("../utils/safeFetch");
+
 const LARGURA = 1000;
 const ALTURA = 380;
 
@@ -81,13 +83,20 @@ function quebrarLinhas(ctx, texto, maxWidth) {
 
 async function carregarImagemDeUrl(url) {
 
-    const resposta = await fetch(url);
-
-    if (!resposta.ok) throw new Error(`Falha ao baixar imagem (HTTP ${resposta.status})`);
-
-    const buffer = Buffer.from(await resposta.arrayBuffer());
+    // Download com proteção anti-SSRF, timeout e limite de tamanho
+    const buffer = await fetchBuffer(url);
 
     return loadImage(buffer);
+
+}
+
+// O canvas (sans-serif) não desenha emojis direito, então removemos do texto do cartão.
+function semEmoji(texto) {
+
+    return String(texto || "")
+        .replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
 
 }
 
@@ -185,8 +194,8 @@ async function gerarCartao(member, config) {
     const textX = 300;
     const maxTextWidth = LARGURA - textX - 50;
 
-    const titulo = aplicarVariaveis(config.title_text, { member });
-    const subtitulo = aplicarVariaveis(config.subtitle_text, { member });
+    const titulo = semEmoji(aplicarVariaveis(config.title_text, { member }));
+    const subtitulo = semEmoji(aplicarVariaveis(config.subtitle_text, { member }));
 
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#FFFFFF";
@@ -230,6 +239,8 @@ function desenharFundoPadrao(ctx, accentColor) {
     ctx.fillRect(0, 0, LARGURA, ALTURA);
 
 }
+
+
 
 module.exports = {
     gerarCartao,

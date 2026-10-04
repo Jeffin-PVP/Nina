@@ -1,7 +1,7 @@
 node_modules/
 images/
 assets/
-.env
+
 # Banco local antigo (não usado pela Nina)
 src/database/*.sqlite
 src/database/*.sqlite3

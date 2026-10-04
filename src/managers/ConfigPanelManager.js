@@ -114,7 +114,7 @@ async function buildGeneral(interaction) {
         embeds: [ui.panel({
             color: ui.COLORS.info,
             emoji: "config",
-            title: "⚙️ Configuração geral",
+            title: "Configuração geral",
             description: "Ative ou desative os principais sistemas do servidor.",
             fields: [
                 ui.field("coin", "Economia", ui.toggle(s.economy_enabled)),
@@ -155,10 +155,8 @@ async function buildAutomod(interaction) {
         new ActionRowBuilder().addComponents(
             toggleButton("config_toggle:image", !!c.image_enabled).setLabel(`Anti-Scam: ${c.image_enabled ? "ON" : "OFF"}`),
             new ButtonBuilder().setCustomId("config_modal:automod_spam").setLabel("Limites do Spam").setEmoji("🚨").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("config_modal:automod_raid").setLabel("Limites do Raid").setEmoji("🛑").setStyle(ButtonStyle.Secondary)
-        ),
-        new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("config_modal:automod_image").setLabel("Configurar Anti-Scam").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder().setCustomId("config_modal:automod_raid").setLabel("Limites do Raid").setEmoji("🛑").setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId("config_modal:automod_image").setLabel("Config. Anti-Scam").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
         ),
         backRow()
     ];
@@ -167,7 +165,7 @@ async function buildAutomod(interaction) {
         embeds: [ui.panel({
             color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
             emoji: "shield",
-            title: "🤖 AutoMod",
+            title: "AutoMod",
             description: "Proteção automática contra spam, convites, menções, raid e outros abusos.",
             fields: [
                 ui.field("shield", "Status", ui.toggle(c.enabled)),
@@ -186,7 +184,7 @@ async function buildWelcome(interaction) {
         embeds: [ui.panel({
             color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
             emoji: "sparkle",
-            title: "👋 Boas-vindas",
+            title: "Boas-vindas",
             description: "Configure o sistema de entrada dos novos membros.",
             fields: [
                 ui.field("config", "Status", ui.toggle(c.enabled)),
@@ -204,10 +202,9 @@ async function buildWelcome(interaction) {
             ),
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("config_modal:welcome_text").setLabel("Editar textos").setEmoji("📝").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_modal:welcome_background").setLabel("Imagem de fundo").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_clear:welcome_background").setLabel("Remover fundo").setEmoji("🗑️").setStyle(ButtonStyle.Danger)
+                new ButtonBuilder().setCustomId("config_modal:welcome_background").setLabel("Imagem de fundo").setEmoji("🖼️").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_clear:welcome_background").setLabel("Remover fundo").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
+                new ButtonBuilder().setCustomId("config_welcome_test").setLabel("Testar").setEmoji("🧪").setStyle(ButtonStyle.Secondary)
             ),
             backRow()
         ]
@@ -220,7 +217,7 @@ async function buildTickets(interaction) {
         embeds: [ui.panel({
             color: c.enabled && c.parent_channel_id ? ui.COLORS.success : ui.COLORS.neutral,
             emoji: "ticket",
-            title: "🎫 Tickets",
+            title: "Tickets",
             description: "Configure o atendimento do servidor.",
             fields: [
                 ui.field("config", "Status", ui.toggle(c.enabled && !!c.parent_channel_id)),
@@ -230,9 +227,11 @@ async function buildTickets(interaction) {
             source: interaction
         })],
         components: [
-            new ActionRowBuilder().addComponents(toggleButton("config_toggle:tickets", !!c.enabled && !!c.parent_channel_id).setLabel(c.enabled ? "Tickets: ON" : "Tickets: OFF")),
+            new ActionRowBuilder().addComponents(toggleButton("config_toggle:tickets", !!c.enabled).setLabel(c.enabled ? "Tickets: ON" : "Tickets: OFF")),
             new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder().setCustomId("config_channel:tickets").setPlaceholder("Escolher canal dos tickets").setChannelTypes(ChannelType.GuildText),
+                new ChannelSelectMenuBuilder().setCustomId("config_channel:tickets").setPlaceholder("Escolher canal dos tickets").setChannelTypes(ChannelType.GuildText)
+            ),
+            new ActionRowBuilder().addComponents(
                 new RoleSelectMenuBuilder().setCustomId("config_role:tickets").setPlaceholder("Escolher cargo de suporte")
             ),
             backRow()
@@ -243,13 +242,13 @@ async function buildTickets(interaction) {
 async function buildLogs(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
     const disabled = await GuildRepository.getDisabledCategories(interaction.guild.id);
-    const categories = Object.entries(CATEGORIES).slice(0, 10).map(([key, value]) => `${disabled.includes(key) ? "🔴" : "🟢"} ${value.label}`).join("\n");
+    const categories = Object.entries(CATEGORIES).map(([key, value]) => `${disabled.includes(key) ? "🔴" : "🟢"} ${value.label}`).join("\n");
 
     return {
         embeds: [ui.panel({
             color: s.log_channel ? ui.COLORS.success : ui.COLORS.neutral,
             emoji: "log",
-            title: "📜 Logs",
+            title: "Logs",
             description: "Escolha o canal e quais eventos a Nina deve registrar.",
             fields: [
                 ui.field("channel", "Canal", s.log_channel ? `<#${s.log_channel}>` : "Não configurado", false),
@@ -283,7 +282,7 @@ async function buildAutorole(interaction) {
         embeds: [ui.panel({
             color: ui.COLORS.info,
             emoji: "role",
-            title: "🎭 Autoroles",
+            title: "Autoroles",
             description: "Gerencie os cargos automáticos do servidor.",
             fields: [
                 ui.field("user", "Cargos de entrada", `${join.length}`),

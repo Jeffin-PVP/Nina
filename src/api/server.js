@@ -16,16 +16,29 @@ class ApiServer {
 
         this.app = express();
 
-        this.app.get("/teste", (req, res) => {
-            res.status(200).send("NINA PUBLIC TEST OK");
-        });
+        this.app.disable("x-powered-by");
+
+        // Atrás de proxy reverso (hospedagem), o IP real vem em X-Forwarded-For.
+        // Sem isso o limite de tentativas de login trataria todo mundo como o mesmo IP.
+        // Ajuste com TRUST_PROXY (número de proxies; "0" desativa).
+        const trustProxy = process.env.TRUST_PROXY ?? "1";
+        this.app.set("trust proxy", /^\d+$/.test(trustProxy) ? Number(trustProxy) : trustProxy);
+
+        // Health checks (a hospedagem pode usar um destes para saber se o app está no ar)
+        this.app.get("/teste", (req, res) => res.status(200).send("NINA PUBLIC TEST OK"));
+        this.app.get("/health", (req, res) => res.status(200).json({ ok: true }));
 
         this.app.use(cors());
-        this.app.use(express.json());
+        this.app.use(express.json({ limit: "100kb" }));
 
         this.app.get("/", (req, res) => {
 
-            res.send("<h1>Nina API funcionando! </h1> <h3> Caso esteja tentando acessar o painel de controle, acesse https://nina.injectcloud.space/panel/. <br> <br> Se quiser testar a API da Nina, acesse https://nina.injectcloud.space/teste.<h3/>");
+            const base = process.env.PUBLIC_URL ? process.env.PUBLIC_URL.replace(/\/+$/, "") : "";
+
+            res.send(
+                "<h1>Nina API funcionando!</h1>" +
+                `<h3>Para acessar o painel de controle, vá para <a href="${base}/panel/">${base}/panel/</a>.</h3>`
+            );
 
         });
 
@@ -61,12 +74,7 @@ class ApiServer {
 
     start(port = process.env.PORT || 3000) {
 
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        console.log("🌐 CONFIGURAÇÃO DO SERVIDOR");
-        console.log("PORT recebido:", process.env.PORT);
-        console.log("PORT usado:", port);
-        console.log("PUBLIC_URL:", process.env.PUBLIC_URL);
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        console.log(`🌐 Iniciando API na porta ${port}...`);
 
         this.app.listen(port, "0.0.0.0", () => {
 

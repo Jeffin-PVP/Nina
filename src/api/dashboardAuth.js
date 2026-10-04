@@ -26,6 +26,15 @@ function limparSessoesExpiradas() {
 
 }
 
+// Comparação em tempo constante (evita descobrir a senha pelo tempo de resposta)
+function senhaConfere(informada, esperada) {
+
+    const hash = valor => crypto.createHash("sha256").update(String(valor)).digest();
+
+    return crypto.timingSafeEqual(hash(informada), hash(esperada));
+
+}
+
 function ipEstaBloqueado(ip) {
 
     const registro = tentativas.get(ip);
@@ -86,7 +95,7 @@ function login(req, res) {
 
     }
 
-    if (!password || password !== senhaConfigurada) {
+    if (typeof password !== "string" || !password || !senhaConfere(password, senhaConfigurada)) {
 
         registrarFalha(ip);
 

@@ -2,7 +2,6 @@ require("dotenv").config();
 
 const fs = require("fs");
 const path = require("path");
-// oi denovo
 const {
     REST,
     Routes
@@ -35,7 +34,7 @@ function loadCommands(dir) {
 
         }
 
-        if (!file.endsWith(".js"))
+        if (!file.endsWith(".js") || file === "index.js")
             continue;
 
         const command = require(filePath);
@@ -63,6 +62,13 @@ function loadCommands(dir) {
 }
 
 loadCommands(commandsPath);
+
+if (!process.env.TOKEN || !process.env.CLIENT_ID) {
+
+    console.error("❌ Defina TOKEN e CLIENT_ID no .env antes de registrar os comandos.");
+    process.exit(1);
+
+}
 
 const rest = new REST({
 
@@ -103,9 +109,3 @@ const rest = new REST({
     }
 
 })();
-//
-//
-//
-//
-//
-//git

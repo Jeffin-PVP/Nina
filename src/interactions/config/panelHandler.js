@@ -2,7 +2,9 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ActionRowBuilder
+    ActionRowBuilder,
+    AttachmentBuilder,
+    MessageFlags
 } = require("discord.js");
 
 const ConfigPanelManager = require("../../managers/ConfigPanelManager");
@@ -13,6 +15,8 @@ const TicketRepository = require("../../database/repositories/TicketRepository")
 const AutoroleRepository = require("../../database/repositories/AutoroleRepository");
 const ui = require("../../utils/ui");
 const { CATEGORIES } = require("../../managers/LogCategories");
+const WelcomeCardManager = require("../../managers/WelcomeCardManager");
+const { validateHttpUrl } = require("../../utils/safeFetch");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -32,7 +36,7 @@ async function execute(interaction) {
         try {
             await interaction.deleteReply();
         } catch {
-            try { await interaction.message?.delete(); } catch {}
+            try { await interaction.message?.delete(); } catch { }
         }
         return;
     }
@@ -142,6 +146,27 @@ async function execute(interaction) {
         return interaction.update(await ConfigPanelManager.build(interaction, "welcome"));
     }
 
+    if (id === "config_welcome_test") {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+        try {
+            const config = await WelcomeRepository.get(interaction.guild.id);
+            const member = interaction.member;
+            const buffer = await WelcomeCardManager.gerarCartao(member, config);
+            const anexo = new AttachmentBuilder(buffer, { name: "boas-vindas.png" });
+            const conteudo = WelcomeCardManager.aplicarVariaveis(config.message_content, { member });
+
+            return interaction.editReply({
+                content: `🧪 **Pré-visualização** (nada foi enviado ao canal de boas-vindas)\n${conteudo}`.slice(0, 2000),
+                files: [anexo],
+                allowedMentions: { parse: [] }
+            });
+        } catch (error) {
+            console.error("[Config] Falha ao gerar teste de boas-vindas:", error);
+            return interaction.editReply({ content: "Não consegui gerar a pré-visualização agora. Tente novamente em instantes." });
+        }
+    }
+
     if (id.startsWith("config_modal:")) {
         const type = id.split(":")[1];
 
@@ -179,7 +204,7 @@ async function execute(interaction) {
             const c = await WelcomeRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:welcome_background").setTitle("Imagem de fundo");
             modal.addComponents(
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("url").setLabel("URL da imagem").setStyle(TextInputStyle.Short).setRequired(true).setValue(c.background_url || "").setPlaceholder("https://exemplo.com/imagem.png"))
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("url").setLabel("URL da imagem").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(1000).setValue(String(c.background_url || "").slice(0, 1000)).setPlaceholder("https://exemplo.com/imagem.png"))
             );
             return interaction.showModal(modal);
         }
@@ -207,8 +232,8 @@ async function execute(interaction) {
             const c = await WelcomeRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:welcome_text").setTitle("Editar boas-vindas");
             modal.addComponents(
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("titulo").setLabel("Título").setStyle(TextInputStyle.Short).setRequired(true).setValue(c.title_text)),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("mensagem").setLabel("Mensagem").setStyle(TextInputStyle.Paragraph).setRequired(true).setValue(c.message_content))
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("titulo").setLabel("Título").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(255).setValue(String(c.title_text || "").slice(0, 255))),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("mensagem").setLabel("Mensagem").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(2000).setValue(String(c.message_content || "").slice(0, 2000)))
             );
             return interaction.showModal(modal);
         }
@@ -216,6 +241,10 @@ async function execute(interaction) {
         if (type === "autorole_note") {
             return ui.respond(interaction, ui.info("Para configurações detalhadas de cargos de entrada, self-roles e recompensas por nível, os comandos `/autorole` continuam disponíveis nesta primeira versão do painel.", "Autoroles", interaction), { ephemeral: true });
         }
+    }
+    // Nenhum handler reconheceu a ação (painel antigo/desatualizado): responde em vez de deixar "interação falhou".
+    if (!interaction.replied && !interaction.deferred) {
+        return ui.caution(interaction, "Essa opção não está mais disponível. Abra o painel novamente com `/config`.", "Painel desatualizado");
     }
 }
 
@@ -251,9 +280,7 @@ async function modal(interaction) {
 
     if (type === "welcome_background") {
         const url = interaction.fields.getTextInputValue("url").trim();
-        let parsed;
-        try { parsed = new URL(url); } catch { return ui.caution(interaction, "Envie uma URL válida.", "URL inválida"); }
-        if (!/^https?:$/.test(parsed.protocol)) return ui.caution(interaction, "A URL precisa começar com http:// ou https://.", "URL inválida");
+        try { validateHttpUrl(url); } catch (error) { return ui.caution(interaction, error.message, "URL inválida"); }
         await WelcomeRepository.update(guildId, { background_url: url });
         return ui.respond(interaction, ui.success("A imagem de fundo foi atualizada.", "Boas-vindas atualizadas", interaction), { ephemeral: true });
     }
@@ -287,6 +314,7 @@ async function modal(interaction) {
         const titulo = interaction.fields.getTextInputValue("titulo").trim();
         const mensagem = interaction.fields.getTextInputValue("mensagem").trim();
         if (!titulo || !mensagem) return ui.caution(interaction, "Título e mensagem não podem ficar vazios.", "Texto inválido");
+        if (titulo.length > 255 || mensagem.length > 2000) return ui.caution(interaction, "Título até 255 caracteres e mensagem até 2000.", "Texto longo demais");
         await WelcomeRepository.update(guildId, { title_text: titulo, message_content: mensagem });
         return ui.respond(interaction, ui.success("Os textos de boas-vindas foram atualizados.", "Boas-vindas atualizadas", interaction), { ephemeral: true });
     }

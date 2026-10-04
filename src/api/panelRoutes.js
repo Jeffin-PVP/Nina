@@ -9,6 +9,192 @@ const TicketRepository = require("../database/repositories/TicketRepository");
 const EconomyRepository = require("../database/repositories/EconomyRepository");
 const database = require("../database/database");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
+const { validateHttpUrl } = require("../utils/safeFetch");
+
+/*
+=========================
+    VALIDAÇÃO DE ENTRADA
+=========================
+*/
+
+class ErroValidacao extends Error { }
+
+const SNOWFLAKE = /^\d{17,20}$/;
+
+const bool = v => (v === true || v === 1 || v === "1" || v === "true") ? 1 : 0;
+
+function inteiro(nome, v, min, max) {
+
+    const n = Number(v);
+
+    if (!Number.isInteger(n) || n < min || n > max) {
+        throw new ErroValidacao(`"${nome}" precisa ser um número inteiro entre ${min} e ${max}.`);
+    }
+
+    return n;
+
+}
+
+function listaCsv(v) {
+
+    const itens = Array.isArray(v) ? v : String(v ?? "").split(",");
+
+    return itens.map(i => String(i).trim()).filter(Boolean);
+
+}
+
+function acoes(nome, v) {
+
+    const validas = new Set(["delete", "notify", "warn", "mute"]);
+    const lista = [...new Set(listaCsv(v))];
+
+    if (lista.some(a => !validas.has(a))) {
+        throw new ErroValidacao(`"${nome}" contém uma ação inválida.`);
+    }
+
+    return lista.join(",");
+
+}
+
+function idsCsv(nome, v) {
+
+    const lista = [...new Set(listaCsv(v))];
+
+    if (lista.length > 100 || lista.some(i => !SNOWFLAKE.test(i))) {
+        throw new ErroValidacao(`"${nome}" contém IDs inválidos.`);
+    }
+
+    return lista.join(",");
+
+}
+
+function texto(nome, v, max, { vazio = false } = {}) {
+
+    const t = String(v ?? "").trim();
+
+    if (!vazio && !t) throw new ErroValidacao(`"${nome}" não pode ficar vazio.`);
+    if (t.length > max) throw new ErroValidacao(`"${nome}" aceita no máximo ${max} caracteres.`);
+
+    return t;
+
+}
+
+function idOpcional(nome, v, existe) {
+
+    if (v === null || v === undefined || v === "") return null;
+
+    const id = String(v);
+
+    if (!SNOWFLAKE.test(id) || !existe(id)) {
+        throw new ErroValidacao(`"${nome}" não é válido para este servidor.`);
+    }
+
+    return id;
+
+}
+
+function sanitizarAutomod(body) {
+
+    const campos = {};
+    const b = body || {};
+
+    const set = (chave, fn) => { if (b[chave] !== undefined) campos[chave] = fn(b[chave]); };
+
+    for (const chave of ["enabled", "spam_enabled", "emoji_enabled", "swear_enabled", "mention_enabled", "invite_enabled", "raid_enabled"]) {
+        set(chave, bool);
+    }
+
+    set("mute_duration_minutes", v => inteiro("mute_duration_minutes", v, 1, 40320));
+    set("spam_max_messages", v => inteiro("spam_max_messages", v, 2, 50));
+    set("spam_interval_seconds", v => inteiro("spam_interval_seconds", v, 1, 300));
+    set("emoji_max_count", v => inteiro("emoji_max_count", v, 1, 100));
+    set("mention_max_count", v => inteiro("mention_max_count", v, 1, 50));
+    set("raid_join_threshold", v => inteiro("raid_join_threshold", v, 2, 100));
+    set("raid_interval_seconds", v => inteiro("raid_interval_seconds", v, 5, 3600));
+
+    for (const chave of ["spam_actions", "emoji_actions", "swear_actions", "mention_actions", "invite_actions"]) {
+        set(chave, v => acoes(chave, v));
+    }
+
+    set("ignored_channels", v => idsCsv("ignored_channels", v));
+    set("ignored_roles", v => idsCsv("ignored_roles", v));
+    set("swear_custom_words", v => texto("swear_custom_words", v, 2000, { vazio: true }));
+
+    set("raid_action", v => {
+        if (!["lockdown", "kick_new", "ban_new"].includes(v)) throw new ErroValidacao('"raid_action" inválido.');
+        return v;
+    });
+
+    return campos;
+
+}
+
+function sanitizarWelcome(body, guild) {
+
+    const campos = {};
+    const b = body || {};
+
+    if (b.enabled !== undefined) campos.enabled = bool(b.enabled);
+
+    if (b.channel_id !== undefined) {
+        campos.channel_id = idOpcional("channel_id", b.channel_id, id => guild.channels.cache.get(id)?.isTextBased?.());
+    }
+
+    if (b.background_url !== undefined) {
+
+        const url = String(b.background_url ?? "").trim();
+
+        if (!url) {
+            campos.background_url = null;
+        } else {
+            try { validateHttpUrl(url); } catch (error) { throw new ErroValidacao(`"background_url": ${error.message}`); }
+            campos.background_url = url;
+        }
+
+    }
+
+    if (b.title_text !== undefined) campos.title_text = texto("title_text", b.title_text, 255);
+    if (b.subtitle_text !== undefined) campos.subtitle_text = texto("subtitle_text", b.subtitle_text, 255, { vazio: true });
+    if (b.message_content !== undefined) campos.message_content = texto("message_content", b.message_content, 2000, { vazio: true });
+
+    if (b.accent_color !== undefined) {
+
+        if (!/^#[0-9a-fA-F]{6}$/.test(String(b.accent_color))) throw new ErroValidacao('"accent_color" precisa estar no formato #RRGGBB.');
+
+        campos.accent_color = String(b.accent_color);
+
+    }
+
+    return campos;
+
+}
+
+function sanitizarTickets(body, guild) {
+
+    const campos = {};
+    const b = body || {};
+
+    if (b.enabled !== undefined) campos.enabled = bool(b.enabled);
+
+    for (const chave of ["parent_channel_id", "panel_channel_id"]) {
+        if (b[chave] !== undefined) campos[chave] = idOpcional(chave, b[chave], id => guild.channels.cache.has(id));
+    }
+
+    if (b.support_role_id !== undefined) {
+        campos.support_role_id = idOpcional("support_role_id", b.support_role_id, id => guild.roles.cache.has(id));
+    }
+
+    return campos;
+
+}
+
+function tratarValidacao(res, error) {
+
+    if (error instanceof ErroValidacao) return res.status(400).json({ error: error.message });
+
+    throw error;
+
+}
 
 module.exports = (client) => {
 
@@ -137,23 +323,9 @@ module.exports = (client) => {
 
     router.post("/guilds/:guildId/automod", async (req, res) => {
 
-        const permitido = [
-            "enabled", "ignored_channels", "ignored_roles", "mute_duration_minutes",
-            "spam_enabled", "spam_max_messages", "spam_interval_seconds", "spam_actions",
-            "emoji_enabled", "emoji_max_count", "emoji_actions",
-            "swear_enabled", "swear_actions", "swear_custom_words",
-            "mention_enabled", "mention_max_count", "mention_actions",
-            "invite_enabled", "invite_actions",
-            "raid_enabled", "raid_join_threshold", "raid_interval_seconds", "raid_action"
-        ];
+        let campos;
 
-        const campos = {};
-
-        for (const chave of permitido) {
-
-            if (req.body[chave] !== undefined) campos[chave] = req.body[chave];
-
-        }
+        try { campos = sanitizarAutomod(req.body); } catch (error) { return tratarValidacao(res, error); }
 
         const atualizado = await AutomodRepository.update(req.params.guildId, campos);
 
@@ -175,14 +347,9 @@ module.exports = (client) => {
 
     router.post("/guilds/:guildId/welcome", async (req, res) => {
 
-        const permitido = ["enabled", "channel_id", "background_url", "title_text", "subtitle_text", "message_content", "accent_color"];
-        const campos = {};
+        let campos;
 
-        for (const chave of permitido) {
-
-            if (req.body[chave] !== undefined) campos[chave] = req.body[chave];
-
-        }
+        try { campos = sanitizarWelcome(req.body, req.painelGuild); } catch (error) { return tratarValidacao(res, error); }
 
         const atualizado = await WelcomeRepository.update(req.params.guildId, campos);
 
@@ -248,12 +415,9 @@ module.exports = (client) => {
     });
 
     router.post("/guilds/:guildId/tickets", async (req, res) => {
-        const permitido = ["enabled", "parent_channel_id", "support_role_id", "panel_channel_id"];
-        const campos = {};
-        for (const chave of permitido) {
-            if (req.body?.[chave] !== undefined) campos[chave] = req.body[chave] || null;
-        }
-        const config = await TicketRepository.setConfig(req.params.guildId, campos);
+        let campos;
+        try { campos = sanitizarTickets(req.body, req.painelGuild); } catch (error) { return tratarValidacao(res, error); }
+        await TicketRepository.setConfig(req.params.guildId, campos);
         res.json({ config: await TicketRepository.getConfig(req.params.guildId) });
     });
 
@@ -338,9 +502,13 @@ module.exports = (client) => {
 
     router.post("/guilds/:guildId/logs/canal", async (req, res) => {
 
-        const { channelId } = req.body || {};
+        let channelId;
 
-        await GuildRepository.setLogChannel({ guildId: req.params.guildId, channelId: channelId || null });
+        try {
+            channelId = idOpcional("channelId", (req.body || {}).channelId, id => req.painelGuild.channels.cache.get(id)?.isTextBased?.());
+        } catch (error) { return tratarValidacao(res, error); }
+
+        await GuildRepository.setLogChannel({ guildId: req.params.guildId, channelId });
 
         res.json({ ok: true });
 
