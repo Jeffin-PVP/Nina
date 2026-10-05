@@ -1,11 +1,11 @@
-const { SlashCommandBuilder, AttachmentBuilder } = require("discord.js");
+const path = require("path");
+const {
+    SlashCommandBuilder,
+    AttachmentBuilder
+} = require("discord.js");
 
 const ui = require("../../utils/ui");
 const { e } = require("../../utils/emojis");
-
-const imagem = new AttachmentBuilder("./assets/injectCloud.png", {
-    name: "injectCloud.png"
-});
 
 function quality(ms) {
 
@@ -40,56 +40,81 @@ module.exports = {
 
     async execute(interaction) {
 
-        const sent = await interaction.reply({
-            content: `${e("ping")} Calculando...`,
-            fetchReply: true
-        });
+        try {
 
-        const roundtrip =
-            sent.createdTimestamp - interaction.createdTimestamp;
+            // Resposta inicial
+            await interaction.reply({
+                content: `${e("ping")} Calculando...`
+            });
 
-        const api = Math.max(
-            0,
-            Math.round(interaction.client.ws.ping)
-        );
+            // Latência da mensagem
+            const roundtrip =
+                Date.now() - interaction.createdTimestamp;
 
-        const q = quality(Math.max(roundtrip, api));
+            // Latência da API do Discord
+            const api = Math.max(
+                0,
+                Math.round(interaction.client.ws.ping)
+            );
 
-        const embed = ui.titled(
-            q.color,
-            "ping",
-            "Pong!",
-            null,
-            interaction
-        )
-            .setDescription(
-                `${ui.mood("oi")} Estou online! Conexão **${q.label}** ${q.dot}`
+            const q = quality(Math.max(roundtrip, api));
+
+            // Caminho absoluto da imagem
+            const imagemPath = path.join(
+                __dirname,
+                "../../../assets/injectCloud.png"
+            );
+
+            const imagem = new AttachmentBuilder(imagemPath, {
+                name: "injectCloud.png"
+            });
+
+            const embed = ui.titled(
+                q.color,
+                "ping",
+                "Pong!",
+                null,
+                interaction
             )
-            .addFields(
-                {
-                    name: `${e("sparkle")} Mensagem`,
-                    value: `\`${roundtrip}ms\``,
-                    inline: true
-                },
-                {
-                    name: `${e("ping")} API`,
-                    value: `\`${api}ms\``,
-                    inline: true
-                },
-                {
-                    name: `${e("clock")} Online há`,
-                    value: `\`${ui.duration(interaction.client.uptime)}\``,
-                    inline: true
-                }
-            )
-            .setImage("attachment://injectCloud.png");
+                .setDescription(
+                    `${ui.mood("oi")} Estou online! Conexão **${q.label}** ${q.dot}`
+                )
+                .addFields(
+                    {
+                        name: `${e("sparkle")} Mensagem`,
+                        value: `\`${roundtrip}ms\``,
+                        inline: true
+                    },
+                    {
+                        name: `${e("ping")} API`,
+                        value: `\`${api}ms\``,
+                        inline: true
+                    },
+                    {
+                        name: `${e("clock")} Online há`,
+                        value: `\`${ui.duration(interaction.client.uptime)}\``,
+                        inline: true
+                    }
+                )
+                .setImage("attachment://injectCloud.png");
 
-        return interaction.editReply({
-            content: null,
-            embeds: [embed],
-            files: [imagem]
-        });
+            // Edita a mensagem original
+            return interaction.editReply({
+                content: null,
+                embeds: [embed],
+                files: [imagem]
+            });
 
+        } catch (error) {
+
+            console.error("[PING] Erro:", error);
+
+            return interaction.editReply({
+                content: "❌ Ocorreu um erro ao executar o comando `/ping`.",
+                embeds: [],
+                files: []
+            });
+
+        }
     }
-
 };
