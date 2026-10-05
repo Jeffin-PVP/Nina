@@ -9,7 +9,7 @@ class BannedGuildRepository {
             `
             INSERT INTO banned_guilds (guild_id, guild_name, reason)
             VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE guild_name = VALUES(guild_name), reason = VALUES(reason)
+            ON CONFLICT(guild_id) DO UPDATE SET guild_name = excluded.guild_name, reason = excluded.reason
             `,
 
             [guildId, guildName || null, reason || null]

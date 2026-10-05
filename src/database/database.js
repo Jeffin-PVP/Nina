@@ -1,423 +1,348 @@
-const mysql = require("mysql2/promise");
+const fs = require("node:fs");
+const path = require("node:path");
+const { DatabaseSync } = require("node:sqlite");
 
-const databaseUrl = process.env.DATABASE_URL;
+// O banco fica FORA de src/ para sobreviver à organização interna do código.
+// Estrutura: <raiz da Nina>/data/nina.db
+const dataDir = path.resolve(__dirname, "../../data");
+const databasePath = path.join(dataDir, "nina.db");
 
-if (!databaseUrl) {
-    throw new Error("DATABASE_URL não foi configurada no .env.");
-}
+fs.mkdirSync(dataDir, { recursive: true });
 
-let parsedUrl;
-try {
-    parsedUrl = new URL(databaseUrl);
-} catch (error) {
-    throw new Error("DATABASE_URL inválida. Use a URL MySQL fornecida pela InjectCloud.");
-}
+const db = new DatabaseSync(databasePath);
 
-const pool = mysql.createPool({
-    host: parsedUrl.hostname,
-    port: Number(parsedUrl.port || 3306),
-    user: decodeURIComponent(parsedUrl.username),
-    password: decodeURIComponent(parsedUrl.password),
-    database: parsedUrl.pathname.replace(/^\//, ""),
-    waitForConnections: true,
-    connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 10),
-    queueLimit: 0,
-    connectTimeout: 10000,
-    charset: "utf8mb4"
-});
+// SQLite otimizado para um bot com várias leituras/escritas pequenas.
+db.exec(`
+    PRAGMA journal_mode = WAL;
+    PRAGMA foreign_keys = ON;
+    PRAGMA busy_timeout = 5000;
+    PRAGMA synchronous = NORMAL;
+`);
 
 let initialized = false;
 let initializationPromise = null;
 
-async function run(sql, params = []) {
-    await ensureInitialized();
+const statements = [
+    `CREATE TABLE IF NOT EXISTS economy_users (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        wallet INTEGER NOT NULL DEFAULT 0,
+        bank INTEGER NOT NULL DEFAULT 0,
+        xp INTEGER NOT NULL DEFAULT 0,
+        level INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        daily_at INTEGER NULL,
+        work_at INTEGER NULL,
+        PRIMARY KEY (guild_id, user_id)
+    )`,
 
-    const [result] = await pool.execute(sql, params);
+    `CREATE TABLE IF NOT EXISTS economy_transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
 
-    // Mantemos lastID/changes como aliases para os repositórios antigos da Nina.
-    return {
-        ...result,
-        insertId: result.insertId,
-        lastID: result.insertId,
-        affectedRows: result.affectedRows,
-        changes: result.affectedRows
-    };
-}
+    `CREATE TABLE IF NOT EXISTS warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
 
-async function get(sql, params = []) {
-    await ensureInitialized();
+    `CREATE TABLE IF NOT EXISTS inventories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        quantity INTEGER NOT NULL DEFAULT 1,
+        UNIQUE (user_id, guild_id, item_id)
+    )`,
 
-    const [rows] = await pool.execute(sql, params);
-    return rows[0];
-}
+    `CREATE TABLE IF NOT EXISTS cooldowns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        command TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        UNIQUE (user_id, guild_id, command)
+    )`,
 
-async function all(sql, params = []) {
-    await ensureInitialized();
+    `CREATE TABLE IF NOT EXISTS guild_settings (
+        guild_id TEXT NOT NULL,
+        log_channel TEXT NULL,
+        economy_enabled INTEGER NOT NULL DEFAULT 1,
+        moderation_enabled INTEGER NOT NULL DEFAULT 1,
+        prefix TEXT NOT NULL DEFAULT '!',
+        log_disabled_categories TEXT NULL,
+        levelup_enabled INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (guild_id)
+    )`,
 
-    const [rows] = await pool.execute(sql, params);
-    return rows;
-}
+    `CREATE TABLE IF NOT EXISTS ticket_config (
+        guild_id TEXT NOT NULL,
+        parent_channel_id TEXT NULL,
+        support_role_id TEXT NULL,
+        panel_channel_id TEXT NULL,
+        next_number INTEGER NOT NULL DEFAULT 1,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (guild_id)
+    )`,
 
-const DB_RETRY_ATTEMPTS = Math.max(1, Number(process.env.DB_RETRY_ATTEMPTS || 5));
-const DB_RETRY_DELAY_MS = Math.max(500, Number(process.env.DB_RETRY_DELAY_MS || 2000));
+    `CREATE TABLE IF NOT EXISTS tickets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        number INTEGER NOT NULL,
+        thread_id TEXT NOT NULL,
+        parent_channel_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'open',
+        claimed_by TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        closed_at TEXT NULL,
+        closed_by TEXT NULL,
+        UNIQUE (thread_id)
+    )`,
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+    `CREATE TABLE IF NOT EXISTS autorole_join (
+        guild_id TEXT NOT NULL,
+        role_ids TEXT NULL,
+        PRIMARY KEY (guild_id)
+    )`,
 
-async function withDatabaseRetry(operation, label = "operação MySQL") {
-    let lastError;
+    `CREATE TABLE IF NOT EXISTS autorole_selfroles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        label TEXT NOT NULL,
+        emoji TEXT NULL,
+        UNIQUE (guild_id, role_id)
+    )`,
 
-    for (let attempt = 1; attempt <= DB_RETRY_ATTEMPTS; attempt++) {
-        try {
-            return await operation();
-        } catch (error) {
-            lastError = error;
+    `CREATE TABLE IF NOT EXISTS autorole_levels (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        level INTEGER NOT NULL,
+        role_id TEXT NOT NULL,
+        UNIQUE (guild_id, level)
+    )`,
 
-            const transient = [
-                "ENOTFOUND",
-                "EAI_AGAIN",
-                "ECONNREFUSED",
-                "ETIMEDOUT",
-                "ECONNRESET",
-                "PROTOCOL_CONNECTION_LOST"
-            ].includes(error?.code);
+    `CREATE TABLE IF NOT EXISTS giveaways (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT NULL,
+        host_id TEXT NOT NULL,
+        prize TEXT NOT NULL,
+        winners_count INTEGER NOT NULL DEFAULT 1,
+        required_role_id TEXT NULL,
+        ends_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'running',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
 
-            if (!transient || attempt >= DB_RETRY_ATTEMPTS) {
-                throw error;
-            }
+    `CREATE TABLE IF NOT EXISTS giveaway_entries (
+        giveaway_id INTEGER NOT NULL,
+        user_id TEXT NOT NULL,
+        entered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (giveaway_id, user_id),
+        FOREIGN KEY (giveaway_id) REFERENCES giveaways(id) ON DELETE CASCADE
+    )`,
 
-            const delay = DB_RETRY_DELAY_MS * (2 ** (attempt - 1));
+    `CREATE TABLE IF NOT EXISTS giveaway_multipliers (
+        guild_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        multiplier INTEGER NOT NULL DEFAULT 2,
+        PRIMARY KEY (guild_id, role_id)
+    )`,
 
-            console.warn(
-                `⚠️ ${label} falhou (${error.code || error.message}). ` +
-                `Tentativa ${attempt}/${DB_RETRY_ATTEMPTS}. ` +
-                `Nova tentativa em ${delay}ms...`
-            );
+    `CREATE TABLE IF NOT EXISTS bot_presence (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL DEFAULT 'WATCHING',
+        text TEXT NOT NULL,
+        position INTEGER NOT NULL DEFAULT 0
+    )`,
 
-            await sleep(delay);
-        }
-    }
+    `CREATE TABLE IF NOT EXISTS bot_settings (
+        key TEXT NOT NULL,
+        value TEXT NULL,
+        PRIMARY KEY (key)
+    )`,
 
-    throw lastError;
-}
+    `CREATE TABLE IF NOT EXISTS bot_stats_history (
+        date TEXT NOT NULL,
+        servers INTEGER NOT NULL,
+        members INTEGER NOT NULL,
+        PRIMARY KEY (date)
+    )`,
 
-async function testConnection() {
-    return withDatabaseRetry(async () => {
-        const connection = await pool.getConnection();
+    `CREATE TABLE IF NOT EXISTS broadcasts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NULL,
+        description TEXT NOT NULL,
+        color TEXT NULL,
+        kind TEXT NOT NULL DEFAULT 'broadcast',
+        sent_count INTEGER NOT NULL DEFAULT 0,
+        failed_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
 
-        try {
-            await connection.ping();
-            console.log("🗄️ MySQL da InjectCloud conectado");
-        } finally {
-            connection.release();
-        }
-    }, "Conexão com MySQL");
-}
+    `CREATE TABLE IF NOT EXISTS banned_guilds (
+        guild_id TEXT NOT NULL,
+        guild_name TEXT NULL,
+        reason TEXT NULL,
+        banned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id)
+    )`,
 
-async function initializeDatabase() {
+    `CREATE TABLE IF NOT EXISTS global_bans (
+        user_id TEXT NOT NULL,
+        user_tag TEXT NULL,
+        reason TEXT NULL,
+        banned_by TEXT NULL,
+        banned_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS welcome_settings (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        channel_id TEXT NULL,
+        background_url TEXT NULL,
+        title_text TEXT NULL,
+        subtitle_text TEXT NULL,
+        message_content TEXT NULL,
+        accent_color TEXT NOT NULL DEFAULT '#5865F2',
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS automod_settings (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        ignored_channels TEXT NOT NULL,
+        ignored_roles TEXT NOT NULL,
+        mute_duration_minutes INTEGER NOT NULL DEFAULT 10,
+        spam_enabled INTEGER NOT NULL DEFAULT 1,
+        spam_max_messages INTEGER NOT NULL DEFAULT 6,
+        spam_interval_seconds INTEGER NOT NULL DEFAULT 6,
+        spam_actions TEXT NOT NULL DEFAULT 'delete,notify,warn',
+        emoji_enabled INTEGER NOT NULL DEFAULT 1,
+        emoji_max_count INTEGER NOT NULL DEFAULT 10,
+        emoji_actions TEXT NOT NULL DEFAULT 'delete,notify',
+        swear_enabled INTEGER NOT NULL DEFAULT 1,
+        swear_actions TEXT NOT NULL DEFAULT 'delete,notify,warn',
+        swear_custom_words TEXT NOT NULL,
+        mention_enabled INTEGER NOT NULL DEFAULT 1,
+        mention_max_count INTEGER NOT NULL DEFAULT 5,
+        mention_actions TEXT NOT NULL DEFAULT 'delete,warn,mute',
+        invite_enabled INTEGER NOT NULL DEFAULT 0,
+        invite_actions TEXT NOT NULL DEFAULT 'delete,notify',
+        raid_enabled INTEGER NOT NULL DEFAULT 0,
+        raid_join_threshold INTEGER NOT NULL DEFAULT 10,
+        raid_interval_seconds INTEGER NOT NULL DEFAULT 60,
+        raid_action TEXT NOT NULL DEFAULT 'lockdown',
+        image_enabled INTEGER NOT NULL DEFAULT 0,
+        image_action TEXT NOT NULL DEFAULT 'ignore',
+        image_threshold REAL NOT NULL DEFAULT 0.850,
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS automod_raid_locks (
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        PRIMARY KEY (guild_id, channel_id)
+    )`
+];
+
+const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_economy_transactions_user ON economy_transactions (guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_economy_transactions_created ON economy_transactions (created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_warnings_user ON warnings (guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_tickets_guild_status ON tickets (guild_id, status)`,
+    `CREATE INDEX IF NOT EXISTS idx_giveaways_running ON giveaways (guild_id, status, ends_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`
+];
+
+function initializeDatabase() {
     if (initialized) return;
 
-    await testConnection();
-
-    const statements = [
-        `CREATE TABLE IF NOT EXISTS economy_users (
-            guild_id VARCHAR(32) NOT NULL,
-            user_id VARCHAR(32) NOT NULL,
-            wallet BIGINT NOT NULL DEFAULT 0,
-            bank BIGINT NOT NULL DEFAULT 0,
-            xp BIGINT NOT NULL DEFAULT 0,
-            level INT NOT NULL DEFAULT 1,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            daily_at BIGINT NULL,
-            work_at BIGINT NULL,
-            PRIMARY KEY (guild_id, user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS economy_transactions (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            user_id VARCHAR(32) NOT NULL,
-            amount BIGINT NOT NULL,
-            type VARCHAR(50) NOT NULL,
-            description TEXT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_economy_transactions_user (guild_id, user_id),
-            INDEX idx_economy_transactions_created (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS warnings (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            user_id VARCHAR(32) NOT NULL,
-            moderator_id VARCHAR(32) NOT NULL,
-            reason TEXT NOT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_warnings_user (guild_id, user_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS inventories (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id VARCHAR(32) NOT NULL,
-            guild_id VARCHAR(32) NOT NULL,
-            item_id VARCHAR(100) NOT NULL,
-            quantity INT NOT NULL DEFAULT 1,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_inventory_item (user_id, guild_id, item_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS cooldowns (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            user_id VARCHAR(32) NOT NULL,
-            guild_id VARCHAR(32) NOT NULL,
-            command VARCHAR(100) NOT NULL,
-            expires_at BIGINT NOT NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_cooldown (user_id, guild_id, command)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS guild_settings (
-            guild_id VARCHAR(32) NOT NULL,
-            log_channel VARCHAR(32) NULL,
-            economy_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            moderation_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            prefix VARCHAR(20) NOT NULL DEFAULT '!',
-            log_disabled_categories TEXT NULL,
-            levelup_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS ticket_config (
-            guild_id VARCHAR(32) NOT NULL,
-            parent_channel_id VARCHAR(32) NULL,
-            support_role_id VARCHAR(32) NULL,
-            panel_channel_id VARCHAR(32) NULL,
-            next_number INT NOT NULL DEFAULT 1,
-            enabled TINYINT(1) NOT NULL DEFAULT 1,
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS tickets (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            number INT NOT NULL,
-            thread_id VARCHAR(32) NOT NULL,
-            parent_channel_id VARCHAR(32) NOT NULL,
-            user_id VARCHAR(32) NOT NULL,
-            status VARCHAR(30) NOT NULL DEFAULT 'open',
-            claimed_by VARCHAR(32) NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            closed_at DATETIME NULL,
-            closed_by VARCHAR(32) NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_ticket_thread (thread_id),
-            INDEX idx_tickets_guild_status (guild_id, status)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS autorole_join (
-            guild_id VARCHAR(32) NOT NULL,
-            role_ids TEXT NULL,
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS autorole_selfroles (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            role_id VARCHAR(32) NOT NULL,
-            label VARCHAR(255) NOT NULL,
-            emoji VARCHAR(255) NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_autorole_selfrole (guild_id, role_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS autorole_levels (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            level INT NOT NULL,
-            role_id VARCHAR(32) NOT NULL,
-            PRIMARY KEY (id),
-            UNIQUE KEY uq_autorole_level (guild_id, level)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS giveaways (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            guild_id VARCHAR(32) NOT NULL,
-            channel_id VARCHAR(32) NOT NULL,
-            message_id VARCHAR(32) NULL,
-            host_id VARCHAR(32) NOT NULL,
-            prize TEXT NOT NULL,
-            winners_count INT NOT NULL DEFAULT 1,
-            required_role_id VARCHAR(32) NULL,
-            ends_at BIGINT NOT NULL,
-            status VARCHAR(30) NOT NULL DEFAULT 'running',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            INDEX idx_giveaways_running (guild_id, status, ends_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS giveaway_entries (
-            giveaway_id BIGINT UNSIGNED NOT NULL,
-            user_id VARCHAR(32) NOT NULL,
-            entered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (giveaway_id, user_id),
-            CONSTRAINT fk_giveaway_entries_giveaway
-                FOREIGN KEY (giveaway_id) REFERENCES giveaways(id)
-                ON DELETE CASCADE
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS giveaway_multipliers (
-            guild_id VARCHAR(32) NOT NULL,
-            role_id VARCHAR(32) NOT NULL,
-            multiplier INT NOT NULL DEFAULT 2,
-            PRIMARY KEY (guild_id, role_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS bot_presence (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            type VARCHAR(30) NOT NULL DEFAULT 'WATCHING',
-            text VARCHAR(255) NOT NULL,
-            position INT NOT NULL DEFAULT 0,
-            PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS bot_settings (
-            \`key\` VARCHAR(255) NOT NULL,
-            value TEXT NULL,
-            PRIMARY KEY (\`key\`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS bot_stats_history (
-            date VARCHAR(20) NOT NULL,
-            servers INT NOT NULL,
-            members INT NOT NULL,
-            PRIMARY KEY (date)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS broadcasts (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            title VARCHAR(255) NULL,
-            description TEXT NOT NULL,
-            color VARCHAR(20) NULL,
-            kind VARCHAR(50) NOT NULL DEFAULT 'broadcast',
-            sent_count INT NOT NULL DEFAULT 0,
-            failed_count INT NOT NULL DEFAULT 0,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS banned_guilds (
-            guild_id VARCHAR(32) NOT NULL,
-            guild_name VARCHAR(255) NULL,
-            reason TEXT NULL,
-            banned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS global_bans (
-            user_id VARCHAR(32) NOT NULL,
-            user_tag VARCHAR(255) NULL,
-            reason TEXT NULL,
-            banned_by VARCHAR(32) NULL,
-            banned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (user_id),
-            INDEX idx_global_bans_banned_at (banned_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS welcome_settings (
-            guild_id VARCHAR(32) NOT NULL,
-            enabled TINYINT(1) NOT NULL DEFAULT 0,
-            channel_id VARCHAR(32) NULL,
-            background_url TEXT NULL,
-            title_text VARCHAR(255) NULL,
-            subtitle_text VARCHAR(255) NULL,
-            message_content TEXT NULL,
-            accent_color VARCHAR(20) NOT NULL DEFAULT '#5865F2',
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS automod_settings (
-            guild_id VARCHAR(32) NOT NULL,
-            enabled TINYINT(1) NOT NULL DEFAULT 0,
-            ignored_channels TEXT NOT NULL,
-            ignored_roles TEXT NOT NULL,
-            mute_duration_minutes INT NOT NULL DEFAULT 10,
-            spam_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            spam_max_messages INT NOT NULL DEFAULT 6,
-            spam_interval_seconds INT NOT NULL DEFAULT 6,
-            spam_actions VARCHAR(255) NOT NULL DEFAULT 'delete,notify,warn',
-            emoji_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            emoji_max_count INT NOT NULL DEFAULT 10,
-            emoji_actions VARCHAR(255) NOT NULL DEFAULT 'delete,notify',
-            swear_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            swear_actions VARCHAR(255) NOT NULL DEFAULT 'delete,notify,warn',
-            swear_custom_words TEXT NOT NULL,
-            mention_enabled TINYINT(1) NOT NULL DEFAULT 1,
-            mention_max_count INT NOT NULL DEFAULT 5,
-            mention_actions VARCHAR(255) NOT NULL DEFAULT 'delete,warn,mute',
-            invite_enabled TINYINT(1) NOT NULL DEFAULT 0,
-            invite_actions VARCHAR(255) NOT NULL DEFAULT 'delete,notify',
-            raid_enabled TINYINT(1) NOT NULL DEFAULT 0,
-            raid_join_threshold INT NOT NULL DEFAULT 10,
-            raid_interval_seconds INT NOT NULL DEFAULT 60,
-            raid_action VARCHAR(50) NOT NULL DEFAULT 'lockdown',
-            PRIMARY KEY (guild_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-
-        `CREATE TABLE IF NOT EXISTS automod_raid_locks (
-            guild_id VARCHAR(32) NOT NULL,
-            channel_id VARCHAR(32) NOT NULL,
-            PRIMARY KEY (guild_id, channel_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
-,
-
-        `ALTER TABLE automod_settings
-            ADD COLUMN IF NOT EXISTS image_enabled TINYINT(1) NOT NULL DEFAULT 0,
-            ADD COLUMN IF NOT EXISTS image_action VARCHAR(20) NOT NULL DEFAULT 'ignore',
-            ADD COLUMN IF NOT EXISTS image_threshold DECIMAL(4,3) NOT NULL DEFAULT 0.850`
-    ];
-
-    const connection = await pool.getConnection();
-
+    db.exec("BEGIN");
     try {
-        await connection.beginTransaction();
-
-        for (const statement of statements) {
-            await connection.query(statement);
-        }
-
-        await connection.commit();
+        for (const statement of statements) db.exec(statement);
+        for (const statement of indexes) db.exec(statement);
+        db.exec("COMMIT");
         initialized = true;
-        console.log("✔ Estrutura MySQL da Nina verificada/criada");
+        console.log(`🗄️ SQLite conectado: ${databasePath}`);
+        console.log("✔ Estrutura SQLite da Nina verificada/criada");
     } catch (error) {
-        await connection.rollback();
+        try { db.exec("ROLLBACK"); } catch {}
         throw error;
-    } finally {
-        connection.release();
     }
 }
 
-async function ensureInitialized() {
+function ensureInitialized() {
     if (initialized) return;
-
     if (!initializationPromise) {
-        initializationPromise = initializeDatabase()
+        initializationPromise = Promise.resolve().then(() => initializeDatabase())
             .catch(error => {
                 initializationPromise = null;
                 throw error;
             });
     }
-
-    await initializationPromise;
+    return initializationPromise;
 }
 
+async function run(sql, params = []) {
+    await ensureInitialized();
+    const statement = db.prepare(sql);
+    const result = statement.run(...params);
+    return {
+        ...result,
+        insertId: Number(result.lastInsertRowid),
+        lastID: Number(result.lastInsertRowid),
+        affectedRows: Number(result.changes),
+        changes: Number(result.changes)
+    };
+}
+
+async function get(sql, params = []) {
+    await ensureInitialized();
+    return db.prepare(sql).get(...params) || undefined;
+}
+
+async function all(sql, params = []) {
+    await ensureInitialized();
+    return db.prepare(sql).all(...params);
+}
+
+async function testConnection() {
+    await ensureInitialized();
+    const row = db.prepare("SELECT 1 AS ok").get();
+    if (!row?.ok) throw new Error("SQLite não respondeu ao teste de conexão.");
+    return true;
+}
+
+function close() {
+    if (!db) return;
+    try { db.close(); } catch {}
+}
+
+process.once("SIGINT", close);
+process.once("SIGTERM", close);
+
 module.exports = {
-    pool,
-    db: pool,
+    db,
+    database: db,
+    databasePath,
     run,
     get,
     all,
     testConnection,
-    initializeDatabase
+    initializeDatabase,
+    close
 };

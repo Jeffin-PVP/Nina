@@ -194,7 +194,7 @@ class GiveawayRepository {
             `
             INSERT INTO giveaway_multipliers (guild_id, role_id, multiplier)
             VALUES (?, ?, ?)
-            ON DUPLICATE KEY UPDATE multiplier = VALUES(multiplier)
+            ON CONFLICT(guild_id, role_id) DO UPDATE SET multiplier = excluded.multiplier
             `,
 
             [guildId, roleId, multiplier]
@@ -245,7 +245,7 @@ class GiveawayRepository {
         await database.run(
 
             `
-            INSERT IGNORE INTO giveaway_entries (giveaway_id, user_id)
+            INSERT OR IGNORE INTO giveaway_entries (giveaway_id, user_id)
             VALUES (?, ?)
             `,
 

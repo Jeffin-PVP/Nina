@@ -74,8 +74,8 @@ class AutomodRepository {
             `
             INSERT INTO automod_settings (guild_id, ${colunas.join(", ")})
             VALUES (?, ${colunas.map(() => "?").join(", ")})
-            ON DUPLICATE KEY UPDATE
-                ${colunas.map(c => `${c} = VALUES(${c})`).join(", ")}
+            ON CONFLICT(guild_id) DO UPDATE SET
+                ${colunas.map(c => `${c} = excluded.${c}`).join(", ")}
             `,
 
             [guildId, ...valores]
@@ -129,7 +129,7 @@ class AutomodRepository {
         await database.run(
 
             `
-            INSERT IGNORE INTO automod_raid_locks (guild_id, channel_id)
+            INSERT OR IGNORE INTO automod_raid_locks (guild_id, channel_id)
             VALUES (?, ?)
             `,
 

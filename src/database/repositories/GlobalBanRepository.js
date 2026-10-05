@@ -8,10 +8,10 @@ class GlobalBanRepository {
             `
             INSERT INTO global_bans (user_id, user_tag, reason, banned_by)
             VALUES (?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                user_tag = VALUES(user_tag),
-                reason = VALUES(reason),
-                banned_by = VALUES(banned_by),
+            ON CONFLICT(user_id) DO UPDATE SET
+                user_tag = excluded.user_tag,
+                reason = excluded.reason,
+                banned_by = excluded.banned_by,
                 banned_at = CURRENT_TIMESTAMP
             `,
             [userId, userTag || null, reason || null, bannedBy || null]
