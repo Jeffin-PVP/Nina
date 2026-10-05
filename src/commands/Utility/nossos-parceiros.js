@@ -28,50 +28,72 @@ module.exports = {
                 .setRequired(true)
         )
 
-        .addStringOption(option =>
+        .addAttachmentOption(option =>
             option
                 .setName("imagem")
-                .setDescription("URL da imagem do parceiro.")
+                .setDescription("Imagem ou banner do parceiro.")
                 .setRequired(false)
         )
 
         .addStringOption(option =>
             option
                 .setName("convite")
-                .setDescription("Link de convite/site do parceiro.")
+                .setDescription("Link de convite ou site do parceiro.")
                 .setRequired(false)
         ),
 
     async execute(interaction) {
 
-        const nome = interaction.options.getString("nome");
-        const descricao = interaction.options.getString("descricao");
-        const imagem = interaction.options.getString("imagem");
+        const nome = interaction.options.getString("nome", true);
+        const descricao = interaction.options.getString("descricao", true);
+        const imagem = interaction.options.getAttachment("imagem");
         const convite = interaction.options.getString("convite");
 
+        // Aceita somente imagens para evitar anexos que o Discord não consiga renderizar no embed.
+        if (imagem && !imagem.contentType?.startsWith("image/")) {
+            return ui.fail(
+                interaction,
+                "O arquivo enviado em **imagem** precisa ser PNG, JPG, JPEG, WEBP ou outro formato de imagem suportado pelo Discord.",
+                "Imagem inválida"
+            );
+        }
+
+        // Validação simples do link, quando informado.
+        if (convite) {
+            try {
+                const url = new URL(convite);
+                if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+            } catch {
+                return ui.fail(
+                    interaction,
+                    "O link informado em **convite** não é válido. Use uma URL começando com `https://`.",
+                    "Link inválido"
+                );
+            }
+        }
+
         const embed = new EmbedBuilder()
-            .setColor(ui.COLORS.primary || "#7C3AED")
+            .setColor(ui.COLORS.brand)
             .setTitle(`${e("sparkle")} Nossos Parceiros`)
-            .setDescription(
-                `## ${nome}\n\n${descricao}`
-            )
+            .setDescription(`## ${nome}\n\n${descricao}`)
             .setFooter({
                 text: "Obrigado por apoiar a comunidade da Nina! 💜"
             })
             .setTimestamp();
 
         if (imagem) {
-            embed.setImage(imagem);
+            embed.setImage(imagem.url);
         }
 
         if (convite) {
             embed.addFields({
-                name: `${e("link")} Acesse`,
-                value: `[Clique aqui para conhecer o parceiro](${convite})`
+                name: `${e("server")} Acesse`,
+                value: `[Clique aqui para conhecer **${nome}**](${convite})`,
+                inline: false
             });
         }
 
-        await interaction.reply({
+        return interaction.reply({
             embeds: [embed]
         });
 
