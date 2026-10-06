@@ -1,9 +1,9 @@
 const {
     SlashCommandBuilder,
-    EmbedBuilder
+    EmbedBuilder,
+    MessageFlags
 } = require("discord.js");
 
-const ui = require("../../utils/ui");
 const { e } = require("../../utils/emojis");
 
 module.exports = {
@@ -14,18 +14,21 @@ module.exports = {
             option
                 .setName("nome")
                 .setDescription("Nome do servidor parceiro.")
+                .setMaxLength(256)
                 .setRequired(true)
         )
         .addStringOption(option =>
             option
                 .setName("descricao")
                 .setDescription("Descrição do servidor parceiro.")
+                .setMaxLength(1024)
                 .setRequired(true)
         )
         .addStringOption(option =>
             option
                 .setName("convite")
-                .setDescription("Link de convite do servidor.")
+                .setDescription("Link de convite do servidor parceiro.")
+                .setMaxLength(512)
                 .setRequired(true)
         )
         .addAttachmentOption(option =>
@@ -40,6 +43,49 @@ module.exports = {
         const descricao = interaction.options.getString("descricao");
         const convite = interaction.options.getString("convite");
         const imagem = interaction.options.getAttachment("imagem");
+
+        let conviteUrl;
+
+        try {
+            conviteUrl = new URL(convite);
+        } catch {
+            return interaction.reply({
+                content: "❌ O convite informado não é uma URL válida.",
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        const host = conviteUrl.hostname.toLowerCase();
+
+        if (
+            conviteUrl.protocol !== "https:" ||
+            !(
+                host === "discord.gg" ||
+                host === "discord.com" ||
+                host === "www.discord.com"
+            ) ||
+            !(
+                host === "discord.gg" ||
+                conviteUrl.pathname.startsWith("/invite/")
+            )
+        ) {
+            return interaction.reply({
+                content:
+                    "❌ Use um convite oficial do Discord, como `https://discord.gg/xxxx`.",
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        if (
+            imagem &&
+            imagem.contentType &&
+            !imagem.contentType.startsWith("image/")
+        ) {
+            return interaction.reply({
+                content: "❌ O arquivo enviado em `imagem` precisa ser uma imagem.",
+                flags: MessageFlags.Ephemeral
+            });
+        }
 
         const embed = new EmbedBuilder()
             .setColor("#7C3AED")
@@ -60,7 +106,7 @@ module.exports = {
                 },
                 {
                     name: `${e("link")} Convite`,
-                    value: `[**Entrar no servidor**](${convite})`,
+                    value: `[**Entrar no servidor**](${conviteUrl.toString()})`,
                     inline: false
                 }
             )
@@ -74,7 +120,10 @@ module.exports = {
         }
 
         await interaction.reply({
-            embeds: [embed]
+            embeds: [embed],
+            allowedMentions: {
+                parse: []
+            }
         });
     }
 };

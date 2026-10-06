@@ -16,6 +16,28 @@ const {
 const sessions = new Map();
 
 const SESSION_TIME = 30 * 60 * 1000;
+const IMPORT_MAX_BYTES = 256 * 1024;
+
+function sessionId(guildId, userId) {
+    return `${guildId || "dm"}:${userId}`;
+}
+
+function cleanupExpiredSessions() {
+    const now = Date.now();
+
+    for (const [id, session] of sessions) {
+        if (now > session.expiresAt) {
+            sessions.delete(id);
+        }
+    }
+}
+
+const cleanupTimer = setInterval(
+    cleanupExpiredSessions,
+    5 * 60 * 1000
+);
+
+cleanupTimer.unref?.();
 
 function defaultData() {
     return {
@@ -68,10 +90,10 @@ function normalize(data) {
    SESSÕES
 ========================= */
 
-function create(userId) {
+function create(id) {
     const data = defaultData();
 
-    sessions.set(userId, {
+    sessions.set(id, {
         data,
         expiresAt: Date.now() + SESSION_TIME
     });
@@ -79,15 +101,15 @@ function create(userId) {
     return data;
 }
 
-function get(userId) {
-    const session = sessions.get(userId);
+function get(id) {
+    const session = sessions.get(id);
 
     if (!session) {
         return null;
     }
 
     if (Date.now() > session.expiresAt) {
-        sessions.delete(userId);
+        sessions.delete(id);
         return null;
     }
 
@@ -96,10 +118,10 @@ function get(userId) {
     return session.data;
 }
 
-function set(userId, data) {
+function set(id, data) {
     const normalized = normalize(data);
 
-    sessions.set(userId, {
+    sessions.set(id, {
         data: normalized,
         expiresAt: Date.now() + SESSION_TIME
     });
@@ -107,8 +129,8 @@ function set(userId, data) {
     return normalized;
 }
 
-function remove(userId) {
-    sessions.delete(userId);
+function remove(id) {
+    sessions.delete(id);
 }
 
 /* =========================
@@ -381,28 +403,169 @@ function colorModal(data) {
         );
 }
 
-function importModal() {
+async function importFromAttachment(interaction, id) {
+    if (
+        !interaction.channel ||
+        typeof interaction.channel.awaitMessages !== "function"
+    ) {
+        await interaction.reply({
+            content: "❌ Não consigo receber o arquivo neste canal.",
+            flags: MessageFlags.Ephemeral
+        });
+        return;
+    }
 
-    return new ModalBuilder()
-        .setCustomId("container_modal:import")
-        .setTitle("Importar container")
+    await interaction.reply({
+        content:
+            "📥 **Importar container**\n" +
+            "Envie agora o arquivo `container.json` como uma mensagem neste canal. " +
+            "O arquivo será lido apenas para esta sessão e não será salvo no servidor.\n\n" +
+            "⏱️ Você tem **2 minutos**.",
+        flags: MessageFlags.Ephemeral
+    });
 
-        .addComponents(
+    try {
+        const collected =
+            await interaction.channel.awaitMessages({
+                time: 120000,
+                max: 1,
+                errors: ["time"],
+                filter: message => {
+                    if (
+                        message.author.id !==
+                        interaction.user.id
+                    ) {
+                        return false;
+                    }
 
-            new ActionRowBuilder()
-                .addComponents(
+                    return [...message.attachments.values()]
+                        .some(attachment => {
+                            const name =
+                                String(
+                                    attachment.name || ""
+                                ).toLowerCase();
 
-                    new TextInputBuilder()
-                        .setCustomId("json")
-                        .setLabel("JSON")
-                        .setStyle(TextInputStyle.Paragraph)
-                        .setPlaceholder(
-                            '{"title":"Meu container","description":"..."}'
-                        )
-                        .setRequired(true)
-                        .setMaxLength(4000)
-                )
+                            return (
+                                name.endsWith(".json") &&
+                                attachment.size <=
+                                    IMPORT_MAX_BYTES
+                            );
+                        });
+                }
+            });
+
+        const uploadedMessage =
+            collected.first();
+
+        const attachment =
+            [...uploadedMessage.attachments.values()]
+                .find(item => {
+                    const name =
+                        String(
+                            item.name || ""
+                        ).toLowerCase();
+
+                    return (
+                        name.endsWith(".json") &&
+                        item.size <=
+                            IMPORT_MAX_BYTES
+                    );
+                });
+
+        if (!attachment) {
+            throw new Error(
+                "O arquivo precisa ser um `.json` com até 256 KB."
+            );
+        }
+
+        const response =
+            await fetch(attachment.url);
+
+        if (!response.ok) {
+            throw new Error(
+                `Não consegui baixar o arquivo (HTTP ${response.status}).`
+            );
+        }
+
+        const contentLength =
+            Number(
+                response.headers.get(
+                    "content-length"
+                ) || 0
+            );
+
+        if (
+            contentLength >
+            IMPORT_MAX_BYTES
+        ) {
+            throw new Error(
+                "O arquivo excede o limite de 256 KB."
+            );
+        }
+
+        const buffer =
+            Buffer.from(
+                await response.arrayBuffer()
+            );
+
+        if (
+            buffer.length >
+            IMPORT_MAX_BYTES
+        ) {
+            throw new Error(
+                "O arquivo excede o limite de 256 KB."
+            );
+        }
+
+        const imported =
+            JSON.parse(
+                buffer.toString("utf8")
+            );
+
+        if (
+            !imported ||
+            typeof imported !== "object" ||
+            Array.isArray(imported)
+        ) {
+            throw new Error(
+                "O JSON precisa conter um objeto de container."
+            );
+        }
+
+        const next =
+            set(
+                id,
+                imported
+            );
+
+        await interaction.message.edit(
+            message(next)
         );
+
+        await interaction.editReply({
+            content:
+                "✅ **Container importado!**\n" +
+                "O arquivo foi lido com sucesso e não foi salvo no armazenamento da Nina."
+        });
+
+    } catch (error) {
+        if (
+            error?.code ===
+            "CollectorError"
+        ) {
+            await interaction.editReply({
+                content:
+                    "⏱️ Tempo esgotado. Clique em **📥 Importar** novamente quando estiver pronto."
+            });
+
+            return;
+        }
+
+        await interaction.editReply({
+            content:
+                `❌ Não consegui importar o container.\n\`${error.message}\``
+        });
+    }
 }
 
 function webhookModal() {
@@ -468,8 +631,14 @@ async function handleButton(interaction) {
         return false;
     }
 
+    const id =
+        sessionId(
+            interaction.guildId,
+            interaction.user.id
+        );
+
     const data =
-        get(interaction.user.id);
+        get(id);
 
     if (!data) {
 
@@ -518,10 +687,7 @@ async function handleButton(interaction) {
                 .getTextInputValue("footer")
                 .trim();
 
-        set(
-            interaction.user.id,
-            next
-        );
+        set(id, next);
 
         await modal.update(
             message(next)
@@ -557,10 +723,7 @@ async function handleButton(interaction) {
                 .trim()
         );
 
-        set(
-            interaction.user.id,
-            next
-        );
+        set(id, next);
 
         await modal.update(
             message(next)
@@ -615,10 +778,7 @@ async function handleButton(interaction) {
         next.color =
             color;
 
-        set(
-            interaction.user.id,
-            next
-        );
+        set(id, next);
 
         await modal.update(
             message(next)
@@ -702,45 +862,10 @@ async function handleButton(interaction) {
         interaction.customId ===
         "container:import"
     ) {
-
-        const modal =
-            await showAndWait(
-                interaction,
-                importModal()
-            );
-
-        try {
-
-            const json =
-                modal.fields
-                    .getTextInputValue(
-                        "json"
-                    );
-
-            const imported =
-                JSON.parse(json);
-
-            const next =
-                set(
-                    interaction.user.id,
-                    imported
-                );
-
-            await modal.update(
-                message(next)
-            );
-
-        } catch (error) {
-
-            await modal.reply({
-
-                content:
-                    `❌ JSON inválido: ${error.message}`,
-
-                flags:
-                    MessageFlags.Ephemeral
-            });
-        }
+        await importFromAttachment(
+            interaction,
+            id
+        );
 
         return true;
     }
@@ -768,6 +893,33 @@ async function handleButton(interaction) {
                         "url"
                     )
                     .trim();
+
+            let parsedUrl;
+
+            try {
+                parsedUrl = new URL(url);
+            } catch {
+                throw new Error(
+                    "URL de webhook inválida."
+                );
+            }
+
+            if (
+                parsedUrl.protocol !== "https:" ||
+                !(
+                    parsedUrl.hostname ===
+                        "discord.com" ||
+                    parsedUrl.hostname ===
+                        "discordapp.com"
+                ) ||
+                !parsedUrl.pathname.startsWith(
+                    "/api/webhooks/"
+                )
+            ) {
+                throw new Error(
+                    "Informe uma URL de webhook oficial do Discord."
+                );
+            }
 
             const webhook =
                 new WebhookClient({
@@ -854,9 +1006,7 @@ async function handleButton(interaction) {
         "container:cancel"
     ) {
 
-        remove(
-            interaction.user.id
-        );
+        remove(id);
 
         await interaction.update({
 
@@ -878,6 +1028,7 @@ async function handleButton(interaction) {
 }
 
 module.exports = {
+    sessionId,
     create,
     get,
     set,

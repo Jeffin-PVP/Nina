@@ -29,13 +29,19 @@ module.exports = {
         =========================
         */
 
+        const sessionId =
+            ContainerManager.sessionId(
+                interaction.guildId,
+                interaction.user.id
+            );
+
         ContainerManager.create(
-            interaction.user.id
+            sessionId
         );
 
         const data =
             ContainerManager.get(
-                interaction.user.id
+                sessionId
             );
 
         /*
@@ -125,7 +131,7 @@ module.exports = {
             () => {
 
                 ContainerManager.remove(
-                    interaction.user.id
+                    sessionId
                 );
 
             }

@@ -23,7 +23,8 @@ class CommandManager {
             const restanteMs = CooldownManager.check(
                 interaction.commandName,
                 interaction.user.id,
-                command.cooldown
+                command.cooldown,
+                interaction.guildId || "global"
             );
 
             if (restanteMs > 0) {
