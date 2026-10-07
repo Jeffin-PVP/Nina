@@ -22,6 +22,18 @@ const UPDATE_INTERVAL = 60_000;
 let clientRef = null;
 let timer = null;
 let updating = false;
+const guildLocks = new Map();
+
+async function withGuildLock(guildId, task) {
+    const previous = guildLocks.get(guildId) || Promise.resolve();
+    const current = previous.catch(() => {}).then(task);
+    guildLocks.set(guildId, current);
+    try {
+        return await current;
+    } finally {
+        if (guildLocks.get(guildId) === current) guildLocks.delete(guildId);
+    }
+}
 
 function enabledCounters(config) {
     return ORDER.filter(key => config[`${key}_enabled`]);
@@ -77,62 +89,102 @@ async function ensureCategory(guild, config) {
             type: ChannelType.GuildCategory,
             reason: "Nina: categoria de estatísticas do servidor"
         });
+    }
+
+    if (config.category_id !== category.id) {
         await ServerStatsRepository.update(guild.id, { category_id: category.id });
+    }
+
+    // Remove categorias duplicadas antigas, mantendo a que está registrada.
+    const duplicateCategories = guild.channels.cache.filter(channel =>
+        channel.type === ChannelType.GuildCategory &&
+        channel.name === "📊・Estatísticas" &&
+        channel.id !== category.id
+    );
+
+    for (const duplicate of duplicateCategories.values()) {
+        await duplicate.delete("Nina: remover categoria de estatísticas duplicada").catch(() => {});
     }
 
     return category;
 }
 
 async function createOrUpdate(guild, { force = false } = {}) {
-    const config = await ServerStatsRepository.get(guild.id);
-    if (!config.enabled && !force) return false;
+    return withGuildLock(guild.id, async () => {
+        const config = await ServerStatsRepository.get(guild.id);
+        if (!config.enabled && !force) return false;
 
-    const category = await ensureCategory(guild, config);
-    let ids = await ServerStatsRepository.getChannelIds(guild.id);
-    const values = getValues(guild, clientRef);
-    const active = new Set(enabledCounters(config));
+        const category = await ensureCategory(guild, config);
+        let ids = await ServerStatsRepository.getChannelIds(guild.id);
+        const values = getValues(guild, clientRef);
+        const active = new Set(enabledCounters(config));
 
-    for (const key of ORDER) {
-        const existing = ids[key] ? guild.channels.cache.get(ids[key]) : null;
+        for (const key of ORDER) {
+            const data = COUNTERS[key];
+            const prefix = `${data.emoji}・${data.label}:`;
+            const existingById = ids[key] ? guild.channels.cache.get(ids[key]) : null;
 
-        if (!active.has(key)) {
-            if (existing) {
-                await existing.delete("Nina: contador desativado").catch(() => {});
-            }
-            delete ids[key];
-            continue;
-        }
+            // Procura canais antigos/duplicados do mesmo contador dentro da categoria.
+            const matches = guild.channels.cache.filter(channel =>
+                channel.type === ChannelType.GuildVoice &&
+                channel.parentId === category.id &&
+                channel.name.startsWith(prefix)
+            );
 
-        const data = COUNTERS[key];
-        const name = `${data.emoji}・${data.label}: ${values[key]}`.slice(0, 100);
+            let existing = existingById && existingById.type === ChannelType.GuildVoice
+                ? existingById
+                : matches.first() || null;
 
-        if (existing && existing.type === ChannelType.GuildVoice) {
-            if (existing.name !== name) await existing.setName(name, "Nina: atualizar contador").catch(() => {});
-            if (existing.parentId !== category.id) await existing.setParent(category.id, { lockPermissions: false }).catch(() => {});
-            continue;
-        }
-
-        if (existing) await existing.delete("Nina: substituir contador").catch(() => {});
-
-        const channel = await guild.channels.create({
-            name,
-            type: ChannelType.GuildVoice,
-            parent: category.id,
-            permissionOverwrites: [
-                {
-                    id: guild.roles.everyone.id,
-                    allow: [PermissionFlagsBits.ViewChannel],
-                    deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
+            if (!active.has(key)) {
+                const toDelete = new Set(matches.values());
+                if (existingById) toDelete.add(existingById);
+                for (const channel of toDelete) {
+                    await channel.delete("Nina: contador desativado").catch(() => {});
                 }
-            ],
-            reason: "Nina: criar contador de estatísticas"
-        });
+                delete ids[key];
+                continue;
+            }
 
-        ids[key] = channel.id;
-    }
+            const name = `${prefix} ${values[key]}`.slice(0, 100);
 
-    await ServerStatsRepository.setChannelIds(guild.id, ids);
-    return true;
+            if (existing) {
+                if (existing.name !== name) {
+                    await existing.setName(name, "Nina: atualizar contador").catch(() => {});
+                }
+                if (existing.parentId !== category.id) {
+                    await existing.setParent(category.id, { lockPermissions: false }).catch(() => {});
+                }
+                ids[key] = existing.id;
+
+                // Apaga os demais duplicados.
+                for (const duplicate of matches.values()) {
+                    if (duplicate.id !== existing.id) {
+                        await duplicate.delete("Nina: remover contador duplicado").catch(() => {});
+                    }
+                }
+                continue;
+            }
+
+            const channel = await guild.channels.create({
+                name,
+                type: ChannelType.GuildVoice,
+                parent: category.id,
+                permissionOverwrites: [
+                    {
+                        id: guild.roles.everyone.id,
+                        allow: [PermissionFlagsBits.ViewChannel],
+                        deny: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak]
+                    }
+                ],
+                reason: "Nina: criar contador de estatísticas"
+            });
+
+            ids[key] = channel.id;
+        }
+
+        await ServerStatsRepository.setChannelIds(guild.id, ids);
+        return true;
+    });
 }
 
 async function updateGuild(guild) {
