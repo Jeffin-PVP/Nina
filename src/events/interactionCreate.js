@@ -11,6 +11,9 @@ const CommandManager =
 const modalSubmit =
     require("../interactions/modalSubmit");
 
+const ContainerManager =
+    require("../managers/ContainerManager");
+
 const embedButtons =
     require("../interactions/embed/buttonHandler");
 
@@ -76,6 +79,12 @@ module.exports = {
                     return configPanel.modal(interaction);
                 }
 
+                if (interaction.customId.startsWith("container_modal:")) {
+
+                    return ContainerManager.handleModal(interaction);
+
+                }
+
                 if (interaction.customId.startsWith("embed_")) {
 
                     return embedModals.execute(interaction);
@@ -102,6 +111,12 @@ module.exports = {
 
                 if (interaction.customId.startsWith("config_")) {
                     return configPanel.execute(interaction);
+                }
+
+                if (interaction.customId.startsWith("container:")) {
+
+                    return ContainerManager.handleButton(interaction);
+
                 }
 
                 if (interaction.customId.startsWith("ticket_")) {

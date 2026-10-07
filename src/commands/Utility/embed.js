@@ -1,8 +1,10 @@
 const {
     SlashCommandBuilder,
-    PermissionFlagsBits
+    PermissionFlagsBits,
+    InteractionContextType,
+    MessageFlags
 } = require("discord.js");
-//
+
 const EmbedPreview =
     require("../../interactions/embed/EmbedPreview");
 
@@ -15,9 +17,9 @@ module.exports = {
 
         .setName("embed")
 
-        .setDescription(
-            "Abre o editor de embeds."
-        )
+        .setDescription("Abre o editor de embeds.")
+
+        .setContexts(InteractionContextType.Guild)
 
         .setDefaultMemberPermissions(
             PermissionFlagsBits.ManageMessages
@@ -25,53 +27,25 @@ module.exports = {
 
     async execute(interaction) {
 
-        /*
-        =========================
-            EMBED PADRÃO
-        =========================
-        */
-
+        // Embed inicial do editor
         const data = {
-
             color: "#5865F2",
-
             title: "Nova Embed",
-
             description:
                 "Clique em **📝 Editar** para começar a montar sua embed.",
-
             author: {},
-
             footer: {},
-
             fields: [],
-
-            thumbnail: null,
-
-            image: null,
-
+            thumbnail: "",
+            image: "",
             timestamp: false
-
         };
 
-        /*
-        =========================
-            PAINEL
-        =========================
-        */
-
+        // Efêmero: só quem abriu vê e controla o painel.
         await interaction.reply({
-
-            embeds: [
-
-                EmbedPreview.build(data)
-
-            ],
-
-            components:
-
-                EmbedButtons.build()
-
+            embeds: [EmbedPreview.build(data)],
+            components: EmbedButtons.build(),
+            flags: MessageFlags.Ephemeral
         });
 
     }

@@ -1,6 +1,7 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
+    InteractionContextType,
     MessageFlags
 } = require("discord.js");
 
@@ -17,32 +18,56 @@ module.exports = {
             "Abre o editor de Components V2 da Nina."
         )
 
+        .setContexts(InteractionContextType.Guild)
+
         .setDefaultMemberPermissions(
             PermissionFlagsBits.ManageMessages
+        )
+
+        .addAttachmentOption(option =>
+            option
+                .setName("arquivo")
+                .setDescription(
+                    "Importa um container.json exportado antes (opcional)."
+                )
+                .setRequired(false)
         ),
 
     async execute(interaction) {
 
+        const file = interaction.options.getAttachment("arquivo");
+
+        let data = ContainerManager.defaultData();
+
         /*
         =========================
-            CRIAR SESSÃO
+            IMPORTAR ARQUIVO
         =========================
+        Baixar o anexo pode passar dos 3s da interação, então respondemos
+        em modo "pensando" (só você vê). Se der erro, o aviso fica privado;
+        se der certo, o editor é postado normalmente no canal.
         */
 
-        const sessionId =
-            ContainerManager.sessionId(
-                interaction.guildId,
-                interaction.user.id
-            );
+        await interaction.deferReply({
+            flags: MessageFlags.Ephemeral
+        });
 
-        ContainerManager.create(
-            sessionId
-        );
+        if (file) {
 
-        const data =
-            ContainerManager.get(
-                sessionId
-            );
+            try {
+
+                data = await ContainerManager.importAttachment(file);
+
+            } catch (error) {
+
+                return interaction.editReply({
+                    content:
+                        `❌ Não consegui importar o container.\n\`${error.message}\``
+                });
+
+            }
+
+        }
 
         /*
         =========================
@@ -50,91 +75,20 @@ module.exports = {
         =========================
         */
 
-        await interaction.reply(
-            ContainerManager.message(
-                data,
-                true
-            )
+        await interaction.deleteReply();
+
+        const sent = await interaction.followUp(
+            ContainerManager.message(data, true)
         );
 
-        const message =
-            await interaction.fetchReply();
-
-        /*
-        =========================
-            COLLECTOR
-        =========================
-        */
-
-        const collector =
-            message.createMessageComponentCollector({
-
-                time: 30 * 60 * 1000,
-
-                filter: component =>
-
-                    component.user.id ===
-                    interaction.user.id &&
-
-                    component.customId.startsWith(
-                        "container:"
-                    )
-            });
-
-        collector.on(
-            "collect",
-            async component => {
-
-                try {
-
-                    await ContainerManager.handleButton(
-                        component
-                    );
-
-                } catch (error) {
-
-                    console.error(
-                        "❌ [Container] Erro:",
-                        error
-                    );
-
-                    try {
-
-                        if (
-                            !component.replied &&
-                            !component.deferred
-                        ) {
-
-                            await component.reply({
-
-                                content:
-                                    `❌ Erro no editor: ${error.message}`,
-
-                                flags:
-                                    MessageFlags.Ephemeral
-                            });
-                        }
-
-                    } catch {}
-                }
-            }
+        // A sessão é identificada pela mensagem do editor: os botões
+        // (tratados em events/interactionCreate.js) a encontram por ela.
+        ContainerManager.startSession(
+            sent.id,
+            interaction.user.id,
+            data
         );
 
-        /*
-        =========================
-            FINALIZAR SESSÃO
-        =========================
-        */
-
-        collector.on(
-            "end",
-            () => {
-
-                ContainerManager.remove(
-                    sessionId
-                );
-
-            }
-        );
     }
+
 };

@@ -1,12 +1,57 @@
-const EmbedButtons =
-    require("./EmbedButtons");
+const EmbedButtons = require("./EmbedButtons");
+const EmbedUtils = require("./EmbedUtils");
 
-const channels =
-    new Map();
+/*
+Canal escolhido por cada editor. A chave inclui o servidor e o usuário,
+e as entradas expiram sozinhas para o Map não crescer para sempre.
+*/
+
+const TTL = 30 * 60 * 1000;
+
+const channels = new Map();
+
+function key(interaction) {
+    return `${interaction.guildId}:${interaction.user.id}`;
+}
+
+function prune() {
+
+    const now = Date.now();
+
+    for (const [k, entry] of channels) {
+        if (now - entry.at > TTL) channels.delete(k);
+    }
+
+}
+
+function setChannel(interaction, channelId) {
+
+    prune();
+
+    channels.set(key(interaction), {
+        id: channelId,
+        at: Date.now()
+    });
+
+}
+
+function getChannel(interaction) {
+
+    prune();
+
+    return channels.get(key(interaction))?.id ?? null;
+
+}
+
+function clearChannel(interaction) {
+    channels.delete(key(interaction));
+}
 
 module.exports = {
 
-    channels,
+    setChannel,
+    getChannel,
+    clearChannel,
 
     async execute(interaction) {
 
@@ -16,24 +61,18 @@ module.exports = {
         if (interaction.customId !== "embed_channel_select")
             return;
 
-        channels.set(
+        if (!await EmbedUtils.ensureManager(interaction))
+            return;
 
-            interaction.user.id,
-
-            interaction.values[0]
-
-        );
+        setChannel(interaction, interaction.values[0]);
 
         return interaction.update({
 
-            content:
-                `📢 Canal selecionado: <#${interaction.values[0]}>`,
+            content: `📢 Canal selecionado: <#${interaction.values[0]}>`,
 
-            embeds:
-                interaction.message.embeds,
+            embeds: interaction.message.embeds,
 
-            components:
-                EmbedButtons.build()
+            components: EmbedButtons.build()
 
         });
 

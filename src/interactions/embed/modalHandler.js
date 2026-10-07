@@ -1,7 +1,313 @@
-const AIManager =
-    require("../../ai/AIManager");
-const { EmbedBuilder } = require("discord.js");
+const AIManager = require("../../ai/AIManager");
+
+const { MessageFlags } = require("discord.js");
+
 const EmbedButtons = require("./EmbedButtons");
+const EmbedPreview = require("./EmbedPreview");
+const EmbedUtils = require("./EmbedUtils");
+
+const EDIT_MODALS = new Set([
+    "embed_edit_modal",
+    "embed_images_modal",
+    "embed_author_modal",
+    "embed_footer_modal",
+    "embed_fields_modal"
+]);
+
+function warn(interaction, content) {
+
+    return interaction.reply({
+        content,
+        flags: MessageFlags.Ephemeral
+    });
+
+}
+
+/** Lê um campo de texto (vazio se o campo não existir). */
+function field(interaction, id) {
+
+    try {
+        return interaction.fields.getTextInputValue(id).trim();
+    } catch {
+        return "";
+    }
+
+}
+
+/** Valida uma URL opcional. Devolve { ok, value }. */
+function optionalUrl(value) {
+
+    if (!value) return { ok: true, value: "" };
+
+    const parsed = EmbedUtils.parseUrl(value);
+
+    return parsed
+        ? { ok: true, value: parsed }
+        : { ok: false, value: "" };
+
+}
+
+/*
+=========================
+    IA
+=========================
+*/
+
+async function handleAI(interaction) {
+
+    const prompt = field(interaction, "prompt");
+
+    // Veio do botão 🤖 do painel (edita o painel) ou do /embedia (cria um painel novo)?
+    const fromPanel = interaction.isFromMessage();
+
+    if (fromPanel) {
+        await interaction.deferUpdate();
+    } else {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+
+    try {
+
+        const generated = await AIManager.generateEmbed(prompt);
+
+        const data = EmbedUtils.sanitize(generated);
+
+        if (!EmbedUtils.hasContent(data)) {
+            throw new Error("A IA devolveu uma embed vazia.");
+        }
+
+        return interaction.editReply({
+            content: "🤖 Embed gerada pela IA. Ajuste o que quiser, escolha um canal e envie.",
+            embeds: [EmbedPreview.build(data)],
+            components: EmbedButtons.build()
+        });
+
+    } catch (error) {
+
+        console.error("❌ [Embed] Falha na IA:", error);
+
+        const content = "❌ Não consegui gerar essa embed. Tente descrever de outro jeito.";
+
+        // No painel, editReply sobrescreveria o editor: avisa em mensagem separada.
+        if (fromPanel) {
+
+            return interaction.followUp({
+                content,
+                flags: MessageFlags.Ephemeral
+            });
+
+        }
+
+        return interaction.editReply({ content });
+
+    }
+
+}
+
+/*
+=========================
+    EDIÇÃO
+=========================
+*/
+
+async function handleEdit(interaction) {
+
+    const current = interaction.message?.embeds?.[0];
+
+    if (!current) {
+
+        return warn(
+            interaction,
+            "❌ Esse painel expirou. Use `/embed` para abrir um novo editor."
+        );
+
+    }
+
+    const data = EmbedUtils.fromEmbed(current);
+
+    const id = interaction.customId;
+
+    /*
+    EDITAR
+    */
+
+    if (id === "embed_edit_modal") {
+
+        const colorInput = field(interaction, "color");
+
+        const color = colorInput
+            ? EmbedUtils.parseColor(colorInput)
+            : EmbedUtils.DEFAULT_COLOR;
+
+        if (!color) {
+            return warn(interaction, "❌ Cor inválida. Use o formato `#RRGGBB`, por exemplo `#5865F2`.");
+        }
+
+        data.title = field(interaction, "title");
+        data.description = field(interaction, "description");
+        data.color = color;
+
+    }
+
+    /*
+    IMAGENS
+    */
+
+    if (id === "embed_images_modal") {
+
+        const thumbnail = optionalUrl(field(interaction, "thumbnail"));
+        const image = optionalUrl(field(interaction, "image"));
+
+        if (!thumbnail.ok || !image.ok) {
+
+            return warn(
+                interaction,
+                `❌ ${!thumbnail.ok ? "Thumbnail" : "Imagem"} inválida. Use um link completo começando com \`https://\`.`
+            );
+
+        }
+
+        data.thumbnail = thumbnail.value;
+        data.image = image.value;
+
+    }
+
+    /*
+    AUTOR
+    */
+
+    if (id === "embed_author_modal") {
+
+        const name = field(interaction, "author_name");
+        const icon = optionalUrl(field(interaction, "author_icon"));
+        const url = optionalUrl(field(interaction, "author_url"));
+
+        if (!icon.ok || !url.ok) {
+
+            return warn(
+                interaction,
+                `❌ ${!icon.ok ? "O ícone" : "O link"} do autor é inválido. Use \`https://...\`.`
+            );
+
+        }
+
+        data.author = name
+            ? { name, iconURL: icon.value, url: url.value }
+            : { name: "", iconURL: "", url: "" };
+
+    }
+
+    /*
+    RODAPÉ
+    */
+
+    if (id === "embed_footer_modal") {
+
+        const text = field(interaction, "footer_text");
+        const icon = optionalUrl(field(interaction, "footer_icon"));
+
+        if (!icon.ok) {
+            return warn(interaction, "❌ O ícone do rodapé é inválido. Use `https://...`.");
+        }
+
+        data.footer = text
+            ? { text, iconURL: icon.value }
+            : { text: "", iconURL: "" };
+
+    }
+
+    /*
+    FIELDS
+    */
+
+    if (id === "embed_fields_modal") {
+
+        const remove = field(interaction, "field_remove").toLowerCase();
+
+        if (remove) {
+
+            if (["todos", "todas", "all"].includes(remove)) {
+
+                data.fields = [];
+
+            } else {
+
+                const index = Number.parseInt(remove, 10);
+
+                if (!Number.isInteger(index) || index < 1 || index > data.fields.length) {
+
+                    return warn(
+                        interaction,
+                        data.fields.length
+                            ? `❌ Informe um número de 1 a ${data.fields.length}, ou \`todos\`.`
+                            : "❌ Não há fields para remover."
+                    );
+
+                }
+
+                data.fields.splice(index - 1, 1);
+
+            }
+
+        } else {
+
+            const name = field(interaction, "field_name");
+            const value = field(interaction, "field_value");
+
+            if (!name || !value) {
+
+                return warn(
+                    interaction,
+                    "❌ Para adicionar um field, preencha **Nome** e **Valor**."
+                );
+
+            }
+
+            if (data.fields.length >= EmbedUtils.LIMITS.fields) {
+
+                return warn(
+                    interaction,
+                    `❌ Uma embed aceita no máximo ${EmbedUtils.LIMITS.fields} fields. Remova algum antes.`
+                );
+
+            }
+
+            data.fields.push({
+                name,
+                value,
+                inline: EmbedUtils.parseBool(field(interaction, "field_inline"))
+            });
+
+        }
+
+    }
+
+    // Uma embed sem nenhum conteúdo é rejeitada pelo Discord ao editar a mensagem.
+    if (!EmbedUtils.hasContent(data)) {
+
+        return warn(
+            interaction,
+            "❌ A embed ficaria vazia. Mantenha pelo menos um conteúdo (título, descrição, imagem, field...)."
+        );
+
+    }
+
+    // Limite global de 6000 caracteres da embed
+    if (EmbedUtils.totalLength(data) > EmbedUtils.LIMITS.total) {
+
+        return warn(
+            interaction,
+            `❌ A embed passaria do limite de ${EmbedUtils.LIMITS.total} caracteres do Discord. Encurte algum texto.`
+        );
+
+    }
+
+    return interaction.update({
+        embeds: [EmbedPreview.build(data)],
+        components: EmbedButtons.build()
+    });
+
+}
 
 module.exports = {
 
@@ -9,307 +315,17 @@ module.exports = {
 
         if (!interaction.isModalSubmit()) return;
 
-        /*
-        =========================
-            IA
-        =========================
-        */
+        const id = interaction.customId;
 
-        if (interaction.customId === "embed_ai_modal") {
+        if (id !== "embed_ai_modal" && !EDIT_MODALS.has(id)) return;
 
-            const prompt = interaction.fields
-                .getTextInputValue("prompt")
-                .trim();
+        if (!await EmbedUtils.ensureManager(interaction)) return;
 
-            await interaction.deferReply({
-                flags: ["Ephemeral"]
-            });
-
-            try {
-
-                const data =
-                    await AIManager.generateEmbed(prompt);
-
-                const embed =
-                    new EmbedBuilder();
-
-                if (data.title)
-                    embed.setTitle(data.title);
-
-                if (data.description)
-                    embed.setDescription(data.description);
-
-                if (data.color)
-                    embed.setColor(data.color);
-
-                if (data.thumbnail)
-                    embed.setThumbnail(data.thumbnail);
-
-                if (data.image)
-                    embed.setImage(data.image);
-
-                if (data.timestamp)
-                    embed.setTimestamp();
-
-                if (data.author?.name) {
-
-                    embed.setAuthor({
-
-                        name: data.author.name,
-
-                        iconURL:
-                            data.author.iconURL || undefined,
-
-                        url:
-                            data.author.url || undefined
-
-                    });
-
-                }
-
-                if (data.footer?.text) {
-
-                    embed.setFooter({
-
-                        text: data.footer.text,
-
-                        iconURL:
-                            data.footer.iconURL || undefined
-
-                    });
-
-                }
-
-                if (
-                    Array.isArray(data.fields) &&
-                    data.fields.length
-                ) {
-
-                    embed.addFields(data.fields);
-
-                }
-
-                return interaction.editReply({
-
-                    embeds: [embed]
-
-                });
-
-            } catch (err) {
-
-                console.error(err);
-
-                return interaction.editReply({
-
-                    content:
-                        "❌ Não consegui gerar essa embed."
-
-                });
-
-            }
-
+        if (id === "embed_ai_modal") {
+            return handleAI(interaction);
         }
 
-        const embed = EmbedBuilder.from(
-            interaction.message.embeds[0]
-        );
-
-        /*
-        =========================
-            EDITAR
-        =========================
-        */
-
-        if (interaction.customId === "embed_edit_modal") {
-
-            const title = interaction.fields
-                .getTextInputValue("title")
-                .trim();
-
-            const description = interaction.fields
-                .getTextInputValue("description")
-                .trim();
-
-            const color = interaction.fields
-                .getTextInputValue("color")
-                .trim();
-
-            embed.setTitle(title || null);
-            embed.setDescription(description || null);
-
-            if (color) {
-                try {
-                    embed.setColor(color);
-                } catch { }
-            }
-
-            return interaction.update({
-                embeds: [embed],
-                components: EmbedButtons.build()
-            });
-
-        }
-
-        /*
-        =========================
-            IMAGENS
-        =========================
-        */
-
-        if (interaction.customId === "embed_images_modal") {
-
-            const thumbnail = interaction.fields
-                .getTextInputValue("thumbnail")
-                .trim();
-
-            const image = interaction.fields
-                .getTextInputValue("image")
-                .trim();
-
-            embed.setThumbnail(thumbnail || null);
-            embed.setImage(image || null);
-
-            return interaction.update({
-                embeds: [embed],
-                components: EmbedButtons.build()
-            });
-
-        }
-
-        /*
-        =========================
-            AUTOR
-        =========================
-        */
-
-        if (interaction.customId === "embed_author_modal") {
-
-            const name = interaction.fields
-                .getTextInputValue("author_name")
-                .trim();
-
-            const icon = interaction.fields
-                .getTextInputValue("author_icon")
-                .trim();
-
-            const url = interaction.fields
-                .getTextInputValue("author_url")
-                .trim();
-
-            if (name) {
-
-                embed.setAuthor({
-
-                    name,
-
-                    iconURL: icon || undefined,
-
-                    url: url || undefined
-
-                });
-
-            } else {
-
-                embed.setAuthor(null);
-
-            }
-
-            return interaction.update({
-
-                embeds: [embed],
-
-                components: EmbedButtons.build()
-
-            });
-
-        }
-
-        /*
-        =========================
-            RODAPÉ
-        =========================
-        */
-
-        if (interaction.customId === "embed_footer_modal") {
-
-            const text = interaction.fields
-                .getTextInputValue("footer_text")
-                .trim();
-
-            const icon = interaction.fields
-                .getTextInputValue("footer_icon")
-                .trim();
-
-            if (text) {
-
-                embed.setFooter({
-
-                    text,
-
-                    iconURL: icon || undefined
-
-                });
-
-            } else {
-
-                embed.setFooter(null);
-
-            }
-
-            return interaction.update({
-
-                embeds: [embed],
-
-                components: EmbedButtons.build()
-
-            });
-
-        }
-
-        /*
-        =========================
-            FIELDS
-        =========================
-        */
-
-        if (interaction.customId === "embed_fields_modal") {
-
-            const name = interaction.fields
-                .getTextInputValue("field_name")
-                .trim();
-
-            const value = interaction.fields
-                .getTextInputValue("field_value")
-                .trim();
-
-            const inline = interaction.fields
-                .getTextInputValue("field_inline")
-                .trim()
-                .toLowerCase() === "sim";
-
-            if (name && value) {
-
-                embed.addFields({
-
-                    name,
-
-                    value,
-
-                    inline
-
-                });
-
-            }
-
-            return interaction.update({
-
-                embeds: [embed],
-
-                components: EmbedButtons.build()
-
-            });
-
-        }
+        return handleEdit(interaction);
 
     }
 

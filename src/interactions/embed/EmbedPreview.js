@@ -1,128 +1,51 @@
-const {
-    EmbedBuilder
-} = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
+
+const EmbedUtils = require("./EmbedUtils");
 
 class EmbedPreview {
 
-    static build(data = {}) {
+    /**
+     * Converte o objeto de dados em EmbedBuilder.
+     * Os dados passam por sanitize(), então nunca lançam erro de validação.
+     */
+    static build(input = {}) {
 
-        const embed =
-            new EmbedBuilder();
+        const data = EmbedUtils.sanitize(input);
 
-        /*
-        =========================
-            BÁSICO
-        =========================
-        */
+        const embed = new EmbedBuilder()
+            .setColor(data.color);
 
-        embed.setColor(
-            data.color || "#5865F2"
-        );
+        if (data.title) embed.setTitle(data.title);
 
-        if (data.title)
-            embed.setTitle(data.title);
+        if (data.description) embed.setDescription(data.description);
 
-        if (data.description)
-            embed.setDescription(
-                data.description
-            );
+        if (data.author.name) {
 
-        /*
-        =========================
-            AUTOR
-        =========================
-        */
-
-        if (data.author?.name) {
-
+            // iconURL/url precisam ser URL válida ou undefined (null é rejeitado)
             embed.setAuthor({
-
-                name:
-                    data.author.name,
-
-                iconURL:
-                    data.author.iconURL || null,
-
-                url:
-                    data.author.url || null
-
+                name: data.author.name,
+                iconURL: data.author.iconURL || undefined,
+                url: data.author.url || undefined
             });
 
         }
 
-        /*
-        =========================
-            THUMBNAIL
-        =========================
-        */
+        if (data.thumbnail) embed.setThumbnail(data.thumbnail);
 
-        if (data.thumbnail)
-            embed.setThumbnail(
-                data.thumbnail
-            );
+        if (data.image) embed.setImage(data.image);
 
-        /*
-        =========================
-            IMAGEM
-        =========================
-        */
-
-        if (data.image)
-            embed.setImage(
-                data.image
-            );
-
-        /*
-        =========================
-            RODAPÉ
-        =========================
-        */
-
-        if (data.footer?.text) {
+        if (data.footer.text) {
 
             embed.setFooter({
-
-                text:
-                    data.footer.text,
-
-                iconURL:
-                    data.footer.iconURL || null
-
+                text: data.footer.text,
+                iconURL: data.footer.iconURL || undefined
             });
 
         }
 
-        /*
-        =========================
-            CAMPOS
-        =========================
-        */
+        if (data.fields.length) embed.addFields(data.fields);
 
-        if (
-
-            Array.isArray(data.fields) &&
-
-            data.fields.length > 0
-
-        ) {
-
-            embed.addFields(
-                data.fields
-            );
-
-        }
-
-        /*
-        =========================
-            TIMESTAMP
-        =========================
-        */
-
-        if (data.timestamp) {
-
-            embed.setTimestamp();
-
-        }
+        if (data.timestamp) embed.setTimestamp();
 
         return embed;
 
@@ -130,5 +53,4 @@ class EmbedPreview {
 
 }
 
-module.exports =
-    EmbedPreview;
+module.exports = EmbedPreview;
