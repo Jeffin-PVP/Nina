@@ -10,6 +10,10 @@ const EconomyRepository = require("../database/repositories/EconomyRepository");
 const database = require("../database/database");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
 const { validateHttpUrl } = require("../utils/safeFetch");
+const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const EmbedUtils = require("../interactions/embed/EmbedUtils");
+const EmbedPreview = require("../interactions/embed/EmbedPreview");
+const ContainerManager = require("../managers/ContainerManager");
 
 /*
 =========================
@@ -194,6 +198,33 @@ function tratarValidacao(res, error) {
 
     throw error;
 
+}
+
+async function exigirGerenciarMensagens(req, res) {
+
+    try {
+        const membro = await req.painelGuild.members.fetch(req.painelSessao.user.id);
+        if (membro.permissions.has(PermissionFlagsBits.Administrator) || membro.permissions.has(PermissionFlagsBits.ManageMessages)) {
+            return true;
+        }
+    } catch (error) {
+        console.error("[Painel] Falha ao verificar permissões do usuário:", error);
+    }
+
+    res.status(403).json({ error: "Você precisa de Administrador ou Gerenciar Mensagens para enviar mensagens pelo painel." });
+    return false;
+}
+
+function obterCanalTexto(guild, channelId) {
+    const canal = guild.channels.cache.get(String(channelId || ""));
+    if (!canal || !canal.isTextBased?.() || canal.isThread?.()) return null;
+    return canal;
+}
+
+function validarEmbedPainel(body) {
+    const data = EmbedUtils.sanitize(body || {});
+    if (!EmbedUtils.hasContent(data)) throw new ErroValidacao("A embed precisa ter pelo menos título, descrição, imagem, thumbnail, autor, rodapé ou um campo.");
+    return data;
 }
 
 module.exports = (client) => {
@@ -524,6 +555,58 @@ module.exports = (client) => {
 
         res.json({ ok: true });
 
+    });
+
+    /*
+    =========================
+        CRIADORES — EMBED / CONTAINER
+    =========================
+    */
+
+    router.post("/guilds/:guildId/embed/send", async (req, res) => {
+
+        if (!await exigirGerenciarMensagens(req, res)) return;
+
+        try {
+            const data = validarEmbedPainel(req.body);
+            const canal = obterCanalTexto(req.painelGuild, req.body?.channelId);
+
+            if (!canal) return res.status(400).json({ error: "Canal de texto inválido." });
+            if (!canal.permissionsFor(req.painelGuild.members.me)?.has(PermissionFlagsBits.SendMessages)) {
+                return res.status(403).json({ error: "A Nina não pode enviar mensagens nesse canal." });
+            }
+
+            const embed = EmbedPreview.build(data);
+            await canal.send({ embeds: [embed], allowedMentions: { parse: [] } });
+            res.json({ ok: true });
+        } catch (error) {
+            if (error instanceof ErroValidacao) return tratarValidacao(res, error);
+            console.error("[Painel] Falha ao enviar embed:", error);
+            res.status(500).json({ error: "Não consegui enviar a embed." });
+        }
+    });
+
+    router.post("/guilds/:guildId/container/send", async (req, res) => {
+
+        if (!await exigirGerenciarMensagens(req, res)) return;
+
+        try {
+            const canal = obterCanalTexto(req.painelGuild, req.body?.channelId);
+            if (!canal) return res.status(400).json({ error: "Canal de texto inválido." });
+            if (!canal.permissionsFor(req.painelGuild.members.me)?.has(PermissionFlagsBits.SendMessages)) {
+                return res.status(403).json({ error: "A Nina não pode enviar mensagens nesse canal." });
+            }
+
+            const data = ContainerManager.normalize(req.body?.container || {});
+            const problem = ContainerManager.fits(data);
+            if (problem) return res.status(400).json({ error: problem });
+
+            await canal.send(ContainerManager.message(data, false));
+            res.json({ ok: true });
+        } catch (error) {
+            console.error("[Painel] Falha ao enviar container:", error);
+            res.status(500).json({ error: "Não consegui enviar o container." });
+        }
     });
 
     /*
