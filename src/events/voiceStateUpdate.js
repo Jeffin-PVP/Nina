@@ -3,6 +3,8 @@ const { Events } = require("discord.js");
 const LogManager = require("../managers/LogManager");
 const LogTypes = require("../managers/LogTypes");
 
+const ServerStatsManager = require("../managers/ServerStatsManager");
+
 module.exports = {
 
     name: Events.VoiceStateUpdate,
@@ -23,6 +25,7 @@ module.exports = {
                 extra: { channel: newState.channel?.name ?? "Desconhecido" }
             });
 
+            await ServerStatsManager.updateGuild(newState.guild).catch(() => {});
             return;
 
         }
@@ -37,6 +40,7 @@ module.exports = {
                 extra: { channel: oldState.channel?.name ?? "Desconhecido" }
             });
 
+            await ServerStatsManager.updateGuild(oldState.guild).catch(() => {});
             return;
 
         }
@@ -59,6 +63,8 @@ module.exports = {
             });
 
         }
+
+        await ServerStatsManager.updateGuild(newState.guild).catch(() => {});
 
     }
 

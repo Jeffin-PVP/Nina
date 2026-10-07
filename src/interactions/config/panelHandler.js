@@ -17,6 +17,9 @@ const ui = require("../../utils/ui");
 const { CATEGORIES } = require("../../managers/LogCategories");
 const WelcomeCardManager = require("../../managers/WelcomeCardManager");
 const { validateHttpUrl } = require("../../utils/safeFetch");
+const ServerStatsRepository = require("../../database/repositories/ServerStatsRepository");
+const ServerStatsManager = require("../../managers/ServerStatsManager");
+const AntiNukeRepository = require("../../database/repositories/AntiNukeRepository");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -95,12 +98,57 @@ async function execute(interaction) {
             return interaction.update(await ConfigPanelManager.build(interaction, "tickets"));
         }
 
+        if (target === "stats") {
+            const c = await ServerStatsRepository.get(guildId);
+            await ServerStatsRepository.setEnabled(guildId, !c.enabled);
+            const updated = await ServerStatsRepository.get(guildId);
+            if (updated.enabled) await ServerStatsManager.enable(interaction.guild);
+            else await ServerStatsManager.disable(interaction.guild, { remove: true });
+            return interaction.update(await ConfigPanelManager.build(interaction, "stats"));
+        }
+
+        if (target === "antinuke") {
+            const c = await AntiNukeRepository.get(guildId);
+            await AntiNukeRepository.setEnabled(guildId, !c.enabled);
+            return interaction.update(await ConfigPanelManager.build(interaction, "antinuke"));
+        }
+
         const automodFields = new Set(["spam", "emoji", "swear", "mention", "invite", "raid", "image"]);
         if (automodFields.has(target)) {
             const current = await AutomodRepository.get(guildId);
             const field = `${target}_enabled`;
             await AutomodRepository.update(guildId, { [field]: current[field] ? 0 : 1 });
             return interaction.update(await ConfigPanelManager.build(interaction, "automod"));
+        }
+    }
+
+    if (id.startsWith("config_stats:")) {
+        const target = id.split(":")[1];
+        const guildId = interaction.guild.id;
+        if (target === "enabled") {
+            const c = await ServerStatsRepository.get(guildId);
+            if (c.enabled) await ServerStatsManager.disable(interaction.guild, { remove: true });
+            else await ServerStatsManager.enable(interaction.guild);
+            return interaction.update(await ConfigPanelManager.build(interaction, "stats"));
+        }
+        if (target === "update") {
+            await ServerStatsManager.updateGuild(interaction.guild);
+            return interaction.update(await ConfigPanelManager.build(interaction, "stats"));
+        }
+        const c = await ServerStatsRepository.get(guildId);
+        const key = `${target}_enabled`;
+        if (!(key in c)) return ui.caution(interaction, "Contador inválido.", "Stats");
+        await ServerStatsRepository.setCounter(guildId, target, !c[key]);
+        if (c.enabled) await ServerStatsManager.updateGuild(interaction.guild);
+        return interaction.update(await ConfigPanelManager.build(interaction, "stats"));
+    }
+
+    if (id.startsWith("config_antinuke:")) {
+        const target = id.split(":")[1];
+        if (target === "enabled") {
+            const c = await AntiNukeRepository.get(interaction.guild.id);
+            await AntiNukeRepository.setEnabled(interaction.guild.id, !c.enabled);
+            return interaction.update(await ConfigPanelManager.build(interaction, "antinuke"));
         }
     }
 
@@ -200,7 +248,33 @@ async function execute(interaction) {
             return interaction.showModal(modal);
         }
 
-        if (type === "welcome_background") {
+        if (type === "antinuke") {
+            const c = await AntiNukeRepository.get(interaction.guild.id);
+            const modal = new ModalBuilder().setCustomId("config_submit:antinuke").setTitle("Configurar Anti-Nuke");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("janela").setLabel("Janela (5 a 60 segundos)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.window_seconds))),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("canais").setLabel("Limite de canais (2 a 20)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.channel_limit))),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("cargos").setLabel("Limite de cargos (2 a 20)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.role_limit))),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("membros").setLabel("Limite de bans/kicks (2 a 20)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.member_limit))),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("acao").setLabel("Ação: ban ou strip").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.action)))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "antinuke") {
+        const janela = Number.parseInt(interaction.fields.getTextInputValue("janela"), 10);
+        const canais = Number.parseInt(interaction.fields.getTextInputValue("canais"), 10);
+        const cargos = Number.parseInt(interaction.fields.getTextInputValue("cargos"), 10);
+        const membros = Number.parseInt(interaction.fields.getTextInputValue("membros"), 10);
+        const acao = interaction.fields.getTextInputValue("acao").trim().toLowerCase();
+        if (!Number.isInteger(janela) || janela < 5 || janela > 60 || !Number.isInteger(canais) || canais < 2 || canais > 20 || !Number.isInteger(cargos) || cargos < 2 || cargos > 20 || !Number.isInteger(membros) || membros < 2 || membros > 20 || !["ban", "strip"].includes(acao)) {
+            return ui.caution(interaction, "Confira os limites e use ação `ban` ou `strip`.", "Valores inválidos");
+        }
+        await AntiNukeRepository.update(guildId, { window_seconds: janela, channel_limit: canais, role_limit: cargos, member_limit: membros, action: acao });
+        return ui.respond(interaction, ui.success("Os limites do Anti-Nuke foram atualizados.", "Anti-Nuke atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "welcome_background") {
             const c = await WelcomeRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:welcome_background").setTitle("Imagem de fundo");
             modal.addComponents(
@@ -276,6 +350,19 @@ async function modal(interaction) {
         if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1 || !["ignore", "delete", "warn", "kick", "ban"].includes(action)) return ui.caution(interaction, "Confiança deve ficar entre 0 e 1 e a ação precisa ser ignore, delete, warn, kick ou ban.", "Valores inválidos");
         await AutomodRepository.update(guildId, { image_threshold: threshold, image_action: action });
         return ui.respond(interaction, ui.success("A configuração do Anti-Scam visual foi atualizada.", "Anti-Scam atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "antinuke") {
+        const janela = Number.parseInt(interaction.fields.getTextInputValue("janela"), 10);
+        const canais = Number.parseInt(interaction.fields.getTextInputValue("canais"), 10);
+        const cargos = Number.parseInt(interaction.fields.getTextInputValue("cargos"), 10);
+        const membros = Number.parseInt(interaction.fields.getTextInputValue("membros"), 10);
+        const acao = interaction.fields.getTextInputValue("acao").trim().toLowerCase();
+        if (!Number.isInteger(janela) || janela < 5 || janela > 60 || !Number.isInteger(canais) || canais < 2 || canais > 20 || !Number.isInteger(cargos) || cargos < 2 || cargos > 20 || !Number.isInteger(membros) || membros < 2 || membros > 20 || !["ban", "strip"].includes(acao)) {
+            return ui.caution(interaction, "Confira os limites e use ação `ban` ou `strip`.", "Valores inválidos");
+        }
+        await AntiNukeRepository.update(guildId, { window_seconds: janela, channel_limit: canais, role_limit: cargos, member_limit: membros, action: acao });
+        return ui.respond(interaction, ui.success("Os limites do Anti-Nuke foram atualizados.", "Anti-Nuke atualizado", interaction), { ephemeral: true });
     }
 
     if (type === "welcome_background") {

@@ -252,6 +252,36 @@ const statements = [
         PRIMARY KEY (guild_id)
     )`,
 
+    `CREATE TABLE IF NOT EXISTS server_stats (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        members_enabled INTEGER NOT NULL DEFAULT 1,
+        bots_enabled INTEGER NOT NULL DEFAULT 1,
+        online_enabled INTEGER NOT NULL DEFAULT 1,
+        offline_enabled INTEGER NOT NULL DEFAULT 1,
+        voice_enabled INTEGER NOT NULL DEFAULT 1,
+        channels_enabled INTEGER NOT NULL DEFAULT 1,
+        categories_enabled INTEGER NOT NULL DEFAULT 1,
+        roles_enabled INTEGER NOT NULL DEFAULT 1,
+        servers_enabled INTEGER NOT NULL DEFAULT 1,
+        category_id TEXT NULL,
+        channel_ids TEXT NOT NULL DEFAULT '{}',
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS antinuke_settings (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        action TEXT NOT NULL DEFAULT 'ban',
+        window_seconds INTEGER NOT NULL DEFAULT 10,
+        channel_limit INTEGER NOT NULL DEFAULT 3,
+        role_limit INTEGER NOT NULL DEFAULT 3,
+        member_limit INTEGER NOT NULL DEFAULT 3,
+        bot_limit INTEGER NOT NULL DEFAULT 1,
+        webhook_limit INTEGER NOT NULL DEFAULT 3,
+        PRIMARY KEY (guild_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS automod_raid_locks (
         guild_id TEXT NOT NULL,
         channel_id TEXT NOT NULL,

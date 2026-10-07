@@ -176,6 +176,15 @@ const CATEGORIES = {
             LogTypes.RAID_DETECTED,
             LogTypes.RAID_LOCKDOWN_LIFT
         ]
+    },
+
+    antinuke: {
+        label: "Anti-Nuke",
+        emoji: "☢️",
+        defaultEnabled: true,
+        types: [
+            LogTypes.ANTINUKE_TRIGGER
+        ]
     }
 
 };

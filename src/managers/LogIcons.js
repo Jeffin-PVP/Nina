@@ -148,6 +148,8 @@ module.exports = {
 
     AUTOMOD: "🛡️🤖",
 
-    RAID: "🚨"
+    RAID: "🚨",
+
+    ANTINUKE_TRIGGER: "☢️"
 
 };

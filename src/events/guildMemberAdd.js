@@ -6,12 +6,17 @@ const AutoroleRepository = require("../database/repositories/AutoroleRepository"
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const WelcomeCardManager = require("../managers/WelcomeCardManager");
 const AutomodManager = require("../managers/AutomodManager");
+const AntiNukeManager = require("../managers/AntiNukeManager");
+
+const ServerStatsManager = require("../managers/ServerStatsManager");
 
 module.exports = {
 
     name: Events.GuildMemberAdd,
 
     async execute(member) {
+
+        await AntiNukeManager.detectBotAdd(member.guild, member).catch(() => {});
 
         await LogManager.send({
             type: LogTypes.MEMBER_JOIN,
@@ -81,6 +86,8 @@ module.exports = {
             }
 
         }
+
+        await ServerStatsManager.updateGuild(member.guild).catch(() => {});
 
     }
 

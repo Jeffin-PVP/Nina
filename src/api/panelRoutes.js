@@ -14,6 +14,9 @@ const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const EmbedUtils = require("../interactions/embed/EmbedUtils");
 const EmbedPreview = require("../interactions/embed/EmbedPreview");
 const ContainerManager = require("../managers/ContainerManager");
+const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
+const ServerStatsManager = require("../managers/ServerStatsManager");
+const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 
 /*
 =========================
@@ -607,6 +610,93 @@ module.exports = (client) => {
             console.error("[Painel] Falha ao enviar container:", error);
             res.status(500).json({ error: "Não consegui enviar o container." });
         }
+    });
+
+    /*
+    =========================
+        STATS DO SERVIDOR
+    =========================
+    */
+
+    router.get("/guilds/:guildId/stats", async (req, res) => {
+        const config = await ServerStatsRepository.get(req.params.guildId);
+        const values = ServerStatsManager.getValues(req.painelGuild, req.painelGuild.client);
+        res.json({ config, values, counters: ServerStatsManager.COUNTERS });
+    });
+
+    router.post("/guilds/:guildId/stats", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+        const allowed = ["members", "bots", "online", "offline", "voice", "channels", "categories", "roles", "servers"];
+
+        try {
+            if (body.enabled !== undefined) {
+                if (body.enabled) await ServerStatsManager.enable(guild);
+                else await ServerStatsManager.disable(guild, { remove: true });
+            }
+
+            if (body.counter && allowed.includes(body.counter)) {
+                await ServerStatsRepository.setCounter(guild.id, body.counter, !!body.active);
+            }
+
+            const config = await ServerStatsRepository.get(guild.id);
+            if (config.enabled) await ServerStatsManager.createOrUpdate(guild);
+
+            res.json({
+                config: await ServerStatsRepository.get(guild.id),
+                values: ServerStatsManager.getValues(guild, guild.client)
+            });
+        } catch (error) {
+            console.error("[Painel] Falha ao atualizar stats:", error);
+            res.status(500).json({ error: "Não consegui atualizar os contadores." });
+        }
+    });
+
+    router.post("/guilds/:guildId/stats/update", async (req, res) => {
+        try {
+            await ServerStatsManager.updateGuild(req.painelGuild);
+            res.json({ ok: true, values: ServerStatsManager.getValues(req.painelGuild, req.painelGuild.client) });
+        } catch (error) {
+            console.error("[Painel] Falha ao atualizar stats agora:", error);
+            res.status(500).json({ error: "Não consegui atualizar os contadores." });
+        }
+    });
+
+    /*
+    =========================
+        ANTI-NUKE
+    =========================
+    */
+
+    router.get("/guilds/:guildId/antinuke", async (req, res) => {
+        res.json({ config: await AntiNukeRepository.get(req.params.guildId) });
+    });
+
+    router.post("/guilds/:guildId/antinuke", async (req, res) => {
+        const b = req.body || {};
+        const fields = {};
+
+        if (b.enabled !== undefined) fields.enabled = bool(b.enabled);
+        if (b.action !== undefined) {
+            if (!["ban", "strip"].includes(String(b.action))) return res.status(400).json({ error: "Ação inválida." });
+            fields.action = String(b.action);
+        }
+        for (const [key, min, max] of [
+            ["window_seconds", 5, 60],
+            ["channel_limit", 2, 20],
+            ["role_limit", 2, 20],
+            ["member_limit", 2, 20],
+            ["bot_limit", 1, 20],
+            ["webhook_limit", 2, 20]
+        ]) {
+            if (b[key] !== undefined) {
+                try { fields[key] = inteiro(key, b[key], min, max); }
+                catch (error) { return tratarValidacao(res, error); }
+            }
+        }
+
+        await AntiNukeRepository.update(req.params.guildId, fields);
+        res.json({ config: await AntiNukeRepository.get(req.params.guildId) });
     });
 
     /*

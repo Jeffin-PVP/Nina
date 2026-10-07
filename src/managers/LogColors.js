@@ -206,6 +206,8 @@ module.exports = {
 
     AUTOMOD: "#EB459E",
 
-    RAID: "#ED4245"
+    RAID: "#ED4245",
+
+    ANTINUKE_TRIGGER: "#FF453A"
 
 };

@@ -2,12 +2,17 @@ const { Events } = require("discord.js");
 
 const LogManager = require("../managers/LogManager");
 const LogTypes = require("../managers/LogTypes");
+const AntiNukeManager = require("../managers/AntiNukeManager");
+
+const ServerStatsManager = require("../managers/ServerStatsManager");
 
 module.exports = {
 
     name: Events.GuildMemberRemove,
 
     async execute(member) {
+
+        await AntiNukeManager.detectKick(member.guild, member.id, member).catch(() => {});
 
         const roles = member.roles?.cache
             ? member.roles.cache
@@ -24,6 +29,8 @@ module.exports = {
                 roles
             }
         });
+
+        await ServerStatsManager.updateGuild(member.guild).catch(() => {});
 
     }
 

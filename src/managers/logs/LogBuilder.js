@@ -916,6 +916,20 @@ class LogBuilder {
 
                 break;
 
+            case LogTypes.ANTINUKE_TRIGGER:
+
+                embed
+                    .setColor(LogColors.ANTINUKE_TRIGGER)
+                    .setTitle(`${LogIcons.ANTINUKE_TRIGGER} Anti-Nuke acionado`)
+                    .addFields(
+                        { name: "🛡️ Responsável", value: executorTag, inline: true },
+                        { name: "⚠️ Evento", value: String(data.extra?.type || "Desconhecido"), inline: true },
+                        { name: "⚙️ Ação", value: String(data.extra?.action || "—"), inline: true },
+                        { name: "📝 Motivo", value: String(data.extra?.reason || "Limite atingido.").slice(0, 1024) }
+                    );
+
+                break;
+
             // ==========================
             // FALLBACK GENÉRICO
             //

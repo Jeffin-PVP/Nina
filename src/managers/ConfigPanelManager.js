@@ -14,6 +14,8 @@ const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const TicketRepository = require("../database/repositories/TicketRepository");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
+const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
+const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const { CATEGORIES } = require("./LogCategories");
 
 const CATEGORY_OPTIONS = [
@@ -22,7 +24,9 @@ const CATEGORY_OPTIONS = [
     { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "👋" },
     { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "🎫" },
     { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "📜" },
-    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "🎭" }
+    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "🎭" },
+    { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "📊" },
+    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "☢️" }
 ];
 
 function permissionOk(interaction) {
@@ -69,6 +73,8 @@ async function buildHome(interaction) {
     const automod = await AutomodRepository.get(interaction.guild.id);
     const welcome = await WelcomeRepository.get(interaction.guild.id);
     const tickets = await TicketRepository.getConfig(interaction.guild.id);
+    const stats = await ServerStatsRepository.get(interaction.guild.id);
+    const antinuke = await AntiNukeRepository.get(interaction.guild.id);
 
     const configured = [
         ["🤖 AutoMod", automod.enabled],
@@ -76,7 +82,9 @@ async function buildHome(interaction) {
         ["🎫 Tickets", tickets.enabled && !!tickets.parent_channel_id],
         ["📜 Logs", !!settings.log_channel],
         ["💰 Economia", settings.economy_enabled],
-        ["🛡️ Moderação", settings.moderation_enabled]
+        ["🛡️ Moderação", settings.moderation_enabled],
+        ["📊 Stats", stats.enabled],
+        ["☢️ Anti-Nuke", antinuke.enabled]
     ];
 
     const status = configured.map(([name, enabled]) => `${enabled ? "🟢" : "🔴"} ${name}`).join("\n");
@@ -308,6 +316,68 @@ async function buildAutorole(interaction) {
     };
 }
 
+
+async function buildStats(interaction) {
+    const c = await ServerStatsRepository.get(interaction.guild.id);
+    const counters = [
+        ["members", "👥 Membros"], ["bots", "🤖 Bots"], ["online", "🟢 Online"],
+        ["offline", "⚫ Offline"], ["voice", "🔊 Em call"], ["channels", "💬 Canais"],
+        ["categories", "📁 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
+    ];
+    const rows = [];
+    for (let i = 0; i < counters.length; i += 3) {
+        rows.push(new ActionRowBuilder().addComponents(...counters.slice(i, i + 3).map(([key, label]) =>
+            toggleButton(`config_stats:${key}`, !!c[`${key}_enabled`], label)
+        )));
+    }
+    rows.push(new ActionRowBuilder().addComponents(
+        toggleButton("config_stats:enabled", !!c.enabled, "Stats"),
+        new ButtonBuilder().setCustomId("config_stats:update").setLabel("Atualizar agora").setEmoji("🔄").setStyle(ButtonStyle.Secondary)
+    ));
+    rows.push(backRow());
+    return {
+        embeds: [ui.panel({
+            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
+            emoji: "chart",
+            title: "Stats do servidor",
+            description: "Ative os contadores que deseja exibir. A Nina cria canais de voz bloqueados e atualiza os números automaticamente.",
+            fields: [
+                ui.field("chart", "Status", c.enabled ? "🟢 Ativo" : "🔴 Desativado"),
+                ui.field("info", "Contadores", counters.map(([key, label]) => `${c[`${key}_enabled`] ? "🟢" : "🔴"} ${label}`).join("\n"), false)
+            ],
+            source: interaction
+        })],
+        components: rows
+    };
+}
+
+async function buildAntiNuke(interaction) {
+    const c = await AntiNukeRepository.get(interaction.guild.id);
+    return {
+        embeds: [ui.panel({
+            color: c.enabled ? ui.COLORS.error : ui.COLORS.neutral,
+            emoji: "shield",
+            title: "Anti-Nuke",
+            description: c.enabled ? "🟢 Proteção ativa contra ações destrutivas em massa." : "🔴 Proteção desativada.",
+            fields: [
+                ui.field("clock", "Janela", `${c.window_seconds}s`),
+                ui.field("channel", "Canais", `${c.channel_limit}`),
+                ui.field("role", "Cargos", `${c.role_limit}`),
+                ui.field("user", "Bans/Kicks", `${c.member_limit}`),
+                ui.field("config", "Ação", c.action === "ban" ? "Banir + remover cargos" : "Remover cargos")
+            ],
+            source: interaction
+        })],
+        components: [
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_antinuke:enabled", !!c.enabled, "Anti-Nuke"),
+                new ButtonBuilder().setCustomId("config_modal:antinuke").setLabel("Configurar limites").setEmoji("⚙️").setStyle(ButtonStyle.Secondary)
+            ),
+            backRow()
+        ]
+    };
+}
+
 async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
@@ -316,6 +386,8 @@ async function build(interaction, category) {
         case "tickets": return buildTickets(interaction);
         case "logs": return buildLogs(interaction);
         case "autorole": return buildAutorole(interaction);
+        case "stats": return buildStats(interaction);
+        case "antinuke": return buildAntiNuke(interaction);
         default: return buildHome(interaction);
     }
 }

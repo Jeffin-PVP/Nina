@@ -15,6 +15,9 @@ const PresenceManager =
 const StatsHistoryManager =
     require("./src/managers/StatsHistoryManager");
 
+const ServerStatsManager =
+    require("./src/managers/ServerStatsManager");
+
 const GlobalBanManager =
     require("./src/managers/GlobalBanManager");
 
@@ -52,7 +55,9 @@ const client = new Client({
 
         GatewayIntentBits.MessageContent,
 
-        GatewayIntentBits.GuildVoiceStates
+        GatewayIntentBits.GuildVoiceStates,
+
+        GatewayIntentBits.GuildPresences
 
     ],
 
@@ -191,6 +196,8 @@ client.once(
         PresenceManager.start(client);
 
         StatsHistoryManager.start(client);
+
+        ServerStatsManager.start(client);
 
         GlobalBanManager.start().catch(error => {
             console.error("❌ Falha ao carregar banimentos globais:", error);
