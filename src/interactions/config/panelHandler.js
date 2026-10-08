@@ -27,6 +27,15 @@ function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
 }
 
+/**
+ * Responde imediatamente à interação e só depois reconstrói o painel.
+ * Isso evita "Esta interação falhou" quando SQLite/Discord demora mais de 3s.
+ */
+async function updateTempVoicePanel(interaction, page = "tempvoice") {
+    await interaction.deferUpdate();
+    return interaction.editReply(await ConfigPanelManager.build(interaction, page));
+}
+
 async function execute(interaction) {
     if (!ConfigPanelManager.permissionOk(interaction)) return denied(interaction);
 
@@ -138,46 +147,51 @@ async function execute(interaction) {
         const c = await TempVoiceRepository.get(guildId);
 
         if (target === "enabled") {
-            if (!c.enabled) {
-                if (!c.trigger_channel_id) return ui.caution(interaction, "Escolha primeiro o canal em que o membro entra para criar a sala.", "TempVoice");
-                await TempVoiceManager.configure(interaction.guild, { enabled: true });
-            } else {
-                await TempVoiceManager.configure(interaction.guild, { enabled: false });
+            if (!c.enabled && !c.trigger_channel_id) {
+                return ui.caution(interaction, "Escolha primeiro o canal em que o membro entra para criar a sala.", "TempVoice");
             }
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            await interaction.deferUpdate();
+            await TempVoiceManager.configure(interaction.guild, { enabled: c.enabled ? false : true });
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice"));
         }
         if (target === "autolock") {
+            await interaction.deferUpdate();
             await TempVoiceManager.configure(interaction.guild, { auto_lock: !c.auto_lock });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice"));
         }
         if (target === "admin") {
+            await interaction.deferUpdate();
             await TempVoiceManager.configure(interaction.guild, { admin_manage: !c.admin_manage });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
         }
         if (target === "trigger") {
-            const channel = interaction.channels.first();
+            const channel = interaction.channels.get(interaction.values[0]);
             if (!channel || channel.type !== 2) return ui.fail(interaction, "Selecione um canal de voz válido.", "Canal inválido");
+            await interaction.deferUpdate();
             await TempVoiceManager.configure(interaction.guild, { trigger_channel_id: channel.id, enabled: true });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice"));
         }
         if (target === "category") {
-            const channel = interaction.channels.first();
+            const channel = interaction.channels.get(interaction.values[0]);
             if (!channel || channel.type !== 4) return ui.fail(interaction, "Selecione uma categoria válida.", "Categoria inválida");
+            await interaction.deferUpdate();
             await TempVoiceManager.configure(interaction.guild, { category_id: channel.id });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice"));
         }
         if (target === "role") {
             const role = interaction.roles.first();
             if (!role || role.managed || role.id === interaction.guild.id) return ui.fail(interaction, "Selecione um cargo normal e não gerenciado.", "Cargo inválido");
             const me = interaction.guild.members.me;
             if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.fail(interaction, "A Nina não consegue usar esse cargo por causa da hierarquia.", "Hierarquia inválida");
+            await interaction.deferUpdate();
             await TempVoiceManager.configure(interaction.guild, { manager_role_id: role.id });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
         }
         if (target === "autocreate") {
+            await interaction.deferUpdate();
             const result = await TempVoiceManager.setup(interaction.guild, { categoryId: c.category_id, triggerChannelId: c.trigger_channel_id, panelChannelId: c.panel_channel_id });
             await TempVoiceManager.configure(interaction.guild, { enabled: true, category_id: result.category.id, trigger_channel_id: result.trigger.id });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.editReply(await ConfigPanelManager.build(interaction, "tempvoice"));
         }
         if (target === "name") {
             const modal = new ModalBuilder().setCustomId("config_submit:tempvoice_name").setTitle("Nome das salas");
