@@ -17,6 +17,8 @@ const ContainerManager = require("../managers/ContainerManager");
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const ServerStatsManager = require("../managers/ServerStatsManager");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
+const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
+const TempVoiceManager = require("../managers/TempVoiceManager");
 
 /*
 =========================
@@ -659,6 +661,150 @@ module.exports = (client) => {
         } catch (error) {
             console.error("[Painel] Falha ao atualizar stats agora:", error);
             res.status(500).json({ error: "Não consegui atualizar os contadores." });
+        }
+    });
+
+    /*
+    =========================
+        TEMPVOICE
+    =========================
+    */
+
+    router.get("/guilds/:guildId/tempvoice", async (req, res) => {
+        const guild = req.painelGuild;
+        const config = await TempVoiceRepository.get(guild.id);
+        const rooms = await TempVoiceRepository.getRooms(guild.id);
+
+        const voiceChannels = guild.channels.cache
+            .filter(c => c.type === 2)
+            .map(c => ({ id: c.id, name: c.name, parentId: c.parentId }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const categories = guild.channels.cache
+            .filter(c => c.type === 4)
+            .map(c => ({ id: c.id, name: c.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const roles = guild.roles.cache
+            .filter(r => r.id !== guild.id && !r.managed)
+            .map(r => ({ id: r.id, name: r.name, color: r.hexColor, position: r.position }))
+            .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
+
+        const roomData = rooms.map(room => {
+            const channel = guild.channels.cache.get(room.channel_id);
+            const owner = guild.members.cache.get(room.owner_id);
+            return {
+                channelId: room.channel_id,
+                name: channel?.name || "Sala removida",
+                ownerId: room.owner_id,
+                ownerName: owner?.displayName || owner?.user?.username || room.owner_id,
+                members: channel?.members?.size || 0,
+                limit: channel?.userLimit || 0,
+                locked: !!room.locked,
+                createdAt: room.created_at || null
+            };
+        });
+
+        res.json({
+            config,
+            voiceChannels,
+            categories,
+            roles,
+            rooms: roomData
+        });
+    });
+
+    router.post("/guilds/:guildId/tempvoice", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+
+        try {
+            const values = {};
+
+            if (body.enabled !== undefined) values.enabled = bool(body.enabled);
+            if (body.auto_lock !== undefined) values.auto_lock = bool(body.auto_lock);
+            if (body.admin_manage !== undefined) values.admin_manage = bool(body.admin_manage);
+
+            if (body.default_limit !== undefined) {
+                values.default_limit = inteiro("default_limit", body.default_limit, 0, 99);
+            }
+
+            if (body.name_template !== undefined) {
+                const template = String(body.name_template ?? "").trim();
+                if (!template) throw new ErroValidacao('"name_template" não pode ficar vazio.');
+                if (template.length > 90) throw new ErroValidacao('"name_template" aceita no máximo 90 caracteres.');
+                values.name_template = template;
+            }
+
+            if (body.trigger_channel_id !== undefined) {
+                values.trigger_channel_id = idOpcional(
+                    "trigger_channel_id",
+                    body.trigger_channel_id,
+                    id => guild.channels.cache.get(id)?.type === 2
+                );
+            }
+
+            if (body.category_id !== undefined) {
+                values.category_id = idOpcional(
+                    "category_id",
+                    body.category_id,
+                    id => guild.channels.cache.get(id)?.type === 4
+                );
+            }
+
+            if (body.manager_role_id !== undefined) {
+                values.manager_role_id = idOpcional(
+                    "manager_role_id",
+                    body.manager_role_id,
+                    id => {
+                        const role = guild.roles.cache.get(id);
+                        return !!role && !role.managed && role.id !== guild.id;
+                    }
+                );
+            }
+
+            for (const key of [
+                "owner_rename", "owner_lock", "owner_limit", "owner_kick",
+                "owner_ban", "owner_transfer", "owner_delete"
+            ]) {
+                if (body[key] !== undefined) values[key] = bool(body[key]);
+            }
+
+            await TempVoiceManager.configure(guild, values);
+            res.json({ ok: true, config: await TempVoiceRepository.get(guild.id) });
+        } catch (error) {
+            console.error("[Painel] Falha ao atualizar TempVoice:", error);
+            return tratarValidacao(res, error);
+        }
+    });
+
+    router.post("/guilds/:guildId/tempvoice/setup", async (req, res) => {
+        try {
+            const result = await TempVoiceManager.setup(req.painelGuild, {
+                categoryId: req.body?.category_id || null,
+                triggerChannelId: req.body?.trigger_channel_id || null
+            });
+
+            const config = await TempVoiceManager.configure(req.painelGuild, {
+                enabled: true,
+                category_id: result.category.id,
+                trigger_channel_id: result.trigger.id
+            });
+
+            res.json({ ok: true, config });
+        } catch (error) {
+            console.error("[Painel] Falha ao criar estrutura do TempVoice:", error);
+            res.status(400).json({ error: error.message || "Não consegui criar a estrutura do TempVoice." });
+        }
+    });
+
+    router.post("/guilds/:guildId/tempvoice/disable", async (req, res) => {
+        try {
+            await TempVoiceManager.disable(req.painelGuild);
+            res.json({ ok: true, config: await TempVoiceRepository.get(req.painelGuild.id) });
+        } catch (error) {
+            console.error("[Painel] Falha ao desativar TempVoice:", error);
+            res.status(500).json({ error: "Não consegui desativar o TempVoice." });
         }
     });
 

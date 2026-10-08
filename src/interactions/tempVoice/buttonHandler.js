@@ -12,7 +12,7 @@ const TempVoiceRepository = require("../../database/repositories/TempVoiceReposi
 const TempVoiceManager = require("../../managers/TempVoiceManager");
 const ui = require("../../utils/ui");
 
-async function getRoomForUser(interaction) {
+async function getRoomForUser(interaction, action = null) {
     const voice = interaction.member?.voice?.channel;
     if (!voice) {
         await ui.fail(interaction, "Entre na sua sala temporária primeiro.", "Nenhuma sala");
@@ -25,12 +25,13 @@ async function getRoomForUser(interaction) {
         return null;
     }
 
-    if (room.owner_id !== interaction.user.id) {
-        await ui.caution(interaction, "Somente o dono da sala pode usar esses controles.", "Sem permissão");
+    const config = await TempVoiceRepository.get(interaction.guild.id);
+    if (action && !TempVoiceManager.canManageRoom(interaction.member, room, config, action)) {
+        await ui.caution(interaction, "Você não tem permissão para executar essa ação nesta sala.", "Sem permissão");
         return null;
     }
 
-    return { room, channel: voice };
+    return { room, channel: voice, config };
 }
 
 function selectRow(customId, placeholder) {
@@ -47,12 +48,10 @@ async function execute(interaction) {
     const action = interaction.customId.split(":")[1];
 
     if (action === "lock") {
-        const data = await getRoomForUser(interaction);
+        const data = await getRoomForUser(interaction, "lock");
         if (!data) return;
 
         const { room, channel } = data;
-        const config = await TempVoiceRepository.get(interaction.guild.id);
-        if (!TempVoiceManager.canManageRoom(interaction.member, room, config, "lock")) return ui.caution(interaction, "Essa permissão foi desativada para você.", "Sem permissão");
         const locked = !!room.locked;
 
         await channel.permissionOverwrites.edit(channel.guild.roles.everyone, {
@@ -70,10 +69,8 @@ async function execute(interaction) {
     }
 
     if (action === "rename") {
-        const data = await getRoomForUser(interaction);
+        const data = await getRoomForUser(interaction, "rename");
         if (!data) return;
-        const config = await TempVoiceRepository.get(interaction.guild.id);
-        if (!TempVoiceManager.canManageRoom(interaction.member, data.room, config, "rename")) return ui.caution(interaction, "Renomear está desativado para você.", "Sem permissão");
 
         const modal = new ModalBuilder()
             .setCustomId("tempvoice_modal:rename")
@@ -94,10 +91,8 @@ async function execute(interaction) {
     }
 
     if (action === "limit") {
-        const data = await getRoomForUser(interaction);
+        const data = await getRoomForUser(interaction, "limit");
         if (!data) return;
-        const config = await TempVoiceRepository.get(interaction.guild.id);
-        if (!TempVoiceManager.canManageRoom(interaction.member, data.room, config, "limit")) return ui.caution(interaction, "Alterar o limite está desativado para você.", "Sem permissão");
 
         const modal = new ModalBuilder()
             .setCustomId("tempvoice_modal:limit")
@@ -119,11 +114,10 @@ async function execute(interaction) {
     }
 
     if (action === "kick" || action === "ban" || action === "unban" || action === "transfer") {
-        const data = await getRoomForUser(interaction);
-        if (!data) return;
-        const config = await TempVoiceRepository.get(interaction.guild.id);
         const permission = action === "transfer" ? "transfer" : action === "kick" ? "kick" : "ban";
-        if (!TempVoiceManager.canManageRoom(interaction.member, data.room, config, permission)) return ui.caution(interaction, "Essa ação está desativada para você.", "Sem permissão");
+        const data = await getRoomForUser(interaction, permission);
+        if (!data) return;
+
 
         const configs = {
             kick: ["tempvoice_select:kick", "Selecione quem será expulso"],
@@ -144,11 +138,8 @@ async function execute(interaction) {
     }
 
     if (action === "delete") {
-        const data = await getRoomForUser(interaction);
+        const data = await getRoomForUser(interaction, "delete");
         if (!data) return;
-        const config = await TempVoiceRepository.get(interaction.guild.id);
-        if (!TempVoiceManager.canManageRoom(interaction.member, data.room, config, "delete")) return ui.caution(interaction, "Excluir a sala está desativado para você.", "Sem permissão");
-
         await TempVoiceRepository.removeRoom(data.channel.id);
         await data.channel.delete("Sala temporária excluída pelo dono").catch(() => {});
         return interaction.reply({

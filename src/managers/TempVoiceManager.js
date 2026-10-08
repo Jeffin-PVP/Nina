@@ -3,6 +3,7 @@ const {
     PermissionFlagsBits,
     ActionRowBuilder,
     ButtonBuilder,
+    Routes,
     ButtonStyle,
     EmbedBuilder
 } = require("discord.js");
@@ -205,6 +206,13 @@ class TempVoiceManager {
         }
 
         await member.voice.setChannel(channel).catch(() => {});
+
+        // O painel é publicado no chat integrado da própria sala. Se o Discord
+        // recusar o envio, a sala continua funcionando normalmente.
+        await this.postPanel(channel, member).catch(error => {
+            console.error("❌ Não consegui publicar o painel do TempVoice:", error);
+        });
+
         return channel;
     }
 
@@ -257,17 +265,25 @@ class TempVoiceManager {
         }
     }
 
-    static async postPanel(channel) {
-        if (!channel?.isTextBased()) {
-            throw new Error("Escolha um canal de texto para publicar o painel.");
+    static async postPanel(channel, owner = null) {
+        if (!channel || channel.type !== ChannelType.GuildVoice) {
+            throw new Error("O painel do TempVoice precisa ser publicado em uma sala de voz.");
         }
 
-        const message = await channel.send({
-            embeds: [this.controlEmbed(null, null, true)],
-            components: this.controlRows(true)
-        });
+        // Salas de voz possuem o chat de texto integrado. O discord.js 14 não
+        // expõe GuildVoiceChannel como TextBasedChannel em todas as versões,
+        // então enviamos a mensagem diretamente pelo endpoint de mensagens.
+        const payload = {
+            content: owner ? `<@${owner.id}> sua sala foi criada. Use o painel abaixo para configurá-la.` : undefined,
+            embeds: [this.controlEmbed(channel, owner, false).toJSON()],
+            components: this.controlRows(true).map(row => row.toJSON()),
+            allowed_mentions: owner ? { users: [owner.id] } : { parse: [] }
+        };
 
-        return message;
+        return channel.client.rest.post(
+            Routes.channelMessages(channel.id),
+            { body: payload }
+        );
     }
 
     static controlRows(includeManagement = false) {
@@ -329,7 +345,7 @@ class TempVoiceManager {
             .setDescription(
                 generic
                     ? "Entre em uma sala temporária da Nina e use os botões para gerenciá-la."
-                    : `Gerencie ${channel}. Somente o dono atual pode usar estes controles.`
+                    : `Gerencie ${channel}. O dono e os administradores/cargos autorizados podem usar os controles.`
             );
 
         if (channel) {

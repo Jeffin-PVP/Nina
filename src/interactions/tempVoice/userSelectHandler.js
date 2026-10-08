@@ -3,6 +3,7 @@ const {
 } = require("discord.js");
 
 const TempVoiceRepository = require("../../database/repositories/TempVoiceRepository");
+const TempVoiceManager = require("../../managers/TempVoiceManager");
 const ui = require("../../utils/ui");
 
 async function execute(interaction) {
@@ -10,8 +11,10 @@ async function execute(interaction) {
     const voice = interaction.member?.voice?.channel;
     const room = voice ? await TempVoiceRepository.getRoom(voice.id) : null;
 
-    if (!room || room.owner_id !== interaction.user.id) {
-        return ui.fail(interaction, "Entre na sua sala temporária e seja o dono dela para usar esta ação.", "Sem permissão");
+    const config = await TempVoiceRepository.get(interaction.guild.id);
+    const permission = action === "transfer" ? "transfer" : action === "kick" ? "kick" : "ban";
+    if (!room || !TempVoiceManager.canManageRoom(interaction.member, room, config, permission)) {
+        return ui.fail(interaction, "Você não tem permissão para usar esta ação nesta sala.", "Sem permissão");
     }
 
     const targetId = interaction.values[0];
