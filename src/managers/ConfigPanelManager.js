@@ -400,7 +400,7 @@ async function buildTempVoice(interaction) {
             color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
             emoji: "🔊",
             title: "TempVoice",
-            description: "Configure completamente as salas temporárias deste servidor. As alterações ficam salvas no SQLite.",
+            description: "Configure as salas temporárias deste servidor. As alterações ficam salvas no SQLite.",
             fields: [
                 ui.field("power", "Status", ui.toggle(c.enabled)),
                 ui.field("channel", "Canal para criar sala", trigger ? `<#${trigger.id}>` : "Não configurado", false),
@@ -423,16 +423,87 @@ async function buildTempVoice(interaction) {
                 toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
             ),
             new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder().setCustomId("config_tempvoice:trigger").setPlaceholder("Escolher canal de entrada").setChannelTypes(ChannelType.GuildVoice),
-                new ChannelSelectMenuBuilder().setCustomId("config_tempvoice:category").setPlaceholder("Escolher categoria das salas").setChannelTypes(ChannelType.GuildCategory)
+                new ChannelSelectMenuBuilder()
+                    .setCustomId("config_tempvoice:trigger")
+                    .setPlaceholder("Escolher canal de entrada")
+                    .setChannelTypes(ChannelType.GuildVoice)
             ),
             new ActionRowBuilder().addComponents(
-                toggleButton("config_tempvoice:admin", !!c.admin_manage, "Admins/Moderação"),
-                new RoleSelectMenuBuilder().setCustomId("config_tempvoice:role").setPlaceholder("Cargo que pode gerenciar salas"),
-                new ButtonBuilder().setCustomId("config_tempvoice:permissions").setLabel("Permissões do dono").setEmoji("🔐").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_tempvoice:permissions2").setLabel("Mais permissões").setEmoji("🛠️").setStyle(ButtonStyle.Secondary)
+                new ChannelSelectMenuBuilder()
+                    .setCustomId("config_tempvoice:category")
+                    .setPlaceholder("Escolher categoria das salas")
+                    .setChannelTypes(ChannelType.GuildCategory)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("config_tempvoice:permissions_page")
+                    .setLabel("Permissões e cargos")
+                    .setEmoji("🛡️")
+                    .setStyle(ButtonStyle.Secondary)
             ),
             backRow()
+        ]
+    };
+}
+
+async function buildTempVoicePermissions(interaction) {
+    const c = await TempVoiceRepository.get(interaction.guild.id);
+    const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
+
+    return {
+        embeds: [ui.panel({
+            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
+            emoji: "🛡️",
+            title: "TempVoice • Permissões",
+            description: "Defina quem pode administrar as salas e quais ações o dono da sala pode executar.",
+            fields: [
+                ui.field("shield", "Admins/Moderação", c.admin_manage ? "🟢 Ativado" : "🔴 Desativado"),
+                ui.field("role", "Cargo de gerenciamento", managerRole ? `<@&${managerRole.id}>` : "Não definido"),
+                ui.field("key", "Permissões do dono", [
+                    ["Renomear", c.owner_rename],
+                    ["Bloquear", c.owner_lock],
+                    ["Alterar limite", c.owner_limit],
+                    ["Expulsar", c.owner_kick],
+                    ["Bloquear membro", c.owner_ban],
+                    ["Transferir dono", c.owner_transfer],
+                    ["Excluir", c.owner_delete]
+                ].map(([name, value]) => `${value ? "🟢" : "🔴"} ${name}`).join("\n"))
+            ],
+            source: interaction
+        })],
+        components: [
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_tempvoice:admin", !!c.admin_manage, "Admins/Moderação")
+            ),
+            new ActionRowBuilder().addComponents(
+                new RoleSelectMenuBuilder()
+                    .setCustomId("config_tempvoice:role")
+                    .setPlaceholder("Escolher cargo que pode gerenciar salas")
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("config_tempvoice:permissions")
+                    .setLabel("Permissões do dono")
+                    .setEmoji("🔐")
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId("config_tempvoice:permissions2")
+                    .setLabel("Mais permissões")
+                    .setEmoji("🛠️")
+                    .setStyle(ButtonStyle.Secondary)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId("config_tempvoice:permissions_back")
+                    .setLabel("Voltar ao TempVoice")
+                    .setEmoji("◀️")
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId("config_close")
+                    .setLabel("Fechar")
+                    .setEmoji("✖️")
+                    .setStyle(ButtonStyle.Danger)
+            )
         ]
     };
 }
@@ -448,6 +519,7 @@ async function build(interaction, category) {
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
         case "tempvoice": return buildTempVoice(interaction);
+        case "tempvoice_permissions": return buildTempVoicePermissions(interaction);
         default: return buildHome(interaction);
     }
 }

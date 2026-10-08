@@ -46,6 +46,14 @@ async function execute(interaction) {
         return;
     }
 
+    if (id === "config_tempvoice:permissions_page") {
+        return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
+    }
+
+    if (id === "config_tempvoice:permissions_back") {
+        return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+    }
+
     if (id === "config_category") {
         const category = interaction.values[0];
         return interaction.update(await ConfigPanelManager.build(interaction, category));
@@ -144,7 +152,7 @@ async function execute(interaction) {
         }
         if (target === "admin") {
             await TempVoiceManager.configure(interaction.guild, { admin_manage: !c.admin_manage });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
         }
         if (target === "trigger") {
             const channel = interaction.channels.first();
@@ -164,7 +172,7 @@ async function execute(interaction) {
             const me = interaction.guild.members.me;
             if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.fail(interaction, "A Nina não consegue usar esse cargo por causa da hierarquia.", "Hierarquia inválida");
             await TempVoiceManager.configure(interaction.guild, { manager_role_id: role.id });
-            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice_permissions"));
         }
         if (target === "autocreate") {
             const result = await TempVoiceManager.setup(interaction.guild, { categoryId: c.category_id, triggerChannelId: c.trigger_channel_id, panelChannelId: c.panel_channel_id });
