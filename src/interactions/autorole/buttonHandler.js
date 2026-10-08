@@ -1,4 +1,5 @@
 const ui = require("../../utils/ui");
+const AutoroleRepository = require("../../database/repositories/AutoroleRepository");
 
 module.exports = {
 
@@ -8,6 +9,15 @@ module.exports = {
         if (!interaction.customId.startsWith("selfrole_")) return;
 
         const roleId = interaction.customId.replace("selfrole_", "");
+        const configuredRoles = await AutoroleRepository.listSelfRoles(interaction.guild.id);
+        if (!configuredRoles.some(entry => entry.role_id === roleId)) {
+            return ui.caution(
+                interaction,
+                "Esse cargo não está mais habilitado no painel de self-role. Peça a um administrador para publicar o painel atualizado.",
+                "Cargo desativado"
+            );
+        }
+
         const role = interaction.guild.roles.cache.get(roleId);
 
         if (!role) {
@@ -35,7 +45,7 @@ module.exports = {
 
         if (has) {
 
-            await interaction.member.roles.remove(role).catch(() => null);
+            await interaction.member.roles.remove(role, "Self-role removido pelo membro");
 
             return ui.respond(interaction, ui.panel({
                 color: ui.COLORS.neutral,
@@ -47,7 +57,7 @@ module.exports = {
 
         }
 
-        await interaction.member.roles.add(role).catch(() => null);
+        await interaction.member.roles.add(role, "Self-role escolhido pelo membro");
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,

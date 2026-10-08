@@ -18,6 +18,7 @@ const ServerStatsRepository = require("../database/repositories/ServerStatsRepos
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("./TempVoiceManager");
+const LockdownManager = require("./LockdownManager");
 const { CATEGORIES } = require("./LogCategories");
 
 const CATEGORY_OPTIONS = [
@@ -29,7 +30,8 @@ const CATEGORY_OPTIONS = [
     { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "🎭" },
     { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "📊" },
     { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "☢️" },
-    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "🔊" }
+    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "🔊" },
+    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "🔒" }
 ];
 
 function permissionOk(interaction) {
@@ -78,6 +80,7 @@ async function buildHome(interaction) {
     const tickets = await TicketRepository.getConfig(interaction.guild.id);
     const stats = await ServerStatsRepository.get(interaction.guild.id);
     const antinuke = await AntiNukeRepository.get(interaction.guild.id);
+    const lockdown = await LockdownManager.getConfig(interaction.guild.id);
 
     const configured = [
         ["🤖 AutoMod", automod.enabled],
@@ -88,7 +91,8 @@ async function buildHome(interaction) {
         ["🛡️ Moderação", settings.moderation_enabled],
         ["📊 Stats", stats.enabled],
         ["☢️ Anti-Nuke", antinuke.enabled],
-        ["🔊 TempVoice", (await TempVoiceRepository.get(interaction.guild.id)).enabled]
+        ["🔊 TempVoice", (await TempVoiceRepository.get(interaction.guild.id)).enabled],
+        ["🔒 Lockdown", lockdown.enabled]
     ];
 
     const status = configured.map(([name, enabled]) => `${ui.dot(enabled)} ${name}`).join("\n");
@@ -289,10 +293,11 @@ async function buildLogs(interaction) {
 
 async function buildAutorole(interaction) {
     const guildId = interaction.guild.id;
-    const [join, self, level] = await Promise.all([
+    const [join, self, level, reactions] = await Promise.all([
         AutoroleRepository.getJoinRoles(guildId),
         AutoroleRepository.listSelfRoles(guildId),
-        AutoroleRepository.listLevelRoles(guildId)
+        AutoroleRepository.listLevelRoles(guildId),
+        AutoroleRepository.listReactionRoles(guildId)
     ]);
 
     return {
@@ -304,8 +309,11 @@ async function buildAutorole(interaction) {
             fields: [
                 ui.field("user", "Cargos de entrada", `${join.length}`),
                 ui.field("role", "Self-roles", `${self.length}`),
+                ui.field("role", "Cargos por reação", `${reactions.length}`),
                 ui.field("star", "Cargos por nível", `${level.length}`),
-                ui.field("info", "Configuração", "Cargos de entrada, self-roles e recompensas por nível podem ser gerenciados diretamente aqui.", false)
+                ui.field("info", "Configuração", "Cargos de entrada, self-roles, cargos por reação e recompensas por nível podem ser gerenciados diretamente aqui.", false),
+                ...(self.length ? [ui.field("role", "Botões configurados", self.slice(0, 10).map(role => `• ${role.label} · <@&${role.role_id}>`).join("\n"), false)] : []),
+                ...(reactions.length ? [ui.field("role", "Regras por reação", reactions.slice(0, 5).map(rule => `#${rule.id} · <#${rule.channel_id}> · <@&${rule.role_id}>`).join("\n"), false)] : [])
             ],
             source: interaction
         })],
@@ -315,12 +323,115 @@ async function buildAutorole(interaction) {
             ),
             new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("config_modal:autorole_selfrole").setLabel("Adicionar self-role").setEmoji("🎭").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_modal:autorole_level").setLabel("Cargo por nível").setEmoji("⭐").setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder().setCustomId("config_modal:autorole_level").setLabel("Cargo por nível").setEmoji("⭐").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_modal:autorole_reaction").setLabel("Adicionar reação").setEmoji("🔁").setStyle(ButtonStyle.Secondary)
             ),
             new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setCustomId("config_autorole:publish").setLabel("Publicar painel de botões aqui").setEmoji("📨").setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId("config_modal:autorole_reaction_remove").setLabel("Remover regra de reação").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
                 new ButtonBuilder().setCustomId("config_modal:autorole_note").setLabel("Comandos avançados").setEmoji("ℹ️").setStyle(ButtonStyle.Secondary)
             ),
+            ...(self.length ? [new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId("config_selfrole_remove")
+                    .setPlaceholder("Remover cargos de botão")
+                    .setMinValues(1)
+                    .setMaxValues(self.length)
+                    .addOptions(self.map(role => ({
+                        label: role.label.slice(0, 100),
+                        value: role.role_id,
+                        description: `Cargo ${role.role_id}`
+                    })))
+            )] : []),
             backRow()
+        ]
+    };
+}
+
+async function buildLockdown(interaction) {
+    const config = await LockdownManager.getConfig(interaction.guild.id);
+    const list = ids => ids.length ? ids.map(id => `<#${id}>`).join(", ") : "Nenhum";
+    const roleList = ids => ids.length ? ids.map(id => `<@&${id}>`).join(", ") : "Nenhum";
+    const channelTypes = [
+        ChannelType.GuildText,
+        ChannelType.GuildAnnouncement,
+        ChannelType.GuildForum,
+        ChannelType.GuildVoice,
+        ChannelType.GuildStageVoice
+    ];
+
+    return {
+        embeds: [ui.panel({
+            color: config.active ? ui.COLORS.error : ui.COLORS.info,
+            emoji: config.active ? "lock" : "unlock",
+            title: "Lockdown",
+            description: "Configure canais, categorias e cargos que mantêm ou perdem acesso durante o bloqueio. Administradores continuam tendo acesso pelo bypass do Discord.",
+            fields: [
+                ui.field("info", "Sistema", config.enabled ? "Ativado" : "Desativado"),
+                ui.field("lock", "Estado", config.active ? "LOCKDOWN ATIVO" : "Inativo"),
+                ui.field("channel", "Canais", list(config.channel_ids), false),
+                ui.field("channel", "Categorias", list(config.category_ids), false),
+                ui.field("role", "Acesso permitido", roleList(config.allowed_role_ids), false),
+                ui.field("role", "Acesso negado", roleList(config.denied_role_ids), false),
+                ui.field("info", "Cargos sobrepostos", "Não use o mesmo cargo nas duas listas. Se um membro tiver cargos diferentes das duas listas, o Discord dá prioridade às permissões permitidas de cargo.", false)
+            ],
+            source: interaction
+        })],
+        components: [
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_lockdown:enabled", config.enabled, "Sistema"),
+                new ButtonBuilder()
+                    .setCustomId("config_lockdown:lock")
+                    .setLabel("Trancar selecionados")
+                    .setEmoji("🔒")
+                    .setStyle(ButtonStyle.Danger)
+                    .setDisabled(!config.enabled || config.active),
+                new ButtonBuilder()
+                    .setCustomId("config_lockdown:unlock")
+                    .setLabel("Destrancar")
+                    .setEmoji("🔓")
+                    .setStyle(ButtonStyle.Success)
+                    .setDisabled(!config.active),
+                new ButtonBuilder()
+                    .setCustomId("config_home")
+                    .setLabel("Voltar")
+                    .setEmoji("◀️")
+                    .setStyle(ButtonStyle.Secondary)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId("config_channel:lockdown_channels")
+                    .setPlaceholder("Selecionar canais de texto e voz (substitui a lista)")
+                    .setChannelTypes(...channelTypes)
+                    .setDefaultChannels(...config.channel_ids.map(id => interaction.guild.channels.cache.get(id)).filter(Boolean))
+                    .setMinValues(0)
+                    .setMaxValues(25)
+            ),
+            new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder()
+                    .setCustomId("config_channel:lockdown_categories")
+                    .setPlaceholder("Selecionar categorias (substitui a lista)")
+                    .setChannelTypes(ChannelType.GuildCategory)
+                    .setDefaultChannels(...config.category_ids.map(id => interaction.guild.channels.cache.get(id)).filter(Boolean))
+                    .setMinValues(0)
+                    .setMaxValues(25)
+            ),
+            new ActionRowBuilder().addComponents(
+                new RoleSelectMenuBuilder()
+                    .setCustomId("config_role:lockdown_allowed")
+                    .setPlaceholder("Cargos com acesso durante o lockdown")
+                    .setDefaultRoles(...config.allowed_role_ids.map(id => interaction.guild.roles.cache.get(id)).filter(Boolean))
+                    .setMinValues(0)
+                    .setMaxValues(25)
+            ),
+            new ActionRowBuilder().addComponents(
+                new RoleSelectMenuBuilder()
+                    .setCustomId("config_role:lockdown_denied")
+                    .setPlaceholder("Cargos sem acesso durante o lockdown")
+                    .setDefaultRoles(...config.denied_role_ids.map(id => interaction.guild.roles.cache.get(id)).filter(Boolean))
+                    .setMinValues(0)
+                    .setMaxValues(25)
+            )
         ]
     };
 }
@@ -521,6 +632,7 @@ async function build(interaction, category) {
         case "tickets": return buildTickets(interaction);
         case "logs": return buildLogs(interaction);
         case "autorole": return buildAutorole(interaction);
+        case "lockdown": return buildLockdown(interaction);
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
         case "tempvoice": return buildTempVoice(interaction);

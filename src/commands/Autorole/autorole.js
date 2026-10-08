@@ -1,9 +1,7 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle
+    ChannelType,
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
@@ -12,6 +10,8 @@ const { e } = require("../../utils/emojis");
 const AutoroleRepository = require("../../database/repositories/AutoroleRepository");
 const GuildRepository = require("../../database/repositories/GuildRepository");
 const LevelManager = require("../../managers/LevelManager");
+const AutorolePanelManager = require("../../managers/AutorolePanelManager");
+const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 
 module.exports = {
 
@@ -62,8 +62,8 @@ module.exports = {
                         .setName("adicionar")
                         .setDescription("Adiciona um cargo ao painel de self-role.")
                         .addRoleOption(o => o.setName("cargo").setDescription("Cargo disponível.").setRequired(true))
-                        .addStringOption(o => o.setName("label").setDescription("Texto do botão.").setRequired(true))
-                        .addStringOption(o => o.setName("emoji").setDescription("Emoji do botão (opcional).").setRequired(false))
+                        .addStringOption(o => o.setName("label").setDescription("Texto do botão.").setMaxLength(80).setRequired(true))
+                        .addStringOption(o => o.setName("emoji").setDescription("Emoji do botão (opcional).").setMaxLength(100).setRequired(false))
                 )
                 .addSubcommand(sub =>
                     sub
@@ -75,8 +75,36 @@ module.exports = {
                     sub
                         .setName("painel")
                         .setDescription("Envia o painel de self-role no canal atual.")
-                        .addStringOption(o => o.setName("titulo").setDescription("Título do painel.").setRequired(false))
-                        .addStringOption(o => o.setName("descricao").setDescription("Descrição do painel.").setRequired(false))
+                        .addStringOption(o => o.setName("titulo").setDescription("Título do painel.").setMaxLength(256).setRequired(false))
+                        .addStringOption(o => o.setName("descricao").setDescription("Descrição do painel.").setMaxLength(2000).setRequired(false))
+                )
+
+        )
+
+        .addSubcommandGroup(group =>
+
+            group
+                .setName("reacao")
+                .setDescription("Cargos atribuídos quando um membro reage a uma mensagem.")
+                .addSubcommand(sub =>
+                    sub
+                        .setName("adicionar")
+                        .setDescription("Vincula uma reação de mensagem a um cargo.")
+                        .addChannelOption(o => o.setName("canal").setDescription("Canal da mensagem.").addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement).setRequired(true))
+                        .addStringOption(o => o.setName("mensagem").setDescription("ID da mensagem.").setRequired(true))
+                        .addStringOption(o => o.setName("emoji").setDescription("Emoji Unicode ou emoji personalizado do servidor.").setRequired(true).setMaxLength(100))
+                        .addRoleOption(o => o.setName("cargo").setDescription("Cargo a atribuir/remover.").setRequired(true))
+                )
+                .addSubcommand(sub =>
+                    sub
+                        .setName("remover")
+                        .setDescription("Remove uma configuração de cargo por reação.")
+                        .addIntegerOption(o => o.setName("id").setDescription("ID da regra listado em /autorole reacao listar.").setRequired(true).setMinValue(1))
+                )
+                .addSubcommand(sub =>
+                    sub
+                        .setName("listar")
+                        .setDescription("Lista as regras de cargos por reação.")
                 )
 
         )
@@ -188,13 +216,23 @@ module.exports = {
             if (sub === "adicionar") {
 
                 const role = interaction.options.getRole("cargo");
-                const label = interaction.options.getString("label");
-                const emoji = interaction.options.getString("emoji");
+                const label = interaction.options.getString("label").trim();
+                const emoji = interaction.options.getString("emoji")?.trim() || null;
 
                 if (role.managed || role.id === guild.id) {
 
                     return ui.caution(interaction, "Esse cargo não pode ser usado (é um cargo gerenciado ou o @everyone).", "Cargo inválido");
 
+                }
+
+                if (!label) {
+                    return ui.caution(interaction, "O texto do botão não pode ficar vazio.", "Texto inválido");
+                }
+
+                const botMember = guild.members.me;
+                if (!botMember?.permissions.has(PermissionFlagsBits.ManageRoles) ||
+                    role.position >= botMember.roles.highest.position) {
+                    return ui.caution(interaction, "A Nina precisa da permissão Gerenciar Cargos e estar acima desse cargo.", "Hierarquia inválida");
                 }
 
                 const current = await AutoroleRepository.listSelfRoles(guild.id);
@@ -231,56 +269,83 @@ module.exports = {
 
                 }
 
-                const titulo = interaction.options.getString("titulo") || "Escolha seus cargos";
-                const descricao = interaction.options.getString("descricao") ||
-                    "Clique em um botão para adicionar ou remover o cargo correspondente.";
-
-                const embed = ui.panel({
-                    color: ui.COLORS.brand,
-                    emoji: "role",
+                const titulo = interaction.options.getString("titulo");
+                const descricao = interaction.options.getString("descricao");
+                await AutorolePanelManager.send(interaction.channel, roles, {
                     title: titulo,
-                    description: `${descricao}\n\n${ui.LINE}\n${ui.bullets(roles.map(r => `<@&${r.role_id}>`))}`,
+                    description: descricao,
                     source: interaction
                 });
-
-                const rows = [];
-
-                for (let i = 0; i < roles.length; i += 5) {
-
-                    const row = new ActionRowBuilder();
-                    const chunk = roles.slice(i, i + 5);
-
-                    for (const role of chunk) {
-
-                        const button = new ButtonBuilder()
-                            .setCustomId(`selfrole_${role.role_id}`)
-                            .setLabel(role.label)
-                            .setStyle(ButtonStyle.Secondary);
-
-                        if (role.emoji) {
-
-                            try {
-                                button.setEmoji(role.emoji);
-                            } catch {
-                                // emoji inválido, ignora silenciosamente
-                            }
-
-                        }
-
-                        row.addComponents(button);
-
-                    }
-
-                    rows.push(row);
-
-                }
-
-                await interaction.channel.send({ embeds: [embed], components: rows });
 
                 return ui.ok(interaction, `O painel de self-role foi enviado em ${interaction.channel}.`, "Painel enviado");
 
             }
 
+        }
+
+        if (group === "reacao") {
+            if (sub === "adicionar") {
+                const channel = interaction.options.getChannel("canal");
+                const messageId = interaction.options.getString("mensagem").trim();
+                const emoji = interaction.options.getString("emoji").trim();
+                const role = interaction.options.getRole("cargo");
+
+                if (!/^\d{17,20}$/.test(messageId)) {
+                    return ui.caution(interaction, "Informe o ID válido da mensagem do Discord.", "Mensagem inválida");
+                }
+                if (role.managed || role.id === guild.id) {
+                    return ui.caution(interaction, "Esse cargo não pode ser usado (é gerenciado ou @everyone).", "Cargo inválido");
+                }
+                const botRole = guild.members.me?.roles?.highest;
+                if (!guild.members.me?.permissions.has(PermissionFlagsBits.ManageRoles) ||
+                    (botRole && role.position >= botRole.position)) {
+                    return ui.caution(interaction, "A Nina precisa da permissão Gerenciar Cargos e estar acima desse cargo.", "Hierarquia inválida");
+                }
+
+                let emojiKey;
+                try {
+                    emojiKey = normalizeReactionEmoji(emoji);
+                } catch (error) {
+                    return ui.caution(interaction, `Não consegui adicionar essa reação: ${error.message}`, "Emoji inválido");
+                }
+
+                await interaction.deferReply({ ephemeral: true });
+                try {
+                    const message = await channel.messages.fetch(messageId);
+                    if (message.guildId !== guild.id) {
+                        return ui.caution(interaction, "A mensagem precisa pertencer a este servidor.", "Mensagem inválida");
+                    }
+                    await message.react(emoji);
+                    await AutoroleRepository.addReactionRole(guild.id, channel.id, message.id, role.id, emojiKey);
+                    return ui.ok(interaction, `${emoji} na mensagem [${message.id}](${message.url}) agora atribui/remove ${role}.`, "Cargo por reação configurado");
+                } catch (error) {
+                    console.error(`[Autorole:Reação:${guild.id}] Falha ao configurar a regra:`, error);
+                    return ui.fail(interaction, `Não consegui configurar essa reação: ${error.message}`, "Falha ao configurar");
+                }
+            }
+
+            if (sub === "remover") {
+                const id = interaction.options.getInteger("id");
+                const existing = (await AutoroleRepository.listReactionRoles(guild.id)).find(entry => entry.id === id);
+                if (!existing) return ui.caution(interaction, "Não encontrei essa regra de reação.", "Regra não encontrada");
+                await AutoroleRepository.removeReactionRole(guild.id, id);
+                return ui.ok(interaction, `A regra de reação **${id}** foi removida.`, "Regra removida");
+            }
+
+            if (sub === "listar") {
+                const rules = await AutoroleRepository.listReactionRoles(guild.id);
+                if (!rules.length) return ui.nothing(interaction, "Nenhuma regra de reação configurada.", "Sem regras");
+                const description = rules.map(rule =>
+                    `**#${rule.id}** <#${rule.channel_id}> · [mensagem](https://discord.com/channels/${guild.id}/${rule.channel_id}/${rule.message_id}) · ${rule.emoji_key.replace(/^(custom|unicode):/, "")} → <@&${rule.role_id}>`
+                ).join("\n");
+                return ui.respond(interaction, ui.panel({
+                    color: ui.COLORS.info,
+                    emoji: "role",
+                    title: `Cargos por reação (${rules.length})`,
+                    description: ui.clip(description, 4000),
+                    source: interaction
+                }), { ephemeral: true });
+            }
         }
 
         /*

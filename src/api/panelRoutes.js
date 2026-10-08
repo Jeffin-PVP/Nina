@@ -10,7 +10,7 @@ const EconomyRepository = require("../database/repositories/EconomyRepository");
 const database = require("../database/database");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
 const { validateHttpUrl } = require("../utils/safeFetch");
-const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
+const { EmbedBuilder, PermissionFlagsBits, ChannelType } = require("discord.js");
 const EmbedUtils = require("../interactions/embed/EmbedUtils");
 const EmbedPreview = require("../interactions/embed/EmbedPreview");
 const ContainerManager = require("../managers/ContainerManager");
@@ -19,6 +19,10 @@ const ServerStatsManager = require("../managers/ServerStatsManager");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("../managers/TempVoiceManager");
+const LockdownRepository = require("../database/repositories/LockdownRepository");
+const LockdownManager = require("../managers/LockdownManager");
+const AutorolePanelManager = require("../managers/AutorolePanelManager");
+const { normalizeReactionEmoji } = require("../utils/reactionEmoji");
 
 /*
 =========================
@@ -298,12 +302,24 @@ module.exports = (client) => {
             .map(r => ({ id: r.id, name: r.name, color: r.hexColor }))
             .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
 
+        const lockdownChannels = guild.channels.cache
+            .filter(channel => !channel.isThread?.() && (
+                [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum, ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type)
+            ))
+            .map(channel => ({ id: channel.id, name: channel.name, type: channel.type, parentId: channel.parentId }));
+        const categories = guild.channels.cache
+            .filter(channel => channel.type === ChannelType.GuildCategory)
+            .map(channel => ({ id: channel.id, name: channel.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
         res.json({
             id: guild.id,
             name: guild.name,
             icon: guild.iconURL({ size: 128 }),
             memberCount: guild.memberCount,
             channels,
+            lockdownChannels,
+            categories,
             roles
         });
 
@@ -431,6 +447,219 @@ module.exports = (client) => {
 
         res.json({ roleIds });
 
+    });
+
+    router.get("/guilds/:guildId/autorole/selfroles", async (req, res) => {
+        res.json({
+            roles: await AutoroleRepository.listSelfRoles(req.params.guildId),
+            reactions: await AutoroleRepository.listReactionRoles(req.params.guildId)
+        });
+    });
+
+    router.post("/guilds/:guildId/autorole/selfroles", async (req, res) => {
+        const roleId = String(req.body?.roleId || "");
+        const role = req.painelGuild.roles.cache.get(roleId);
+        const botRole = req.painelGuild.members.me?.roles?.highest;
+        if (!role || role.managed || role.id === req.params.guildId) {
+            return res.status(400).json({ error: "Cargo inválido." });
+        }
+        if (!req.painelGuild.members.me?.permissions.has(PermissionFlagsBits.ManageRoles) ||
+            (botRole && role.comparePositionTo(botRole) >= 0)) {
+            return res.status(400).json({ error: "A Nina precisa estar acima desse cargo para atribuí-lo." });
+        }
+        let label;
+        let emoji = null;
+        try {
+            label = texto("label", req.body?.label || role.name, 80);
+            if (req.body?.emoji) emoji = texto("emoji", req.body.emoji, 100);
+        } catch (error) {
+            return tratarValidacao(res, error);
+        }
+        const current = await AutoroleRepository.listSelfRoles(req.params.guildId);
+        if (current.length >= 25 && !current.some(item => item.role_id === roleId)) {
+            return res.status(400).json({ error: "O painel de botões aceita no máximo 25 cargos." });
+        }
+        await AutoroleRepository.addSelfRole(req.params.guildId, roleId, label, emoji);
+        res.json({ roles: await AutoroleRepository.listSelfRoles(req.params.guildId) });
+    });
+
+    router.delete("/guilds/:guildId/autorole/selfroles/:roleId", async (req, res) => {
+        await AutoroleRepository.removeSelfRole(req.params.guildId, req.params.roleId);
+        res.json({ roles: await AutoroleRepository.listSelfRoles(req.params.guildId) });
+    });
+
+    router.post("/guilds/:guildId/autorole/selfroles/panel", async (req, res) => {
+        const channelId = String(req.body?.channelId || "");
+        const channel = req.painelGuild.channels.cache.get(channelId);
+        if (!channel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+            return res.status(400).json({ error: "Canal de texto ou anúncios inválido." });
+        }
+        const roles = await AutoroleRepository.listSelfRoles(req.params.guildId);
+        let title;
+        let description;
+        try {
+            title = req.body?.title ? texto("title", req.body.title, 256) : undefined;
+            description = req.body?.description ? texto("description", req.body.description, 2000) : undefined;
+        } catch (error) {
+            return tratarValidacao(res, error);
+        }
+        try {
+            const message = await AutorolePanelManager.send(channel, roles, { title, description });
+            return res.json({ messageId: message.id, channelId: channel.id });
+        } catch (error) {
+            console.error(`[Panel:Autorole:${req.params.guildId}] Falha ao publicar painel:`, error);
+            return res.status(400).json({ error: error.message });
+        }
+    });
+
+    router.get("/guilds/:guildId/autorole/reactions", async (req, res) => {
+        res.json({ reactions: await AutoroleRepository.listReactionRoles(req.params.guildId) });
+    });
+
+    router.post("/guilds/:guildId/autorole/reactions", async (req, res) => {
+        const body = req.body || {};
+        const channelId = String(body.channelId || "");
+        const messageId = String(body.messageId || "");
+        const roleId = String(body.roleId || "");
+        const emoji = String(body.emoji || "").trim();
+        const channel = req.painelGuild.channels.cache.get(channelId);
+        const role = req.painelGuild.roles.cache.get(roleId);
+        const botRole = req.painelGuild.members.me?.roles?.highest;
+
+        if (!channel || ![ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type)) {
+            return res.status(400).json({ error: "Canal de texto ou anúncios inválido." });
+        }
+        if (!SNOWFLAKE.test(messageId)) return res.status(400).json({ error: "ID da mensagem inválido." });
+        if (!role || role.managed || role.id === req.params.guildId) {
+            return res.status(400).json({ error: "Cargo inválido." });
+        }
+        if (!req.painelGuild.members.me?.permissions.has(PermissionFlagsBits.ManageRoles) ||
+            (botRole && role.comparePositionTo(botRole) >= 0)) {
+            return res.status(400).json({ error: "A Nina precisa estar acima desse cargo para atribuí-lo." });
+        }
+
+        let emojiKey;
+        try {
+            emojiKey = normalizeReactionEmoji(emoji);
+        } catch (error) {
+            return res.status(400).json({ error: error.message });
+        }
+        try {
+            const message = await channel.messages.fetch(messageId);
+            if (message.guildId !== req.params.guildId) {
+                return res.status(400).json({ error: "A mensagem precisa pertencer a este servidor." });
+            }
+            await message.react(emoji);
+            await AutoroleRepository.addReactionRole(req.params.guildId, channel.id, message.id, role.id, emojiKey);
+            return res.json({ reactions: await AutoroleRepository.listReactionRoles(req.params.guildId) });
+        } catch (error) {
+            console.error(`[Panel:Autorole:${req.params.guildId}] Falha ao adicionar reação:`, error);
+            return res.status(400).json({ error: error.message });
+        }
+    });
+
+    router.delete("/guilds/:guildId/autorole/reactions/:id", async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: "ID de regra inválido." });
+        const existing = (await AutoroleRepository.listReactionRoles(req.params.guildId)).some(rule => rule.id === id);
+        if (!existing) return res.status(404).json({ error: "Regra de reação não encontrada." });
+        await AutoroleRepository.removeReactionRole(req.params.guildId, id);
+        res.json({ reactions: await AutoroleRepository.listReactionRoles(req.params.guildId) });
+    });
+
+    router.get("/guilds/:guildId/lockdown", async (req, res) => {
+        res.json(await LockdownRepository.get(req.params.guildId));
+    });
+
+    router.post("/guilds/:guildId/lockdown", async (req, res) => {
+        const guild = req.painelGuild;
+        const current = await LockdownRepository.get(guild.id);
+        if (current.active) return res.status(409).json({ error: "Destranque os canais antes de alterar a configuração." });
+
+        const body = req.body || {};
+        const fields = {};
+        try {
+            if (body.enabled !== undefined) {
+                if (![true, false, 0, 1, "true", "false"].includes(body.enabled)) {
+                    throw new ErroValidacao('"enabled" precisa ser verdadeiro ou falso.');
+                }
+                fields.enabled = bool(body.enabled);
+            }
+            for (const [input, output, isCategory] of [
+                ["channelIds", "channel_ids", false],
+                ["categoryIds", "category_ids", true]
+            ]) {
+                if (body[input] === undefined) continue;
+                const ids = [...new Set(listaCsv(body[input]))];
+                if (ids.length > 25 || ids.some(id => !SNOWFLAKE.test(id))) {
+                    throw new ErroValidacao(`"${input}" aceita até 25 IDs válidos.`);
+                }
+                const valid = ids.every(id => {
+                    const channel = guild.channels.cache.get(id);
+                    return isCategory
+                        ? channel?.type === ChannelType.GuildCategory
+                        : channel && [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum, ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type);
+                });
+                if (!valid) throw new ErroValidacao(`"${input}" contém um canal inválido para este servidor.`);
+                fields[output] = ids;
+            }
+            for (const [input, output] of [
+                ["allowedRoleIds", "allowed_role_ids"],
+                ["deniedRoleIds", "denied_role_ids"]
+            ]) {
+                if (body[input] === undefined) continue;
+                const ids = [...new Set(listaCsv(body[input]))];
+                if (ids.length > 25 || ids.some(id => !SNOWFLAKE.test(id))) {
+                    throw new ErroValidacao(`"${input}" aceita até 25 IDs válidos.`);
+                }
+                if (ids.some(id => id === guild.id || !guild.roles.cache.has(id))) {
+                    throw new ErroValidacao(`"${input}" contém um cargo inválido; @everyone não pode ser selecionado.`);
+                }
+                fields[output] = ids;
+            }
+        } catch (error) {
+            return tratarValidacao(res, error);
+        }
+
+        const allowedRoleIds = fields.allowed_role_ids || current.allowed_role_ids;
+        const deniedRoleIds = fields.denied_role_ids || current.denied_role_ids;
+        if (allowedRoleIds.some(id => deniedRoleIds.includes(id))) {
+            return res.status(400).json({ error: "Um cargo não pode aparecer nas listas de acesso permitido e negado." });
+        }
+
+        try {
+            return res.json(await LockdownManager.configure(guild.id, fields));
+        } catch (error) {
+            if (error.message.includes("Destranque")) return res.status(409).json({ error: error.message });
+            console.error(`[Panel:Lockdown:${guild.id}] Falha ao salvar configuração:`, error);
+            return res.status(500).json({ error: error.message });
+        }
+    });
+
+    router.post("/guilds/:guildId/lockdown/:action", async (req, res) => {
+        if (!["lock", "unlock"].includes(req.params.action)) {
+            return res.status(404).json({ error: "Ação de lockdown inválida." });
+        }
+        let member;
+        try {
+            member = await req.painelGuild.members.fetch(req.painelSessao.user.id);
+        } catch {
+            return res.status(403).json({ error: "Não consegui confirmar sua permissão para gerenciar canais." });
+        }
+        if (!member.permissions.has(PermissionFlagsBits.ManageChannels) &&
+            !member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return res.status(403).json({ error: "Você precisa da permissão Gerenciar Canais para esta ação." });
+        }
+
+        try {
+            const result = req.params.action === "lock"
+                ? await LockdownManager.lock(req.painelGuild, "Lockdown iniciado pelo painel web.")
+                : await LockdownManager.restore(req.painelGuild, "Lockdown encerrado pelo painel web.");
+            return res.json({ ...result, config: await LockdownManager.getConfig(req.params.guildId) });
+        } catch (error) {
+            console.error(`[Panel:Lockdown:${req.params.guildId}] Falha ao executar ${req.params.action}:`, error);
+            return res.status(500).json({ error: error.message });
+        }
     });
 
 

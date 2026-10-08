@@ -4,7 +4,8 @@ const {
     TextInputStyle,
     ActionRowBuilder,
     AttachmentBuilder,
-    MessageFlags
+    MessageFlags,
+    PermissionFlagsBits
 } = require("discord.js");
 
 const ConfigPanelManager = require("../../managers/ConfigPanelManager");
@@ -22,6 +23,9 @@ const ServerStatsManager = require("../../managers/ServerStatsManager");
 const AntiNukeRepository = require("../../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("../../managers/TempVoiceManager");
+const AutorolePanelManager = require("../../managers/AutorolePanelManager");
+const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
+const LockdownManager = require("../../managers/LockdownManager");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -68,6 +72,13 @@ async function execute(interaction) {
         return interaction.update(await ConfigPanelManager.build(interaction, category));
     }
 
+    if (id === "config_selfrole_remove") {
+        await Promise.all(interaction.values.map(roleId =>
+            AutoroleRepository.removeSelfRole(interaction.guild.id, roleId)
+        ));
+        return interaction.update(await ConfigPanelManager.build(interaction, "autorole"));
+    }
+
     if (id === "config_log_category") {
         const category = interaction.values[0];
         const enabled = !(await GuildRepository.isCategoryEnabled(interaction.guild.id, category));
@@ -83,7 +94,7 @@ async function execute(interaction) {
         return interaction.update(await ConfigPanelManager.build(interaction, "logs"));
     }
 
-    if (id.startsWith("config_toggle:")) {
+    if (id.startsWith("config_toggle:") || id.startsWith("config_lockdown:") || id === "config_autorole:publish") {
         const target = id.split(":")[1];
         const guildId = interaction.guild.id;
 
@@ -91,6 +102,69 @@ async function execute(interaction) {
             const current = await GuildRepository.isEconomyEnabled(guildId);
             await GuildRepository.setEconomyEnabled(guildId, !current);
             return interaction.update(await ConfigPanelManager.build(interaction, "general"));
+        }
+
+        if (id === "config_autorole:publish") {
+            await interaction.deferUpdate();
+            const selfRoles = await AutoroleRepository.listSelfRoles(interaction.guild.id);
+            try {
+                await AutorolePanelManager.send(interaction.channel, selfRoles, { source: interaction });
+                return interaction.followUp({
+                    embeds: [ui.success(`Painel de cargos publicado em ${interaction.channel}.`, "Painel publicado", interaction)],
+                    ephemeral: true
+                });
+            } catch (error) {
+                return interaction.followUp({
+                    embeds: [ui.error(error.message, "Não foi possível publicar o painel", interaction)],
+                    ephemeral: true
+                });
+            }
+        }
+
+        if (id.startsWith("config_lockdown:")) {
+            const target = id.split(":")[1];
+            const guild = interaction.guild;
+
+            if (target === "enabled") {
+                const current = await LockdownManager.getConfig(guild.id);
+                if (current.active) {
+                    return ui.caution(interaction, "Encerre o lockdown antes de desativar o sistema.", "Lockdown ativo");
+                }
+                try {
+                    await LockdownManager.configure(guild.id, { enabled: !current.enabled });
+                } catch (error) {
+                    return ui.caution(interaction, error.message, "Configuração alterada");
+                }
+                return interaction.update(await ConfigPanelManager.build(interaction, "lockdown"));
+            }
+
+            if (!["lock", "unlock"].includes(target)) {
+                return ui.caution(interaction, "Essa ação de lockdown não existe. Atualize o painel `/config`.", "Ação inválida");
+            }
+
+            if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels)) {
+                return ui.caution(interaction, "Você precisa da permissão **Gerenciar Canais** para trancar ou destrancar canais.", "Sem permissão");
+            }
+
+            await interaction.deferUpdate();
+            try {
+                const result = target === "lock"
+                    ? await LockdownManager.lock(guild, "Lockdown iniciado pelo painel /config.")
+                    : await LockdownManager.restore(guild, "Lockdown encerrado pelo painel /config.");
+                const payload = await ConfigPanelManager.build(interaction, "lockdown");
+                await interaction.editReply(payload);
+                const count = target === "lock" ? result.lockedChannels : result.restoredChannels;
+                return interaction.followUp({
+                    embeds: [ui.success(`${count} canais foram ${target === "lock" ? "trancados" : "restaurados"}.`, "Lockdown atualizado", interaction)],
+                    ephemeral: true
+                });
+            } catch (error) {
+                console.error(`[Config:Lockdown:${guild.id}] Falha ao executar ${target}:`, error);
+                return interaction.editReply({
+                    embeds: [ui.error(error.message, "Falha no lockdown", interaction)],
+                    components: await ConfigPanelManager.build(interaction, "lockdown").then(payload => payload.components)
+                });
+            }
         }
 
         if (target === "moderation") {
@@ -257,6 +331,15 @@ async function execute(interaction) {
 
     if (id.startsWith("config_channel:")) {
         const target = id.split(":")[1];
+        if (target === "lockdown_channels" || target === "lockdown_categories") {
+            const config = await LockdownManager.getConfig(interaction.guild.id);
+            if (config.active) return ui.caution(interaction, "Destranque os canais antes de alterar o escopo do lockdown.", "Lockdown ativo");
+            const ids = [...interaction.channels.values()].map(channel => channel.id);
+            const field = target === "lockdown_channels" ? "channel_ids" : "category_ids";
+            await LockdownManager.configure(interaction.guild.id, { [field]: ids });
+            return interaction.update(await ConfigPanelManager.build(interaction, "lockdown"));
+        }
+
         const channel = interaction.channels.first();
         if (!channel) return ui.fail(interaction, "Não consegui identificar o canal selecionado.", "Canal inválido");
 
@@ -290,6 +373,23 @@ async function execute(interaction) {
         if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.fail(interaction, "A Nina não consegue atribuir esse cargo porque ele está acima ou no mesmo nível do cargo dela.", "Hierarquia inválida");
         await AutoroleRepository.addJoinRole(interaction.guild.id, role.id);
         return interaction.update(await ConfigPanelManager.build(interaction, "autorole"));
+    }
+
+    if (id === "config_role:lockdown_allowed" || id === "config_role:lockdown_denied") {
+        const config = await LockdownManager.getConfig(interaction.guild.id);
+        if (config.active) return ui.caution(interaction, "Destranque os canais antes de alterar os cargos do lockdown.", "Lockdown ativo");
+        const roles = [...interaction.roles.values()];
+        if (roles.some(role => role.id === interaction.guild.id)) {
+            return ui.caution(interaction, "Selecione cargos específicos; @everyone já é bloqueado automaticamente.", "Cargo inválido");
+        }
+        const field = id.endsWith("_allowed") ? "allowed_role_ids" : "denied_role_ids";
+        const roleIds = roles.map(role => role.id);
+        const oppositeField = field === "allowed_role_ids" ? "denied_role_ids" : "allowed_role_ids";
+        if (roleIds.some(roleId => config[oppositeField].includes(roleId))) {
+            return ui.caution(interaction, "O mesmo cargo não pode aparecer nas listas de acesso permitido e negado.", "Cargos sobrepostos");
+        }
+        await LockdownManager.configure(interaction.guild.id, { [field]: roleIds });
+        return interaction.update(await ConfigPanelManager.build(interaction, "lockdown"));
     }
 
     if (id === "config_clear:welcome_background") {
@@ -419,8 +519,27 @@ async function execute(interaction) {
             const modal = new ModalBuilder().setCustomId("config_submit:autorole_selfrole").setTitle("Adicionar self-role");
             modal.addComponents(
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("cargo").setLabel("ID do cargo").setStyle(TextInputStyle.Short).setRequired(true)),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("label").setLabel("Texto do botão").setStyle(TextInputStyle.Short).setRequired(true)),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("emoji").setLabel("Emoji (opcional)").setStyle(TextInputStyle.Short).setRequired(false))
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("label").setLabel("Texto do botão").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(80)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("emoji").setLabel("Emoji (opcional)").setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(100))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "autorole_reaction") {
+            const modal = new ModalBuilder().setCustomId("config_submit:autorole_reaction").setTitle("Cargo por reação");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("canal").setLabel("ID do canal").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("mensagem").setLabel("ID da mensagem").setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("emoji").setLabel("Emoji Unicode ou personalizado").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(100)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("cargo").setLabel("ID do cargo").setStyle(TextInputStyle.Short).setRequired(true))
+            );
+            return interaction.showModal(modal);
+        }
+
+        if (type === "autorole_reaction_remove") {
+            const modal = new ModalBuilder().setCustomId("config_submit:autorole_reaction_remove").setTitle("Remover cargo por reação");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("id").setLabel("ID da regra (veja no painel)").setStyle(TextInputStyle.Short).setRequired(true))
             );
             return interaction.showModal(modal);
         }
@@ -510,12 +629,69 @@ async function modal(interaction) {
         const label = interaction.fields.getTextInputValue("label").trim();
         const emoji = interaction.fields.getTextInputValue("emoji").trim() || null;
         if (!role || role.managed || role.id === interaction.guild.id) return ui.caution(interaction, "ID de cargo inválido ou cargo gerenciado.", "Cargo inválido");
+        if (!label) return ui.caution(interaction, "O texto do botão não pode ficar vazio.", "Texto inválido");
         const me = interaction.guild.members.me;
         if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.caution(interaction, "A Nina não consegue atribuir esse cargo por causa da hierarquia.", "Hierarquia inválida");
         const current = await AutoroleRepository.listSelfRoles(guildId);
         if (current.length >= 25) return ui.caution(interaction, "O painel de self-role aceita no máximo 25 cargos.", "Limite atingido");
         await AutoroleRepository.addSelfRole(guildId, role.id, label, emoji);
         return ui.respond(interaction, ui.success(`${role} foi adicionado aos self-roles.`, "Self-role atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "autorole_reaction") {
+        const channelId = interaction.fields.getTextInputValue("canal").trim();
+        const messageId = interaction.fields.getTextInputValue("mensagem").trim();
+        const emoji = interaction.fields.getTextInputValue("emoji").trim();
+        const roleId = interaction.fields.getTextInputValue("cargo").trim();
+        const channel = interaction.guild.channels.cache.get(channelId);
+        const role = interaction.guild.roles.cache.get(roleId);
+
+        if (!channel?.isTextBased?.() || channel.isThread?.()) {
+            return ui.caution(interaction, "Informe o ID de um canal de texto válido deste servidor.", "Canal inválido");
+        }
+        if (!/^\d{17,20}$/.test(messageId)) {
+            return ui.caution(interaction, "Informe o ID válido da mensagem do Discord.", "Mensagem inválida");
+        }
+        if (!role || role.managed || role.id === interaction.guild.id) {
+            return ui.caution(interaction, "O cargo não existe, é gerenciado ou é @everyone.", "Cargo inválido");
+        }
+        const botRole = interaction.guild.members.me?.roles?.highest;
+        if (!interaction.guild.members.me?.permissions.has(PermissionFlagsBits.ManageRoles) ||
+            (botRole && role.position >= botRole.position)) {
+            return ui.caution(interaction, "A Nina precisa da permissão Gerenciar Cargos e estar acima desse cargo.", "Hierarquia inválida");
+        }
+
+        let emojiKey;
+        try {
+            emojiKey = normalizeReactionEmoji(emoji);
+        } catch (error) {
+            return ui.caution(interaction, `Não consegui adicionar essa reação: ${error.message}`, "Emoji inválido");
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+        try {
+            const message = await channel.messages.fetch(messageId);
+            if (message.guildId !== guildId) {
+                return ui.caution(interaction, "A mensagem precisa pertencer a este servidor.", "Mensagem inválida");
+            }
+            await message.react(emoji);
+            await AutoroleRepository.addReactionRole(guildId, channel.id, message.id, role.id, emojiKey);
+            return ui.respond(interaction, ui.success(`${emoji} agora atribui/remove ${role} na mensagem ${message.id}.`, "Cargo por reação atualizado", interaction), { ephemeral: true });
+        } catch (error) {
+            console.error(`[Config:Reação:${guildId}] Falha ao configurar a regra:`, error);
+            return ui.fail(interaction, `Não consegui configurar essa reação: ${error.message}`, "Falha ao configurar");
+        }
+    }
+
+    if (type === "autorole_reaction_remove") {
+        const id = Number.parseInt(interaction.fields.getTextInputValue("id"), 10);
+        if (!Number.isInteger(id) || id < 1) {
+            return ui.caution(interaction, "Informe um ID de regra válido.", "ID inválido");
+        }
+        const existing = (await AutoroleRepository.listReactionRoles(guildId)).find(rule => rule.id === id);
+        if (!existing) return ui.caution(interaction, "Não encontrei essa regra de reação.", "Regra não encontrada");
+        await AutoroleRepository.removeReactionRole(guildId, id);
+        return ui.respond(interaction, ui.success(`A regra **${id}** foi removida.`, "Regra removida", interaction), { ephemeral: true });
     }
 
     if (type === "autorole_level") {

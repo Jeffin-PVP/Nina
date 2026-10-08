@@ -145,6 +145,33 @@ const statements = [
         UNIQUE (guild_id, role_id)
     )`,
 
+    `CREATE TABLE IF NOT EXISTS autorole_reactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        role_id TEXT NOT NULL,
+        emoji_key TEXT NOT NULL,
+        UNIQUE (guild_id, message_id, emoji_key)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS lockdown_settings (
+        guild_id TEXT NOT NULL PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        active INTEGER NOT NULL DEFAULT 0,
+        channel_ids TEXT NOT NULL DEFAULT '[]',
+        category_ids TEXT NOT NULL DEFAULT '[]',
+        allowed_role_ids TEXT NOT NULL DEFAULT '[]',
+        denied_role_ids TEXT NOT NULL DEFAULT '[]'
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS lockdown_snapshots (
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        overwrites_json TEXT NOT NULL,
+        PRIMARY KEY (guild_id, channel_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS autorole_levels (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         guild_id TEXT NOT NULL,

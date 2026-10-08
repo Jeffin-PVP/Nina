@@ -129,6 +129,72 @@ class AutoroleRepository {
 
     }
 
+    static async listReactionRoles(guildId) {
+
+        return database.all(
+
+            `
+            SELECT *
+            FROM autorole_reactions
+            WHERE guild_id = ?
+            ORDER BY id ASC
+            `,
+
+            [guildId]
+
+        );
+
+    }
+
+    static async addReactionRole(guildId, channelId, messageId, roleId, emojiKey) {
+
+        await database.run(
+
+            `
+            INSERT INTO autorole_reactions (guild_id, channel_id, message_id, role_id, emoji_key)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id, message_id, emoji_key) DO UPDATE SET
+                channel_id = excluded.channel_id,
+                role_id = excluded.role_id
+            `,
+
+            [guildId, channelId, messageId, roleId, emojiKey]
+
+        );
+
+    }
+
+    static async removeReactionRole(guildId, id) {
+
+        await database.run(
+
+            `
+            DELETE FROM autorole_reactions
+            WHERE guild_id = ? AND id = ?
+            `,
+
+            [guildId, id]
+
+        );
+
+    }
+
+    static async getReactionRole(guildId, messageId, emojiKey) {
+
+        return database.get(
+
+            `
+            SELECT *
+            FROM autorole_reactions
+            WHERE guild_id = ? AND message_id = ? AND emoji_key = ?
+            `,
+
+            [guildId, messageId, emojiKey]
+
+        );
+
+    }
+
     /*
     =========================
         NÍVEIS
