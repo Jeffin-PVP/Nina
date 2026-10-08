@@ -51,7 +51,7 @@
         const nav = document.createElement("button");
         nav.className = "nav-item";
         nav.dataset.section = "cargos-lockdown";
-        nav.innerHTML = '<span class="nav-icon"><img src="icons/cadeado.svg?v=5" alt=""></span> Cargos & Lockdown';
+        nav.innerHTML = '<span class="nav-icon"><img src="/panel/icons/cadeado.svg?v=6" alt=""></span> Cargos & Lockdown';
         $(".nav-item[data-section='autorole']")?.insertAdjacentElement("afterend", nav);
         nav.addEventListener("click", () => {
             $$(".nav-item").forEach(item => item.classList.toggle("active", item === nav));
