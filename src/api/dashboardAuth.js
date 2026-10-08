@@ -11,7 +11,7 @@ const tentativas = new Map(); // ip -> { count, bloqueadoAte }
 const sessionCleanupTimer = setInterval(() => {
     limparSessoesExpiradas();
 }, 10 * 60 * 1000);
-
+//
 sessionCleanupTimer.unref?.();
 
 function limparSessoesExpiradas() {
