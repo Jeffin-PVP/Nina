@@ -40,7 +40,8 @@ class ApiServer {
                 `<h3>Para acessar o painel de controle, vá para <a href="${base}/panel/">${base}/panel/</a>.</h3>` +
                 `<a href="https://www.flaticon.com/free-icons/turn-on" title="turn on icons">Turn on icons created by Elite Art - Flaticon</a>` +
                 `<a href="https://www.flaticon.com/free-icons/start-button" title="start button icons">Start button icons created by Uniconlabs - Flaticon</a>` +
-                `<a href="https://www.flaticon.com/free-animated-icons/connect" title="connect animated icons">Connect animated icons created by Magnific - Flaticon</a>`
+                `<a href="https://www.flaticon.com/free-animated-icons/connect" title="connect animated icons">Connect animated icons created by Magnific - Flaticon</a>` +
+                `<div> Ícones feitos por <a href="https://www.flaticon.com/br/autores/magnific" title="Magnific"> Magnific </a> from <a href="https://www.flaticon.com/br/" title="Flaticon">www.flaticon.com'</a></div>`
             );
 
         });
