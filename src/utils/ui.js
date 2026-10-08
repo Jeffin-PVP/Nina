@@ -10,6 +10,8 @@ const { EmbedBuilder, MessageFlags } = require("discord.js");
 
 const { e } = require("./emojis");
 
+const emojis = require("../config/emojis");
+
 const NinaEmojiManager = require("../ai/NinaEmojiManager");
 
 /** Emoji de expressão da Nina (feliz, triste, uau...). Vazio se não existir. */
@@ -83,11 +85,14 @@ const field = (emoji, name, value, inline = true) => ({
     inline
 });
 
-/** 🟢 / 🔴 para estados ligado/desligado. */
+/** Emojis personalizados ON/OFF para estados ligado/desligado. */
 const toggle = (enabled, on = "Ativado", off = "Desativado") =>
     enabled
         ? `${emojis.status.on} ${on}`
         : `${emojis.status.off} ${off}`;
+
+/** Só o emoji ligado/desligado (botao_on / botao_off). */
+const dot = enabled => enabled ? emojis.status.on : emojis.status.off;
 
 /** Bloco de código para destacar comandos/valores. */
 const code = text => `\`${String(text ?? "")}\``;
@@ -262,6 +267,7 @@ module.exports = {
     empty,
     field,
     toggle,
+    dot,
     code,
     clip,
     bullets,

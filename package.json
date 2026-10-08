@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "node --test",
-    "start": "node index.js",
+    "start": "node --max-old-space-size=384 --max-semi-space-size=2 index.js",
     "emojis": "node scripts/uploadEmojis.js",
     "emojis:build": "python3 scripts/generateEmojis.py"
   },

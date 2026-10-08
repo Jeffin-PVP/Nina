@@ -1,5 +1,9 @@
 const database = require("../database");
 
+// Cache curto das configurações (lidas a cada mensagem). Toda escrita invalida.
+const SETTINGS_TTL_MS = 30_000;
+const settingsCache = new Map(); // guildId -> { value, expiresAt }
+
 class GuildRepository {
 
     /*
@@ -9,6 +13,10 @@ class GuildRepository {
     */
 
     static async getSettings(guildId) {
+
+        const cached = settingsCache.get(guildId);
+
+        if (cached && cached.expiresAt > Date.now()) return { ...cached.value };
 
         let settings = await database.get(
 
@@ -63,7 +71,9 @@ class GuildRepository {
 
         }
 
-        return settings;
+        settingsCache.set(guildId, { value: settings, expiresAt: Date.now() + SETTINGS_TTL_MS });
+
+        return { ...settings };
 
     }
 
@@ -134,6 +144,8 @@ class GuildRepository {
             params
 
         );
+
+        settingsCache.delete(guildId);
 
     }
 
@@ -367,6 +379,8 @@ class GuildRepository {
             ]
 
         );
+
+        settingsCache.delete(guildId);
 
     }
 

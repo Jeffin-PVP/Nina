@@ -315,7 +315,7 @@ module.exports = {
             const c = await AutomodRepository.get(guild.id);
 
             const regra = (emoji, nome, ativo, detalhe) =>
-                ui.field(emoji, nome, ativo ? `🟢 ${detalhe}` : "🔴 Desativado", false);
+                ui.field(emoji, nome, ativo ? `${ui.dot(true)} ${detalhe}` : ui.toggle(false, "", "Desativado"), false);
 
             const embed = ui.panel({
                 color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,

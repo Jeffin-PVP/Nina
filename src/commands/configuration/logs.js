@@ -163,7 +163,7 @@ module.exports = {
             const categoryLines = entries
                 .map(([key, category]) => {
                     const isEnabled = !disabled.includes(key);
-                    return `${isEnabled ? "🟢" : "🔴"} ${category.emoji} ${category.label}`;
+                    return `${ui.dot(isEnabled)} ${category.emoji} ${category.label}`;
                 })
                 .join("\n");
 

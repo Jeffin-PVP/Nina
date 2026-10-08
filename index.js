@@ -32,7 +32,8 @@ const {
     GatewayIntentBits,
     Partials,
     Collection,
-    Events
+    Events,
+    Options
 } = require("discord.js");
 
 const commands =
@@ -72,7 +73,54 @@ const client = new Client({
 
         Partials.User
 
-    ]
+    ],
+
+    // ===============================
+    // ECONOMIA DE RAM
+    // ===============================
+    // O discord.js guarda em cache muita coisa que a Nina não usa
+    // (reações, convites, eventos...). Aqui limitamos esses caches.
+    makeCache: Options.cacheWithLimits({
+
+        ...Options.DefaultMakeCacheSettings,
+
+        // Só mantém as últimas mensagens de cada canal (usadas nos logs de
+        // edição/exclusão); o sweeper abaixo limpa as antigas.
+        MessageManager: 50,
+
+        // Não usados pelo bot
+        ReactionManager: 0,
+        ReactionUserManager: 0,
+        GuildScheduledEventManager: 0,
+        StageInstanceManager: 0,
+        GuildInviteManager: 0,
+        GuildBanManager: 0,
+        ThreadMemberManager: 0,
+        DMMessageManager: 0,
+        AutoModerationRuleManager: 0,
+        EntitlementManager: 0
+
+        // Presences e VoiceStates ficam no padrão: os contadores Online/Em call usam
+
+    }),
+
+    sweepers: {
+
+        ...Options.DefaultSweeperSettings,
+
+        // A cada 10 min remove mensagens com mais de 1h do cache
+        messages: {
+            interval: 600,
+            lifetime: 3600
+        },
+
+        // Threads arquivadas há mais de 1h
+        threads: {
+            interval: 3600,
+            lifetime: 3600
+        }
+
+    }
 
 });
 

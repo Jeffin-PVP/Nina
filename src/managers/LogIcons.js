@@ -1,3 +1,5 @@
+const emojis = require("../config/emojis");
+
 module.exports = {
 
     /*
@@ -128,8 +130,8 @@ module.exports = {
     =========================
     */
 
-    BOT_START: "🟢",
-    BOT_STOP: "🔴",
+    BOT_START: emojis.status.on,
+    BOT_STOP: emojis.status.off,
     DATABASE_ERROR: "💾❌",
 
     /*

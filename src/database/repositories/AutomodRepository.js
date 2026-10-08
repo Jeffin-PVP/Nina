@@ -38,9 +38,17 @@ const PADRAO = {
 
 const CAMPOS = Object.keys(PADRAO);
 
+// Cache curto (lido a cada mensagem). Toda escrita via update() invalida.
+const CONFIG_TTL_MS = 30_000;
+const configCache = new Map(); // guildId -> { value, expiresAt }
+
 class AutomodRepository {
 
     static async get(guildId) {
+
+        const cached = configCache.get(guildId);
+
+        if (cached && cached.expiresAt > Date.now()) return { ...cached.value };
 
         const row = await database.get(
 
@@ -54,9 +62,13 @@ class AutomodRepository {
 
         );
 
-        if (!row) return { guild_id: guildId, ...PADRAO };
+        const value = row
+            ? { guild_id: guildId, ...PADRAO, ...row }
+            : { guild_id: guildId, ...PADRAO };
 
-        return { guild_id: guildId, ...PADRAO, ...row };
+        configCache.set(guildId, { value, expiresAt: Date.now() + CONFIG_TTL_MS });
+
+        return { ...value };
 
     }
 
@@ -81,6 +93,8 @@ class AutomodRepository {
             [guildId, ...valores]
 
         );
+
+        configCache.delete(guildId);
 
         return AutomodRepository.get(guildId);
 

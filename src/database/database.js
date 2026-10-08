@@ -17,7 +17,27 @@ db.exec(`
     PRAGMA foreign_keys = ON;
     PRAGMA busy_timeout = 5000;
     PRAGMA synchronous = NORMAL;
+    PRAGMA cache_size = -4096;
+    PRAGMA wal_autocheckpoint = 1000;
+    PRAGMA journal_size_limit = 4194304;
 `);
+
+// Reaproveita statements já compilados (evita recompilar o SQL a cada consulta).
+// Limite pequeno para não crescer sem controle com SQL dinâmico.
+const STATEMENT_CACHE_MAX = 150;
+const statementCache = new Map();
+
+function prepare(sql) {
+    let statement = statementCache.get(sql);
+    if (statement) return statement;
+
+    statement = db.prepare(sql);
+    if (statementCache.size >= STATEMENT_CACHE_MAX) {
+        statementCache.delete(statementCache.keys().next().value);
+    }
+    statementCache.set(sql, statement);
+    return statement;
+}
 
 let initialized = false;
 let initializationPromise = null;
@@ -387,7 +407,7 @@ function ensureInitialized() {
 
 async function run(sql, params = []) {
     await ensureInitialized();
-    const statement = db.prepare(sql);
+    const statement = prepare(sql);
     const result = statement.run(...params);
     return {
         ...result,
@@ -400,12 +420,12 @@ async function run(sql, params = []) {
 
 async function get(sql, params = []) {
     await ensureInitialized();
-    return db.prepare(sql).get(...params) || undefined;
+    return prepare(sql).get(...params) || undefined;
 }
 
 async function all(sql, params = []) {
     await ensureInitialized();
-    return db.prepare(sql).all(...params);
+    return prepare(sql).all(...params);
 }
 
 async function testConnection() {

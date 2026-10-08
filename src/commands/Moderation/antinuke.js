@@ -51,7 +51,7 @@ module.exports = {
             color: c.enabled ? ui.COLORS.error : ui.COLORS.neutral,
             emoji: "shield",
             title: "Anti-Nuke",
-            description: c.enabled ? "🟢 Proteção ativa." : "🔴 Proteção desativada.",
+            description: ui.toggle(c.enabled, "Proteção ativa.", "Proteção desativada."),
             fields: [
                 ui.field("clock", "Janela", `${c.window_seconds}s`),
                 ui.field("channel", "Canais", `${c.channel_limit}`),

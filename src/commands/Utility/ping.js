@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 const { createLinkButtons } = require("../../utils/linkButtons");
 const LINKS = require("../../config/links");
+const emojis = require("../../config/emojis");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -14,7 +15,7 @@ module.exports = {
             .setColor("#7C3AED")
             .setTitle("🏓 Pong!")
             .setDescription(
-                `Estou online! 🟢\n\n**Latência:** \`${ping}ms\``
+                `Estou online! ${emojis.status.on}\n\n**Latência:** \`${ping}ms\``
             )
             .setImage(
                 "https://cdn.discordapp.com/attachments/1529246810265358416/1556808606589132840/injectCloud.png?backend=b2&ex=6ac5827f&is=6ac430ff&hm=5ea5a7ff9e55b9a3a0468103040aeb227f57f4d3767926bdcd33971e543a9981&"

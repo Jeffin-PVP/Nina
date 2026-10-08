@@ -18,7 +18,8 @@ const COUNTERS = {
 };
 
 const ORDER = Object.keys(COUNTERS);
-const UPDATE_INTERVAL = 60_000;
+// O Discord limita renomear canal a ~2x/10min, então atualizar a cada 1min era desperdício.
+const UPDATE_INTERVAL = 5 * 60_000;
 let clientRef = null;
 let timer = null;
 let updating = false;

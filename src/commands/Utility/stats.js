@@ -17,7 +17,7 @@ const COUNTER_CHOICES = [
 
 function statusText(config) {
     return COUNTER_CHOICES.map(([label, key]) =>
-        `${config[`${key}_enabled`] ? "🟢" : "🔴"} ${label}`
+        `${ui.dot(config[`${key}_enabled`])} ${label}`
     ).join("\n");
 }
 
@@ -78,7 +78,7 @@ module.exports = {
             const nome = interaction.options.getString("nome", true);
             const ativo = interaction.options.getBoolean("ativo", true);
             await ServerStatsManager.setCounter(guild, nome, ativo);
-            return interaction.editReply(`${ativo ? "🟢" : "🔴"} O contador **${ServerStatsManager.COUNTERS[nome].label}** foi ${ativo ? "ativado" : "desativado"}.`);
+            return interaction.editReply(`${ui.dot(ativo)} O contador **${ServerStatsManager.COUNTERS[nome].label}** foi ${ativo ? "ativado" : "desativado"}.`);
         }
 
         const config = await ServerStatsRepository.get(guild.id);
@@ -92,7 +92,7 @@ module.exports = {
                     ? "Os contadores estão ativos. Use `/stats contador` para alterar cada um individualmente."
                     : "Os contadores estão desativados. Use `/stats ativar` para criá-los.",
                 fields: [
-                    ui.field("config", "Status", config.enabled ? "🟢 Ativo" : "🔴 Desativado"),
+                    ui.field("config", "Status", ui.toggle(config.enabled, "Ativo", "Desativado")),
                     ui.field("chart", "Contadores", statusText(config), false)
                 ],
                 source: interaction

@@ -10,7 +10,7 @@ const LogTypes = require("./LogTypes");
 const ui = require("../utils/ui");
 const { e, component } = require("../utils/emojis");
 
-const CHECK_INTERVAL_MS = 10 * 1000; // checa sorteios pra encerrar a cada 10s
+const CHECK_INTERVAL_MS = 30 * 1000; // checa sorteios pra encerrar a cada 30s
 
 /*
 =========================

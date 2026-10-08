@@ -25,11 +25,13 @@ function start(client) {
     // (só grava de verdade quando a data muda, graças ao "ON CONFLICT" na tabela)
     tirarRetrato(client).catch(() => {});
 
-    setInterval(() => {
+    const timer = setInterval(() => {
 
         tirarRetrato(client).catch(() => {});
 
     }, INTERVALO_MS);
+
+    timer.unref?.();
 
 }
 

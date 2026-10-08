@@ -67,7 +67,7 @@ function toggleButton(id, enabled, label = "") {
     return new ButtonBuilder()
         .setCustomId(id)
         .setLabel(label ? `${label}: ${enabled ? "ON" : "OFF"}` : (enabled ? "ON" : "OFF"))
-        .setEmoji(enabled ? "🟢" : "🔴")
+        .setEmoji(enabled ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>")
         .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Danger);
 }
 
@@ -91,7 +91,7 @@ async function buildHome(interaction) {
         ["🔊 TempVoice", (await TempVoiceRepository.get(interaction.guild.id)).enabled]
     ];
 
-    const status = configured.map(([name, enabled]) => `${enabled ? "🟢" : "🔴"} ${name}`).join("\n");
+    const status = configured.map(([name, enabled]) => `${ui.dot(enabled)} ${name}`).join("\n");
 
     return {
         embeds: [ui.panel({
@@ -181,7 +181,7 @@ async function buildAutomod(interaction) {
             description: "Proteção automática contra spam, convites, menções, raid e outros abusos.",
             fields: [
                 ui.field("shield", "Status", ui.toggle(c.enabled)),
-                ui.field("warn", "Regras", rules.map(([n, v]) => `${v ? "🟢" : "🔴"} ${n}`).join("\n"), false),
+                ui.field("warn", "Regras", rules.map(([n, v]) => `${ui.dot(v)} ${n}`).join("\n"), false),
                 ui.field("timeout", "Mute", `${c.mute_duration_minutes} minuto(s)`)
             ],
             source: interaction
@@ -255,7 +255,7 @@ async function buildLogs(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
     const disabled = await GuildRepository.getDisabledCategories(interaction.guild.id);
     const statsLogsEnabled = await GuildRepository.isStatsLogsEnabled(interaction.guild.id);
-    const categories = Object.entries(CATEGORIES).map(([key, value]) => `${disabled.includes(key) ? "🔴" : "🟢"} ${value.label}`).join("\n");
+    const categories = Object.entries(CATEGORIES).map(([key, value]) => `${ui.dot(!disabled.includes(key))} ${value.label}`).join("\n");
 
     return {
         embeds: [ui.panel({
@@ -266,7 +266,7 @@ async function buildLogs(interaction) {
             fields: [
                 ui.field("channel", "Canal", s.log_channel ? `<#${s.log_channel}>` : "Não configurado", false),
                 ui.field("log", "Categorias", categories || "Nenhuma", false),
-                ui.field("chart", "Logs dos Stats", statsLogsEnabled ? "🟢 Ativados" : "🔴 Desativados", false)
+                ui.field("chart", "Logs dos Stats", ui.toggle(statsLogsEnabled, "Ativados", "Desativados"), false)
             ],
             source: interaction
         })],
@@ -351,8 +351,8 @@ async function buildStats(interaction) {
             title: "Stats do servidor",
             description: "Ative os contadores que deseja exibir. A Nina cria canais de voz bloqueados e atualiza os números automaticamente.",
             fields: [
-                ui.field("chart", "Status", c.enabled ? "🟢 Ativo" : "🔴 Desativado"),
-                ui.field("info", "Contadores", counters.map(([key, label]) => `${c[`${key}_enabled`] ? "🟢" : "🔴"} ${label}`).join("\n"), false)
+                ui.field("chart", "Status", ui.toggle(c.enabled, "Ativo", "Desativado")),
+                ui.field("info", "Contadores", counters.map(([key, label]) => `${ui.dot(c[`${key}_enabled`])} ${label}`).join("\n"), false)
             ],
             source: interaction
         })],
@@ -367,7 +367,7 @@ async function buildAntiNuke(interaction) {
             color: c.enabled ? ui.COLORS.error : ui.COLORS.neutral,
             emoji: "shield",
             title: "Anti-Nuke",
-            description: c.enabled ? "🟢 Proteção ativa contra ações destrutivas em massa." : "🔴 Proteção desativada.",
+            description: `${ui.dot(c.enabled)} ${c.enabled ? "Proteção ativa contra ações destrutivas em massa." : "Proteção desativada."}`,
             fields: [
                 ui.field("clock", "Janela", `${c.window_seconds}s`),
                 ui.field("channel", "Canais", `${c.channel_limit}`),
@@ -398,7 +398,7 @@ async function buildTempVoice(interaction) {
     const ownerPerms = [
         ["Renomear", c.owner_rename], ["Bloquear", c.owner_lock], ["Alterar limite", c.owner_limit],
         ["Expulsar", c.owner_kick], ["Bloquear membro", c.owner_ban], ["Transferir dono", c.owner_transfer], ["Excluir", c.owner_delete]
-    ].map(([name, value]) => `${value ? "🟢" : "🔴"} ${name}`).join("\n");
+    ].map(([name, value]) => `${ui.dot(value)} ${name}`).join("\n");
 
     return {
         embeds: [ui.panel({
@@ -413,7 +413,7 @@ async function buildTempVoice(interaction) {
                 ui.field("edit", "Formato do nome", nameMode, false),
                 ui.field("users", "Limite padrão", c.default_limit ? `${c.default_limit} membros` : "Sem limite"),
                 ui.field("lock", "Bloqueio automático", ui.toggle(c.auto_lock)),
-                ui.field("shield", "Admin/Moderação", `${c.admin_manage ? "🟢" : "🔴"} Gerenciar salas\n${managerRole ? `Cargo: <@&${managerRole.id}>` : "Cargo: não definido"}`, false),
+                ui.field("shield", "Admin/Moderação", `${c.admin_manage ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>"} Gerenciar salas\n${managerRole ? `Cargo: <@&${managerRole.id}>` : "Cargo: não definido"}`, false),
                 ui.field("key", "Permissões do dono", ownerPerms, false),
                 ui.field("stats", "Salas ativas", `\`${rooms.length}\``)
             ],
@@ -462,7 +462,7 @@ async function buildTempVoicePermissions(interaction) {
             title: "TempVoice • Permissões",
             description: "Defina quem pode administrar as salas e quais ações o dono da sala pode executar.",
             fields: [
-                ui.field("shield", "Admins/Moderação", c.admin_manage ? "🟢 Ativado" : "🔴 Desativado"),
+                ui.field("shield", "Admins/Moderação", c.admin_manage ? "<:botao_on:1557820524305064056> Ativado" : "<:botao_off:1557820521088024696> Desativado"),
                 ui.field("role", "Cargo de gerenciamento", managerRole ? `<@&${managerRole.id}>` : "Não definido"),
                 ui.field("key", "Permissões do dono", [
                     ["Renomear", c.owner_rename],
@@ -472,7 +472,7 @@ async function buildTempVoicePermissions(interaction) {
                     ["Bloquear membro", c.owner_ban],
                     ["Transferir dono", c.owner_transfer],
                     ["Excluir", c.owner_delete]
-                ].map(([name, value]) => `${value ? "🟢" : "🔴"} ${name}`).join("\n"))
+                ].map(([name, value]) => `${value ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>"} ${name}`).join("\n"))
             ],
             source: interaction
         })],
