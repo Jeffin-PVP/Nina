@@ -80,6 +80,7 @@ const statements = [
         moderation_enabled INTEGER NOT NULL DEFAULT 1,
         prefix TEXT NOT NULL DEFAULT '!',
         log_disabled_categories TEXT NULL,
+        stats_logs_enabled INTEGER NOT NULL DEFAULT 0,
         levelup_enabled INTEGER NOT NULL DEFAULT 1,
         PRIMARY KEY (guild_id)
     )`,
@@ -328,6 +329,13 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_temp_voice_bans_guild ON temp_voice_bans (guild_id)`
 ];
 
+function migrateGuildSettingsSchema() {
+    const columns = new Set(db.prepare("PRAGMA table_info(guild_settings)").all().map(row => row.name));
+    if (!columns.has("stats_logs_enabled")) {
+        db.exec("ALTER TABLE guild_settings ADD COLUMN stats_logs_enabled INTEGER NOT NULL DEFAULT 0");
+    }
+}
+
 function migrateTempVoiceSchema() {
     const columns = new Set(db.prepare("PRAGMA table_info(temp_voice_settings)").all().map(row => row.name));
     const migrations = [
@@ -353,6 +361,7 @@ function initializeDatabase() {
     try {
         for (const statement of statements) db.exec(statement);
         for (const statement of indexes) db.exec(statement);
+        migrateGuildSettingsSchema();
         migrateTempVoiceSchema();
         db.exec("COMMIT");
         initialized = true;

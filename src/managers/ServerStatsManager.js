@@ -187,6 +187,27 @@ async function createOrUpdate(guild, { force = false } = {}) {
     });
 }
 
+async function isStatsChannel(channel) {
+    if (!channel?.guild) return false;
+
+    const config = await ServerStatsRepository.get(channel.guild.id);
+    const ids = ServerStatsRepository.parseChannelIds(config.channel_ids);
+
+    if (Object.values(ids).includes(channel.id)) return true;
+    if (config.category_id && channel.id === config.category_id) return true;
+
+    // Cobre canais de estatísticas recém-criados antes de o ID entrar no SQLite.
+    if (channel.parentId && config.category_id === channel.parentId) {
+        return channel.type === ChannelType.GuildVoice &&
+            ORDER.some(key => {
+                const data = COUNTERS[key];
+                return channel.name?.startsWith(`${data.emoji}・${data.label}:`);
+            });
+    }
+
+    return channel.type === ChannelType.GuildCategory && channel.name === "📊・Estatísticas";
+}
+
 async function updateGuild(guild) {
     const config = await ServerStatsRepository.get(guild.id);
     if (!config.enabled) return;
@@ -265,5 +286,6 @@ module.exports = {
     disable,
     setCounter,
     createOrUpdate,
-    getValues
+    getValues,
+    isStatsChannel
 };

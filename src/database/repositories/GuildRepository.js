@@ -165,6 +165,27 @@ class GuildRepository {
 
     /*
     =========================
+        LOGS DOS STATS
+    =========================
+    */
+
+    static async isStatsLogsEnabled(guildId) {
+
+        const settings = await this.getSettings(guildId);
+        return Boolean(settings.stats_logs_enabled);
+
+    }
+
+    static async setStatsLogsEnabled(guildId, enabled) {
+
+        await this.update(guildId, {
+            stats_logs_enabled: enabled ? 1 : 0
+        });
+
+    }
+
+    /*
+    =========================
         PREFIXO
     =========================
     */

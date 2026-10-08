@@ -2,6 +2,7 @@ const GuildRepository = require("../database/repositories/GuildRepository");
 const { CATEGORY_OF } = require("./LogCategories");
 
 const Builders = require("./logs");
+const ServerStatsManager = require("./ServerStatsManager");
 
 class LogManager {
 
@@ -17,6 +18,17 @@ class LogManager {
 
                 return false;
 
+            }
+
+            // Os canais automáticos do sistema de Stats geram CHANNEL_CREATE/UPDATE/DELETE
+            // a cada ciclo de atualização. Eles são ruído para a auditoria normal e podem
+            // ser desligados separadamente, sem desativar os demais logs de canais.
+            if (["CHANNEL_CREATE", "CHANNEL_UPDATE", "CHANNEL_DELETE"].includes(data.type)) {
+                const statsChannel = await ServerStatsManager.isStatsChannel(data.channel);
+                if (statsChannel) {
+                    const statsLogsEnabled = await GuildRepository.isStatsLogsEnabled(data.guild.id);
+                    if (!statsLogsEnabled) return false;
+                }
             }
 
             // Busca o canal de logs

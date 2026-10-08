@@ -77,6 +77,12 @@ async function execute(interaction) {
         return ui.respond(interaction, ui.success(`${label} foi ${enabled ? "ativada" : "desativada"}.`, "Categoria atualizada", interaction), { ephemeral: true });
     }
 
+    if (id === "config_logs:stats") {
+        const current = await GuildRepository.isStatsLogsEnabled(interaction.guild.id);
+        await GuildRepository.setStatsLogsEnabled(interaction.guild.id, !current);
+        return interaction.update(await ConfigPanelManager.build(interaction, "logs"));
+    }
+
     if (id.startsWith("config_toggle:")) {
         const target = id.split(":")[1];
         const guildId = interaction.guild.id;

@@ -532,7 +532,11 @@ module.exports = (client) => {
             enabled: !disabled.includes(key)
         }));
 
-        res.json({ channelId: settings.log_channel || null, categories });
+        res.json({
+            channelId: settings.log_channel || null,
+            statsLogsEnabled: !!settings.stats_logs_enabled,
+            categories
+        });
 
     });
 
@@ -559,6 +563,13 @@ module.exports = (client) => {
         await GuildRepository.setCategoryEnabled(req.params.guildId, key, !!enabled);
 
         res.json({ ok: true });
+
+    });
+
+    router.post("/guilds/:guildId/logs/stats", async (req, res) => {
+
+        await GuildRepository.setStatsLogsEnabled(req.params.guildId, !!(req.body || {}).enabled);
+        res.json({ ok: true, enabled: await GuildRepository.isStatsLogsEnabled(req.params.guildId) });
 
     });
 

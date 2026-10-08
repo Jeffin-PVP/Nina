@@ -254,6 +254,7 @@ async function buildTickets(interaction) {
 async function buildLogs(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
     const disabled = await GuildRepository.getDisabledCategories(interaction.guild.id);
+    const statsLogsEnabled = await GuildRepository.isStatsLogsEnabled(interaction.guild.id);
     const categories = Object.entries(CATEGORIES).map(([key, value]) => `${disabled.includes(key) ? "🔴" : "🟢"} ${value.label}`).join("\n");
 
     return {
@@ -264,7 +265,8 @@ async function buildLogs(interaction) {
             description: "Escolha o canal e quais eventos a Nina deve registrar.",
             fields: [
                 ui.field("channel", "Canal", s.log_channel ? `<#${s.log_channel}>` : "Não configurado", false),
-                ui.field("log", "Categorias", categories || "Nenhuma", false)
+                ui.field("log", "Categorias", categories || "Nenhuma", false),
+                ui.field("chart", "Logs dos Stats", statsLogsEnabled ? "🟢 Ativados" : "🔴 Desativados", false)
             ],
             source: interaction
         })],
@@ -276,6 +278,9 @@ async function buildLogs(interaction) {
                 new StringSelectMenuBuilder().setCustomId("config_log_category").setPlaceholder("Ativar/desativar categoria").addOptions(
                     Object.entries(CATEGORIES).slice(0, 25).map(([key, value]) => ({ label: value.label, value: key, emoji: value.emoji }))
                 )
+            ),
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_logs:stats", statsLogsEnabled, "Logs dos Stats")
             ),
             backRow()
         ]
