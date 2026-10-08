@@ -37,7 +37,9 @@ class ApiServer {
 
             res.send(
                 "<h1>Nina API funcionando!</h1>" +
-                `<h3>Para acessar o painel de controle, vá para <a href="${base}/panel/">${base}/panel/</a>.</h3>`
+                `<h3>Para acessar o painel de controle, vá para <a href="${base}/panel/">${base}/panel/</a>.</h3>` +
+                `<a href="https://www.flaticon.com/free-icons/turn-on" title="turn on icons">Turn on icons created by Elite Art - Flaticon</a>` +
+                `<a href="https://www.flaticon.com/free-icons/start-button" title="start button icons">Start button icons created by Uniconlabs - Flaticon</a>`
             );
 
         });

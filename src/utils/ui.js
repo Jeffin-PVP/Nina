@@ -85,7 +85,9 @@ const field = (emoji, name, value, inline = true) => ({
 
 /** 🟢 / 🔴 para estados ligado/desligado. */
 const toggle = (enabled, on = "Ativado", off = "Desativado") =>
-    enabled ? `🟢 ${on}` : `🔴 ${off}`;
+    enabled
+        ? `${emojis.status.on} ${on}`
+        : `${emojis.status.off} ${off}`;
 
 /** Bloco de código para destacar comandos/valores. */
 const code = text => `\`${String(text ?? "")}\``;
