@@ -403,7 +403,11 @@ async function buildLockdown(interaction) {
                     .setCustomId("config_channel:lockdown_channels")
                     .setPlaceholder("Selecionar canais de texto e voz (substitui a lista)")
                     .setChannelTypes(...channelTypes)
-                    .setDefaultChannels(...config.channel_ids.map(id => interaction.guild.channels.cache.get(id)).filter(Boolean))
+                    .setDefaultChannels(
+                        ...config.channel_ids.filter(id =>
+                            interaction.guild.channels.cache.has(id)
+                        )
+                    )
                     .setMinValues(0)
                     .setMaxValues(25)
             ),
@@ -412,7 +416,11 @@ async function buildLockdown(interaction) {
                     .setCustomId("config_channel:lockdown_categories")
                     .setPlaceholder("Selecionar categorias (substitui a lista)")
                     .setChannelTypes(ChannelType.GuildCategory)
-                    .setDefaultChannels(...config.category_ids.map(id => interaction.guild.channels.cache.get(id)).filter(Boolean))
+                    .setDefaultChannels(
+                        ...config.category_ids.filter(id =>
+                            interaction.guild.channels.cache.has(id)
+                        )
+                    )
                     .setMinValues(0)
                     .setMaxValues(25)
             ),
@@ -420,7 +428,11 @@ async function buildLockdown(interaction) {
                 new RoleSelectMenuBuilder()
                     .setCustomId("config_role:lockdown_allowed")
                     .setPlaceholder("Cargos com acesso durante o lockdown")
-                    .setDefaultRoles(...config.allowed_role_ids.map(id => interaction.guild.roles.cache.get(id)).filter(Boolean))
+                    .setDefaultRoles(
+                        ...config.allowed_role_ids.filter(id =>
+                            interaction.guild.roles.cache.has(id)
+                        )
+                    )
                     .setMinValues(0)
                     .setMaxValues(25)
             ),
@@ -428,7 +440,11 @@ async function buildLockdown(interaction) {
                 new RoleSelectMenuBuilder()
                     .setCustomId("config_role:lockdown_denied")
                     .setPlaceholder("Cargos sem acesso durante o lockdown")
-                    .setDefaultRoles(...config.denied_role_ids.map(id => interaction.guild.roles.cache.get(id)).filter(Boolean))
+                    .setDefaultRoles(
+                        ...config.denied_role_ids.filter(id =>
+                            interaction.guild.roles.cache.has(id)
+                        )
+                    )
                     .setMinValues(0)
                     .setMaxValues(25)
             )
