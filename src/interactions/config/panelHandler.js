@@ -20,6 +20,8 @@ const { validateHttpUrl } = require("../../utils/safeFetch");
 const ServerStatsRepository = require("../../database/repositories/ServerStatsRepository");
 const ServerStatsManager = require("../../managers/ServerStatsManager");
 const AntiNukeRepository = require("../../database/repositories/AntiNukeRepository");
+const TempVoiceRepository = require("../../database/repositories/TempVoiceRepository");
+const TempVoiceManager = require("../../managers/TempVoiceManager");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -122,6 +124,79 @@ async function execute(interaction) {
         }
     }
 
+    if (id.startsWith("config_tempvoice:")) {
+        const target = id.split(":")[1];
+        const guildId = interaction.guild.id;
+        const c = await TempVoiceRepository.get(guildId);
+
+        if (target === "enabled") {
+            if (!c.enabled) {
+                if (!c.trigger_channel_id) return ui.caution(interaction, "Escolha primeiro o canal em que o membro entra para criar a sala.", "TempVoice");
+                await TempVoiceManager.configure(interaction.guild, { enabled: true });
+            } else {
+                await TempVoiceManager.configure(interaction.guild, { enabled: false });
+            }
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "autolock") {
+            await TempVoiceManager.configure(interaction.guild, { auto_lock: !c.auto_lock });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "admin") {
+            await TempVoiceManager.configure(interaction.guild, { admin_manage: !c.admin_manage });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "trigger") {
+            const channel = interaction.channels.first();
+            if (!channel || channel.type !== 2) return ui.fail(interaction, "Selecione um canal de voz válido.", "Canal inválido");
+            await TempVoiceManager.configure(interaction.guild, { trigger_channel_id: channel.id, enabled: true });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "category") {
+            const channel = interaction.channels.first();
+            if (!channel || channel.type !== 4) return ui.fail(interaction, "Selecione uma categoria válida.", "Categoria inválida");
+            await TempVoiceManager.configure(interaction.guild, { category_id: channel.id });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "role") {
+            const role = interaction.roles.first();
+            if (!role || role.managed || role.id === interaction.guild.id) return ui.fail(interaction, "Selecione um cargo normal e não gerenciado.", "Cargo inválido");
+            const me = interaction.guild.members.me;
+            if (me?.roles?.highest && role.position >= me.roles.highest.position) return ui.fail(interaction, "A Nina não consegue usar esse cargo por causa da hierarquia.", "Hierarquia inválida");
+            await TempVoiceManager.configure(interaction.guild, { manager_role_id: role.id });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "autocreate") {
+            const result = await TempVoiceManager.setup(interaction.guild, { categoryId: c.category_id, triggerChannelId: c.trigger_channel_id, panelChannelId: c.panel_channel_id });
+            await TempVoiceManager.configure(interaction.guild, { enabled: true, category_id: result.category.id, trigger_channel_id: result.trigger.id });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
+        }
+        if (target === "name") {
+            const modal = new ModalBuilder().setCustomId("config_submit:tempvoice_name").setTitle("Nome das salas");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("nome").setLabel("Nome da sala").setPlaceholder("Ex.: 🔊 {user} | {username} | Sala de {user}").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(90).setValue(c.name_template))
+            );
+            return interaction.showModal(modal);
+        }
+        if (target === "limit") {
+            const modal = new ModalBuilder().setCustomId("config_submit:tempvoice_limit").setTitle("Limite padrão");
+            modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("limite").setLabel("Limite de membros (0 a 99)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.default_limit))));
+            return interaction.showModal(modal);
+        }
+        if (target === "permissions") {
+            const modal = new ModalBuilder().setCustomId("config_submit:tempvoice_permissions").setTitle("Permissões do dono");
+            const labels = [["renomear","Renomear sala (on/off)",c.owner_rename],["bloquear","Bloquear sala (on/off)",c.owner_lock],["limite","Alterar limite (on/off)",c.owner_limit],["expulsar","Expulsar membros (on/off)",c.owner_kick],["transferir","Transferir dono (on/off)",c.owner_transfer]];
+            modal.addComponents(...labels.map(([id,label,value]) => new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short).setRequired(true).setValue(value ? "on" : "off"))));
+            return interaction.showModal(modal);
+        }
+        if (target === "permissions2") {
+            const modal = new ModalBuilder().setCustomId("config_submit:tempvoice_permissions2").setTitle("Mais permissões");
+            const labels = [["banir","Bloquear membros (on/off)",c.owner_ban],["excluir","Excluir sala (on/off)",c.owner_delete]];
+            modal.addComponents(...labels.map(([id,label,value]) => new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId(id).setLabel(label).setStyle(TextInputStyle.Short).setRequired(true).setValue(value ? "on" : "off"))));
+            return interaction.showModal(modal);
+        }
+    }
+
     if (id.startsWith("config_stats:")) {
         const target = id.split(":")[1];
         const guildId = interaction.guild.id;
@@ -218,7 +293,36 @@ async function execute(interaction) {
     if (id.startsWith("config_modal:")) {
         const type = id.split(":")[1];
 
-        if (type === "automod_spam") {
+        if (type === "tempvoice_name") {
+        const value = interaction.fields.getTextInputValue("nome").trim();
+        if (!value) return ui.caution(interaction, "O nome não pode ficar vazio.", "Nome inválido");
+        await TempVoiceManager.configure(interaction.guild, { name_template: value });
+        return ui.respond(interaction, ui.success("O formato do nome das novas salas foi atualizado.", "TempVoice atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "tempvoice_limit") {
+        const value = Number.parseInt(interaction.fields.getTextInputValue("limite"), 10);
+        if (!Number.isInteger(value) || value < 0 || value > 99) return ui.caution(interaction, "O limite precisa ficar entre 0 e 99.", "Valor inválido");
+        await TempVoiceManager.configure(interaction.guild, { default_limit: value });
+        return ui.respond(interaction, ui.success("O limite padrão das novas salas foi atualizado.", "TempVoice atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "tempvoice_permissions") {
+        const read = id => interaction.fields.getTextInputValue(id).trim().toLowerCase() === "on";
+        await TempVoiceManager.configure(interaction.guild, {
+            owner_rename: read("renomear"), owner_lock: read("bloquear"), owner_limit: read("limite"),
+            owner_kick: read("expulsar"), owner_transfer: read("transferir")
+        });
+        return ui.respond(interaction, ui.success("As permissões principais do dono foram atualizadas.", "TempVoice atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "tempvoice_permissions2") {
+        const read = id => interaction.fields.getTextInputValue(id).trim().toLowerCase() === "on";
+        await TempVoiceManager.configure(interaction.guild, { owner_ban: read("banir"), owner_delete: read("excluir") });
+        return ui.respond(interaction, ui.success("As permissões avançadas do dono foram atualizadas.", "TempVoice atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "automod_spam") {
             const c = await AutomodRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:automod_spam").setTitle("Configurar Spam");
             modal.addComponents(

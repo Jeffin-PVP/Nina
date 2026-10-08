@@ -16,6 +16,8 @@ const TicketRepository = require("../database/repositories/TicketRepository");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
+const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
+const TempVoiceManager = require("./TempVoiceManager");
 const { CATEGORIES } = require("./LogCategories");
 
 const CATEGORY_OPTIONS = [
@@ -26,7 +28,8 @@ const CATEGORY_OPTIONS = [
     { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "📜" },
     { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "🎭" },
     { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "📊" },
-    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "☢️" }
+    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "☢️" },
+    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "🔊" }
 ];
 
 function permissionOk(interaction) {
@@ -84,7 +87,8 @@ async function buildHome(interaction) {
         ["💰 Economia", settings.economy_enabled],
         ["🛡️ Moderação", settings.moderation_enabled],
         ["📊 Stats", stats.enabled],
-        ["☢️ Anti-Nuke", antinuke.enabled]
+        ["☢️ Anti-Nuke", antinuke.enabled],
+        ["🔊 TempVoice", (await TempVoiceRepository.get(interaction.guild.id)).enabled]
     ];
 
     const status = configured.map(([name, enabled]) => `${enabled ? "🟢" : "🔴"} ${name}`).join("\n");
@@ -378,6 +382,61 @@ async function buildAntiNuke(interaction) {
     };
 }
 
+async function buildTempVoice(interaction) {
+    const c = await TempVoiceRepository.get(interaction.guild.id);
+    const rooms = await TempVoiceRepository.getRooms(interaction.guild.id);
+    const trigger = c.trigger_channel_id ? interaction.guild.channels.cache.get(c.trigger_channel_id) : null;
+    const category = c.category_id ? interaction.guild.channels.cache.get(c.category_id) : null;
+    const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
+
+    const nameMode = c.name_template === "🔊 {username}" ? "Nome de usuário" : c.name_template === "🔊 {user}" ? "Nome de exibição" : `Personalizado: ${c.name_template}`;
+    const ownerPerms = [
+        ["Renomear", c.owner_rename], ["Bloquear", c.owner_lock], ["Alterar limite", c.owner_limit],
+        ["Expulsar", c.owner_kick], ["Bloquear membro", c.owner_ban], ["Transferir dono", c.owner_transfer], ["Excluir", c.owner_delete]
+    ].map(([name, value]) => `${value ? "🟢" : "🔴"} ${name}`).join("\n");
+
+    return {
+        embeds: [ui.panel({
+            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
+            emoji: "🔊",
+            title: "TempVoice",
+            description: "Configure completamente as salas temporárias deste servidor. As alterações ficam salvas no SQLite.",
+            fields: [
+                ui.field("power", "Status", ui.toggle(c.enabled)),
+                ui.field("channel", "Canal para criar sala", trigger ? `<#${trigger.id}>` : "Não configurado", false),
+                ui.field("folder", "Categoria das salas", category ? `<#${category.id}>` : "Não configurada"),
+                ui.field("edit", "Formato do nome", nameMode, false),
+                ui.field("users", "Limite padrão", c.default_limit ? `${c.default_limit} membros` : "Sem limite"),
+                ui.field("lock", "Bloqueio automático", ui.toggle(c.auto_lock)),
+                ui.field("shield", "Admin/Moderação", `${c.admin_manage ? "🟢" : "🔴"} Gerenciar salas\n${managerRole ? `Cargo: <@&${managerRole.id}>` : "Cargo: não definido"}`, false),
+                ui.field("key", "Permissões do dono", ownerPerms, false),
+                ui.field("stats", "Salas ativas", `\`${rooms.length}\``)
+            ],
+            source: interaction
+        })],
+        components: [
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_tempvoice:enabled", !!c.enabled, "TempVoice"),
+                new ButtonBuilder().setCustomId("config_tempvoice:autocreate").setLabel("Criar estrutura").setEmoji("🏗️").setStyle(ButtonStyle.Primary),
+                new ButtonBuilder().setCustomId("config_tempvoice:name").setLabel("Nome").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_tempvoice:limit").setLabel("Limite").setEmoji("👥").setStyle(ButtonStyle.Secondary),
+                toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
+            ),
+            new ActionRowBuilder().addComponents(
+                new ChannelSelectMenuBuilder().setCustomId("config_tempvoice:trigger").setPlaceholder("Escolher canal de entrada").setChannelTypes(ChannelType.GuildVoice),
+                new ChannelSelectMenuBuilder().setCustomId("config_tempvoice:category").setPlaceholder("Escolher categoria das salas").setChannelTypes(ChannelType.GuildCategory)
+            ),
+            new ActionRowBuilder().addComponents(
+                toggleButton("config_tempvoice:admin", !!c.admin_manage, "Admins/Moderação"),
+                new RoleSelectMenuBuilder().setCustomId("config_tempvoice:role").setPlaceholder("Cargo que pode gerenciar salas"),
+                new ButtonBuilder().setCustomId("config_tempvoice:permissions").setLabel("Permissões do dono").setEmoji("🔐").setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId("config_tempvoice:permissions2").setLabel("Mais permissões").setEmoji("🛠️").setStyle(ButtonStyle.Secondary)
+            ),
+            backRow()
+        ]
+    };
+}
+
 async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
@@ -388,6 +447,7 @@ async function build(interaction, category) {
         case "autorole": return buildAutorole(interaction);
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
+        case "tempvoice": return buildTempVoice(interaction);
         default: return buildHome(interaction);
     }
 }

@@ -269,6 +269,34 @@ const statements = [
         PRIMARY KEY (guild_id)
     )`,
 
+    `CREATE TABLE IF NOT EXISTS temp_voice_settings (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        category_id TEXT NULL,
+        trigger_channel_id TEXT NULL,
+        panel_channel_id TEXT NULL,
+        default_limit INTEGER NOT NULL DEFAULT 0,
+        auto_lock INTEGER NOT NULL DEFAULT 0,
+        name_template TEXT NOT NULL DEFAULT '🔊 {user}',
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS temp_voice_rooms (
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        locked INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (channel_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS temp_voice_bans (
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        PRIMARY KEY (channel_id, user_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS antinuke_settings (
         guild_id TEXT NOT NULL,
         enabled INTEGER NOT NULL DEFAULT 0,
@@ -295,8 +323,28 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_warnings_user ON warnings (guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_guild_status ON tickets (guild_id, status)`,
     `CREATE INDEX IF NOT EXISTS idx_giveaways_running ON giveaways (guild_id, status, ends_at)`,
-    `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`
+    `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_temp_voice_rooms_guild ON temp_voice_rooms (guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_temp_voice_bans_guild ON temp_voice_bans (guild_id)`
 ];
+
+function migrateTempVoiceSchema() {
+    const columns = new Set(db.prepare("PRAGMA table_info(temp_voice_settings)").all().map(row => row.name));
+    const migrations = [
+        ["admin_manage", "INTEGER NOT NULL DEFAULT 1"],
+        ["manager_role_id", "TEXT NULL"],
+        ["owner_rename", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_lock", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_limit", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_kick", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_ban", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_transfer", "INTEGER NOT NULL DEFAULT 1"],
+        ["owner_delete", "INTEGER NOT NULL DEFAULT 1"]
+    ];
+    for (const [name, definition] of migrations) {
+        if (!columns.has(name)) db.exec(`ALTER TABLE temp_voice_settings ADD COLUMN ${name} ${definition}`);
+    }
+}
 
 function initializeDatabase() {
     if (initialized) return;
@@ -305,6 +353,7 @@ function initializeDatabase() {
     try {
         for (const statement of statements) db.exec(statement);
         for (const statement of indexes) db.exec(statement);
+        migrateTempVoiceSchema();
         db.exec("COMMIT");
         initialized = true;
         console.log(`🗄️ SQLite conectado: ${databasePath}`);

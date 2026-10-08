@@ -41,6 +41,15 @@ const giveawayButtons =
 const configPanel =
     require("../interactions/config/panelHandler");
 
+const tempVoiceButtons =
+    require("../interactions/tempVoice/buttonHandler");
+
+const tempVoiceModals =
+    require("../interactions/tempVoice/modalHandler");
+
+const tempVoiceUsers =
+    require("../interactions/tempVoice/userSelectHandler");
+
 module.exports = {
 
     name: Events.InteractionCreate,
@@ -97,6 +106,12 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("tempvoice_modal:")) {
+
+                    return tempVoiceModals.execute(interaction);
+
+                }
+
                 return modalSubmit.execute(interaction);
 
             }
@@ -143,6 +158,12 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("tempvoice:")) {
+
+                    return tempVoiceButtons.execute(interaction);
+
+                }
+
                 return embedButtons.execute(interaction);
 
             }
@@ -167,6 +188,16 @@ module.exports = {
 
                 if (interaction.customId.startsWith("config_role:")) {
                     return configPanel.execute(interaction);
+                }
+
+                return;
+
+            }
+
+            if (interaction.isUserSelectMenu()) {
+
+                if (interaction.customId.startsWith("tempvoice_select:")) {
+                    return tempVoiceUsers.execute(interaction);
                 }
 
                 return;

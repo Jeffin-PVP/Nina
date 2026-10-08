@@ -21,6 +21,9 @@ const ServerStatsManager =
 const GlobalBanManager =
     require("./src/managers/GlobalBanManager");
 
+const TempVoiceManager =
+    require("./src/managers/TempVoiceManager");
+
 const Emojis =
     require("./src/utils/emojis");
 
@@ -202,6 +205,13 @@ client.once(
         GlobalBanManager.start().catch(error => {
             console.error("❌ Falha ao carregar banimentos globais:", error);
         });
+
+        // Remove registros/canais temporários que sobraram após reinício do bot.
+        for (const guild of client.guilds.cache.values()) {
+            TempVoiceManager.cleanupGuild(guild).catch(error => {
+                console.error(`❌ Falha na limpeza do TempVoice em ${guild.id}:`, error);
+            });
+        }
 
         Emojis.sync(client);
 
