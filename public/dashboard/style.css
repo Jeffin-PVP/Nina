@@ -53,10 +53,7 @@ input, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    background:
-        radial-gradient(circle at 20% 20%, rgba(88, 101, 242, 0.12), transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(88, 101, 242, 0.08), transparent 45%),
-        var(--bg);
+    background: var(--bg);
 }
 
 .login-card {
@@ -64,7 +61,7 @@ input, textarea {
     padding: 36px 32px;
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 8px;
 }
 
 .login-marca {
@@ -83,7 +80,7 @@ input, textarea {
     height: 8px;
     border-radius: 50%;
     background: var(--acento);
-    box-shadow: 0 0 8px var(--acento);
+    box-shadow: none;
 }
 
 .login-card h1 {
@@ -188,7 +185,7 @@ input, textarea {
 
 .dot.online {
     background: var(--sucesso);
-    box-shadow: 0 0 6px var(--sucesso);
+    box-shadow: none;
 }
 
 .corpo {
@@ -255,7 +252,7 @@ input, textarea {
 .grafico-card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 16px;
 }
 
@@ -275,7 +272,7 @@ input, textarea {
 .stat-card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 18px;
     display: flex;
     flex-direction: column;
@@ -542,7 +539,7 @@ input, textarea {
 .modal-card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 24px;
     width: 340px;
 }
@@ -589,3 +586,22 @@ input, textarea {
     }
 
 }
+
+
+/* ===== Ícones e estados ===== */
+.ic { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.2em; margin-right: .3em }
+button.remover .ic { margin: 0 }
+[data-estado]::before { content: ""; display: inline-block; width: 1.1em; height: 1.1em; margin-right: .45em; vertical-align: -.2em; background: currentColor; -webkit-mask: var(--m) center / contain no-repeat; mask: var(--m) center / contain no-repeat }
+[data-estado="ok"] { color: var(--sucesso); --m: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") }
+[data-estado="erro"] { color: var(--perigo); --m: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E") }
+[data-estado="aviso"] { color: var(--aviso); --m: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'/%3E%3Cline x1='12' y1='9' x2='12' y2='13'/%3E%3Cline x1='12' y1='17' x2='12.01' y2='17'/%3E%3C/svg%3E") }
+[data-estado="info"] { color: var(--texto-sutil) }
+[data-estado="info"]::before { display: none }
+#ban-global-resultado, #comunicado-resultado, #reiniciar-resultado { white-space: pre-wrap; overflow-wrap: anywhere }
+
+/* ===== Responsividade extra ===== */
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px }
+img, svg { max-width: 100% }
+table { display: block; max-width: 100%; overflow-x: auto }
+input, select, textarea { max-width: 100% }
+@media (max-width: 720px) { .btn, button, input, select, textarea { min-height: 40px } }

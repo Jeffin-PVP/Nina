@@ -493,20 +493,7 @@ async function execute(interaction) {
             return interaction.showModal(modal);
         }
 
-        if (type === "antinuke") {
-        const janela = Number.parseInt(interaction.fields.getTextInputValue("janela"), 10);
-        const canais = Number.parseInt(interaction.fields.getTextInputValue("canais"), 10);
-        const cargos = Number.parseInt(interaction.fields.getTextInputValue("cargos"), 10);
-        const membros = Number.parseInt(interaction.fields.getTextInputValue("membros"), 10);
-        const acao = interaction.fields.getTextInputValue("acao").trim().toLowerCase();
-        if (!Number.isInteger(janela) || janela < 5 || janela > 60 || !Number.isInteger(canais) || canais < 2 || canais > 20 || !Number.isInteger(cargos) || cargos < 2 || cargos > 20 || !Number.isInteger(membros) || membros < 2 || membros > 20 || !["ban", "strip"].includes(acao)) {
-            return ui.caution(interaction, "Confira os limites e use ação `ban` ou `strip`.", "Valores inválidos");
-        }
-        await AntiNukeRepository.update(guildId, { window_seconds: janela, channel_limit: canais, role_limit: cargos, member_limit: membros, action: acao });
-        return ui.respond(interaction, ui.success("Os limites do Anti-Nuke foram atualizados.", "Anti-Nuke atualizado", interaction), { ephemeral: true });
-    }
-
-    if (type === "welcome_background") {
+        if (type === "welcome_background") {
             const c = await WelcomeRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:welcome_background").setTitle("Imagem de fundo");
             modal.addComponents(

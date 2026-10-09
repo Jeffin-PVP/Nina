@@ -70,7 +70,7 @@
                 <div class="grid-3">
                     <div class="field"><label>Cargo</label><select id="rl-role"></select></div>
                     <div class="field"><label>Texto do botão</label><input id="rl-label" maxlength="80" placeholder="Ex.: Jogos"></div>
-                    <div class="field"><label>Emoji (opcional)</label><input id="rl-emoji" maxlength="100" placeholder="🎮"></div>
+                    <div class="field"><label>Emoji (opcional)</label><input id="rl-emoji" maxlength="100" placeholder="Opcional"></div>
                 </div>
                 <div class="form-actions"><button id="rl-add-role" class="btn secondary">Adicionar cargo</button><span id="rl-status" class="feedback"></span></div>
                 <div id="rl-role-list" class="list"></div>
@@ -89,7 +89,7 @@
                 <div class="grid-3">
                     <div class="field"><label>Canal</label><select id="rr-channel"></select></div>
                     <div class="field"><label>ID da mensagem</label><input id="rr-message" inputmode="numeric" placeholder="ID da mensagem"></div>
-                    <div class="field"><label>Emoji</label><input id="rr-emoji" maxlength="100" placeholder="✅"></div>
+                    <div class="field"><label>Emoji</label><input id="rr-emoji" maxlength="100" placeholder="Emoji ou &lt;:nome:id&gt;"></div>
                     <div class="field"><label>Cargo</label><select id="rr-role"></select></div>
                 </div>
                 <div class="form-actions"><button id="rr-add" class="btn secondary">Adicionar regra</button></div>

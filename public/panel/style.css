@@ -1,19 +1,17 @@
 :root {
-    --bg: #080a10;
-    --panel: #10131b;
-    --panel2: #151924;
-    --panel3: #1a1f2c;
-    --line: #262c3a;
-    --text: #eef1f7;
-    --muted: #8e97ab;
-    --accent: #7c6cff;
-    --accent2: #5d8dff;
+    --bg: #0e1015;
+    --panel: #14171f;
+    --panel2: #191d27;
+    --panel3: #20252f;
+    --line: #272c38;
+    --text: #e7e9ef;
+    --muted: #8b93a5;
+    --accent: #5865f2;
+    --accent2: #4752c4;
     --good: #4ade80;
     --warn: #fbbf24;
     --danger: #f87171;
-    --shadow: 0 20px 50px rgba(0, 0, 0, .28);
-    --back: linear-gradient(135deg, #ff00ff, black, #5d00ff);
-    --blr: filter: blur(20px);
+    --shadow: 0 1px 3px rgba(0, 0, 0, .35);
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif
 }
 
@@ -25,7 +23,7 @@ html,
 body {
     margin: 0;
     min-height: 100%;
-    background: var(--back);
+    background: var(--bg);
     color: var(--text); /*cor do texto*/
 }
 
@@ -60,7 +58,7 @@ button {
     width: min(760px, 100%);
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--line);
-    border-radius: 24px;
+    border-radius: 10px;
     box-shadow: var(--shadow);
     padding: 40px
 }
@@ -77,7 +75,7 @@ button {
     height: 10px;
     border-radius: 50%;
     background: var(--accent);
-    box-shadow: 0 0 18px var(--accent);
+    box-shadow: none;
     margin-right: 9px
 }
 
@@ -114,8 +112,9 @@ button {
     background: var(--panel3)
 }
 
+.btn.primary:hover { background: var(--accent2) }
 .btn.primary {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    background: var(--accent);
     border: 0;
     color: #fff
 }
@@ -168,13 +167,13 @@ button {
     padding: 14px;
     background: var(--panel2);
     border: 1px solid var(--line);
-    border-radius: 14px
+    border-radius: 8px
 }
 
 .server-card img {
     width: 44px;
     height: 44px;
-    border-radius: 13px;
+    border-radius: 8px;
     background: var(--panel3)
 }
 
@@ -207,7 +206,7 @@ button {
     color: var(--muted);
     text-align: center;
     border: 1px dashed var(--line);
-    border-radius: 14px
+    border-radius: 8px
 }
 
 .app {
@@ -221,8 +220,7 @@ button {
     justify-content: space-between;
     padding: 0 22px;
     border-bottom: 1px solid var(--line);
-    background: rgba(10, 12, 18, .86);
-    backdrop-filter: blur(16px);
+    background: var(--panel);
     position: sticky;
     top: 0;
     z-index: 20
@@ -238,7 +236,7 @@ button {
 .guild-avatar {
     width: 38px;
     height: 38px;
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--panel2)
 }
 
@@ -299,7 +297,7 @@ button {
 }
 
 .nav-item.active {
-    background: linear-gradient(90deg, rgba(124, 108, 255, .18), rgba(124, 108, 255, .05));
+    background: rgba(88, 101, 242, .16);
     color: #fff;
     box-shadow: inset 2px 0 var(--accent)
 }
@@ -318,7 +316,7 @@ button {
     border-radius: 50%;
     background: var(--good);
     margin-right: 7px;
-    box-shadow: 0 0 8px var(--good)
+    box-shadow: none
 }
 
 .content {
@@ -361,9 +359,9 @@ button {
 
 .stat-card {
     padding: 18px;
-    background: linear-gradient(145deg, var(--panel2), var(--panel));
+    background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 16px
+    border-radius: 8px
 }
 
 .stat-card span {
@@ -389,7 +387,7 @@ button {
 .panel {
     background: rgba(16, 19, 27, .84);
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: 10px;
     padding: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
     margin-bottom: 14px
@@ -423,7 +421,7 @@ button {
 .quick {
     border: 1px solid var(--line);
     background: var(--panel2);
-    border-radius: 13px;
+    border-radius: 8px;
     padding: 15px;
     text-align: left;
     color: var(--text)
@@ -489,7 +487,7 @@ button {
 .command-summary>div {
     padding: 14px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--panel2)
 }
 
@@ -631,7 +629,7 @@ button {
     padding: 15px;
     border: 1px solid var(--line);
     background: var(--panel2);
-    border-radius: 14px
+    border-radius: 8px
 }
 
 .rule-head {
@@ -666,10 +664,10 @@ button {
 .notice {
     margin-top: 16px;
     padding: 13px 14px;
-    border: 1px solid rgba(124, 108, 255, .2);
-    background: rgba(124, 108, 255, .06);
+    border: 1px solid rgba(88, 101, 242, .2);
+    background: rgba(88, 101, 242, .06);
     color: #cdd1ff;
-    border-radius: 12px;
+    border-radius: 8px;
     line-height: 1.5
 }
 
@@ -690,7 +688,7 @@ button {
     padding: 14px;
     background: var(--panel2);
     border: 1px solid var(--line);
-    border-radius: 12px
+    border-radius: 8px
 }
 
 .info-card span {
@@ -716,7 +714,7 @@ button {
     gap: 14px;
     padding: 13px 14px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 8px;
     background: var(--panel2)
 }
 
@@ -735,7 +733,7 @@ button {
 .command-group {
     background: var(--panel);
     border: 1px solid var(--line);
-    border-radius: 16px;
+    border-radius: 8px;
     padding: 18px
 }
 
@@ -760,7 +758,7 @@ button {
     bottom: 22px;
     background: #151a24;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 12px 15px;
     opacity: 0;
     transform: translateY(10px);
@@ -904,11 +902,11 @@ button {
 
 .nav-item:hover .nav-icon img {
     transform: translateY(-1px);
-    filter: drop-shadow(0 0 7px rgba(124, 108, 255, .28))
+    filter: none
 }
 
 .nav-item.active .nav-icon img {
-    filter: drop-shadow(0 0 8px rgba(124, 108, 255, .35))
+    filter: none
 }
 
 .builder-grid {
@@ -932,7 +930,7 @@ button {
 .builder-item {
     padding: 12px;
     border: 1px solid rgba(255, 255, 255, .08);
-    border-radius: 12px;
+    border-radius: 8px;
     background: rgba(255, 255, 255, .02)
 }
 
@@ -947,7 +945,7 @@ button {
 .discord-preview,
 .container-preview {
     padding: 18px;
-    border-radius: 14px;
+    border-radius: 8px;
     background: #111214;
     min-height: 260px
 }
@@ -1043,7 +1041,7 @@ button {
 }
 
 .notice {
-    border-radius: 12px
+    border-radius: 8px
 }
 
 .section-head h2 {
@@ -1091,3 +1089,62 @@ button {
 .check-line input {
     accent-color: var(--accent)
 }
+
+/* ===== Ícones SVG ===== */
+.ic { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -.2em; margin-right: .3em }
+.icon-btn .ic, .btn .ic:only-child { margin-right: 0 }
+button .ic[href], .quick > .ic { margin-right: 0 }
+.quick > .ic { display: block; width: 22px; height: 22px; margin-bottom: 10px; color: var(--accent) }
+.stat-card > span .ic { width: 20px; height: 20px; margin: 0; color: var(--muted) }
+.info-card > span .ic { color: var(--muted) }
+.check-line .ic { color: var(--muted) }
+
+/* ===== Foco, seleção e acessibilidade ===== */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+.btn:focus-visible, .nav-item:focus-visible, .icon-btn:focus-visible { outline-offset: 0 }
+::selection { background: rgba(88, 101, 242, .4) }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+
+/* ===== Layout e responsividade ===== */
+body { min-height: 100vh; min-height: 100dvh; -webkit-text-size-adjust: 100%; overflow-wrap: anywhere }
+img, svg { max-width: 100% }
+.layout { min-height: calc(100dvh - 70px) }
+.content { min-width: 0; flex: 1 }
+.topbar { gap: 12px }
+.top-left { min-width: 0 }
+.top-left > div { min-width: 0 }
+.guild-name, .guild-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.sidebar { overflow-y: auto; overscroll-behavior: contain }
+.sidebar-backdrop { display: none }
+.icon-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text) }
+.icon-btn .ic { width: 20px; height: 20px }
+table { display: block; max-width: 100%; overflow-x: auto }
+input, select, textarea { max-width: 100% }
+@media (max-width: 720px) {
+    .icon-btn.mobile-only { display: inline-flex }
+    .topbar { height: 60px; padding: 0 12px }
+    .top-actions { gap: 6px }
+    .top-actions .btn { padding: 8px 10px; font-size: 13px }
+    #btn-refresh { display: none }
+    .top-actions .btn:nth-child(2) { display: inline-flex }
+    .layout { min-height: calc(100dvh - 60px) }
+    .sidebar { top: 60px; left: -280px; width: min(280px, 85vw); height: calc(100dvh - 60px); z-index: 40; background: var(--panel); border-right: 1px solid var(--line); transition: transform .2s ease, left .2s ease }
+    .sidebar.open { left: 0 }
+    .sidebar.open + .sidebar-backdrop { display: block; position: fixed; inset: 60px 0 0 0; background: rgba(0, 0, 0, .55); z-index: 35 }
+    .nav-item { min-height: 42px }
+    .btn, input, select, textarea { min-height: 40px }
+    .section-head { flex-direction: column; gap: 12px }
+    .section-actions { width: 100% }
+    .section-actions .btn { flex: 1 1 auto }
+    .form-actions { flex-wrap: wrap }
+    .form-actions .btn { flex: 1 1 auto }
+}
+@media (max-width: 420px) {
+    .top-actions .btn { padding: 8px }
+    .guild-meta { display: none }
+    .content { padding: 18px 12px }
+    .login-shell, .picker-shell { padding: 22px 16px }
+}
+
+.guild-avatar:not([src]), .guild-avatar[src=""] { visibility: hidden }
+.setting b .ic { color: var(--muted) }

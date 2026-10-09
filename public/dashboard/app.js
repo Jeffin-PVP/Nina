@@ -1,3 +1,5 @@
+const ICON=n=>`<svg class="ic" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+function setResultado(el,estado,texto){el.textContent=texto||"";if(estado&&texto)el.dataset.estado=estado;else delete el.dataset.estado;}
 (() => {
 
     const API = "/api/dashboard";
@@ -551,14 +553,14 @@
     formBanGlobal.addEventListener("submit", async (e) => {
 
         e.preventDefault();
-        banGlobalResultado.textContent = "";
+        setResultado(banGlobalResultado, "");
 
         const id = document.getElementById("ban-global-id").value.trim();
         const reason = document.getElementById("ban-global-motivo").value.trim();
         const button = formBanGlobal.querySelector("button[type='submit']");
 
         if (!/^\d{17,20}$/.test(id)) {
-            banGlobalResultado.textContent = "❌ Informe um ID de usuário Discord válido.";
+            setResultado(banGlobalResultado, "erro", "Informe um ID de usuário Discord válido.");
             return;
         }
 
@@ -573,13 +575,13 @@
                 body: { reason }
             });
 
-            banGlobalResultado.textContent = `✅ ${data.message}${data.leftServers ? ` A Nina saiu de ${data.leftServers} servidor(es) desse usuário.` : ""}`;
+            setResultado(banGlobalResultado, "ok", `${data.message}${data.leftServers ? ` A Nina saiu de ${data.leftServers} servidor(es) desse usuário.` : ""}`);
             formBanGlobal.reset();
             carregarUsuariosBanidos();
 
         } catch (error) {
 
-            banGlobalResultado.textContent = `❌ ${error.message}`;
+            setResultado(banGlobalResultado, "erro", `${error.message}`);
 
         } finally {
 
@@ -681,7 +683,8 @@
         const remover = document.createElement("button");
         remover.type = "button";
         remover.className = "remover";
-        remover.textContent = "✕";
+        remover.innerHTML = ICON("x");
+        remover.setAttribute("aria-label", "Remover");
         remover.addEventListener("click", () => linha.remove());
 
         linha.appendChild(select);
@@ -763,7 +766,7 @@
         e.preventDefault();
 
         const resultado = document.getElementById("comunicado-resultado");
-        resultado.textContent = "Enviando...";
+        setResultado(resultado, "info", "Enviando...");
 
         try {
 
@@ -776,15 +779,15 @@
                 }
             });
 
-            resultado.textContent =
-                `✅ Enviado para ${data.enviados} servidor(es).` +
-                (data.falhas.length ? `\n⚠️ Falhou em ${data.falhas.length}: ${data.falhas.map(f => f.guildName).join(", ")}` : "");
+            setResultado(resultado, data.falhas.length ? "aviso" : "ok",
+                `Enviado para ${data.enviados} servidor(es).` +
+                (data.falhas.length ? `\nFalhou em ${data.falhas.length}: ${data.falhas.map(f => f.guildName).join(", ")}` : ""));
 
             carregarHistoricoComunicados();
 
         } catch (error) {
 
-            resultado.textContent = `❌ ${error.message}`;
+            setResultado(resultado, "erro", `${error.message}`);
 
         }
 
@@ -824,7 +827,7 @@
                 const el = document.createElement("div");
                 el.className = "servidor-item";
 
-                const rotulo = h.kind === "restart" ? "🔧 Reinício" : "📢 Comunicado";
+                const rotulo = h.kind === "restart" ? ICON("wrench") + " Reinício" : ICON("megaphone") + " Comunicado";
 
                 el.innerHTML = `
                     <div class="servidor-info">
@@ -858,7 +861,7 @@
         if (!confirm("Tem certeza? Isso vai avisar todos os servidores e derrubar o processo do bot.")) return;
 
         const resultado = document.getElementById("reiniciar-resultado");
-        resultado.textContent = "Enviando aviso e reiniciando...";
+        setResultado(resultado, "info", "Enviando aviso e reiniciando...");
 
         try {
 
@@ -870,13 +873,13 @@
                 }
             });
 
-            resultado.textContent = `✅ ${data.message} (avisados: ${data.broadcast.enviados})`;
+            setResultado(resultado, "ok", `${data.message} (avisados: ${data.broadcast.enviados})`);
 
             carregarHistoricoComunicados();
 
         } catch (error) {
 
-            resultado.textContent = `❌ ${error.message}`;
+            setResultado(resultado, "erro", `${error.message}`);
 
         }
 

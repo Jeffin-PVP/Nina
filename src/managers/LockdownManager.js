@@ -126,7 +126,7 @@ class LockdownManager {
 
         for (const roleId of [...config.allowed_role_ids, ...config.denied_role_ids]) {
             if (!guild.roles.cache.has(roleId)) {
-                throw new Error(`O cargo configurado ${roleId} não existe mais. Atualize os cargos no `/config` antes do lockdown.`);
+                throw new Error(`O cargo configurado ${roleId} não existe mais. Atualize os cargos no \`/config\` antes do lockdown.`);
             }
         }
 
