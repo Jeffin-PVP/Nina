@@ -1119,7 +1119,12 @@ img, svg { max-width: 100% }
 .icon-btn { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text) }
 .icon-btn .ic { width: 20px; height: 20px }
 table { display: block; max-width: 100%; overflow-x: auto }
-input, select, textarea { max-width: 100% }
+input, select, textarea {
+    max-width: 100%;
+    background-color: var(--bg);
+    color: var(--text);
+}
+
 @media (max-width: 720px) {
     .icon-btn.mobile-only { display: inline-flex }
     .topbar { height: 60px; padding: 0 12px }
