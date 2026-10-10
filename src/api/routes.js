@@ -22,11 +22,7 @@ module.exports = (client) => {
                 0
             ),
 
-            uptime: process.uptime(),
-
-            memory: process.memoryUsage(),
-
-            node: process.version
+            uptime: process.uptime()
 
         });
 

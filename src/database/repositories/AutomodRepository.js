@@ -96,6 +96,13 @@ class AutomodRepository {
 
         configCache.delete(guildId);
 
+        // Mantém as regras nativas do Discord (selo "Uses AutoMod") em dia com a config
+        try {
+            require("../../managers/NativeAutomodSync").schedule(guildId);
+        } catch (error) {
+            console.error("[NativeAutomod] Não foi possível agendar a sincronização:", error.message);
+        }
+
         return AutomodRepository.get(guildId);
 
     }
@@ -138,16 +145,32 @@ class AutomodRepository {
     =========================
     */
 
-    static async addRaidLock(guildId, channelId) {
+    static async addRaidLock(guildId, channelId, prevSend = "neutral") {
 
         await database.run(
 
             `
-            INSERT OR IGNORE INTO automod_raid_locks (guild_id, channel_id)
-            VALUES (?, ?)
+            INSERT OR IGNORE INTO automod_raid_locks (guild_id, channel_id, prev_send)
+            VALUES (?, ?, ?)
             `,
 
-            [guildId, channelId]
+            [guildId, channelId, prevSend]
+
+        );
+
+    }
+
+    static async listRaidLockDetails(guildId) {
+
+        return database.all(
+
+            `
+            SELECT channel_id, prev_send
+            FROM automod_raid_locks
+            WHERE guild_id = ?
+            `,
+
+            [guildId]
 
         );
 

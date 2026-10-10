@@ -361,6 +361,7 @@ const statements = [
     `CREATE TABLE IF NOT EXISTS automod_raid_locks (
         guild_id TEXT NOT NULL,
         channel_id TEXT NOT NULL,
+        prev_send TEXT NOT NULL DEFAULT 'neutral',
         PRIMARY KEY (guild_id, channel_id)
     )`
 ];
@@ -380,6 +381,13 @@ function migrateGuildSettingsSchema() {
     const columns = new Set(db.prepare("PRAGMA table_info(guild_settings)").all().map(row => row.name));
     if (!columns.has("stats_logs_enabled")) {
         db.exec("ALTER TABLE guild_settings ADD COLUMN stats_logs_enabled INTEGER NOT NULL DEFAULT 0");
+    }
+}
+
+function migrateAutomodRaidLocksSchema() {
+    const columns = new Set(db.prepare("PRAGMA table_info(automod_raid_locks)").all().map(row => row.name));
+    if (!columns.has("prev_send")) {
+        db.exec("ALTER TABLE automod_raid_locks ADD COLUMN prev_send TEXT NOT NULL DEFAULT 'neutral'");
     }
 }
 
@@ -410,6 +418,7 @@ function initializeDatabase() {
         for (const statement of indexes) db.exec(statement);
         migrateGuildSettingsSchema();
         migrateTempVoiceSchema();
+        migrateAutomodRaidLocksSchema();
         db.exec("COMMIT");
         initialized = true;
         console.log(`🗄️ SQLite conectado: ${databasePath}`);

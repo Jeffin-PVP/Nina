@@ -5,6 +5,7 @@ const {
 
 const { encontrarCanalDeAnuncio } = require("../utils/findAnnounceChannel");
 const BannedGuildRepository = require("../database/repositories/BannedGuildRepository");
+const NativeAutomodSync = require("../managers/NativeAutomodSync");
 
 /*
 =========================
@@ -102,6 +103,9 @@ module.exports = {
             return;
 
         }
+
+        // Cria as regras nativas de AutoMod do Discord no servidor novo
+        NativeAutomodSync.schedule(guild.id);
 
         try {
 

@@ -28,7 +28,15 @@ class ApiServer {
         this.app.get("/teste", (req, res) => res.status(200).send("NINA PUBLIC TEST OK"));
         this.app.get("/health", (req, res) => res.status(200).json({ ok: true }));
 
-        this.app.use(cors());
+        // Os painéis são servidos por esta mesma API (mesma origem), então CORS só
+        // precisa liberar o PUBLIC_URL. Sem PUBLIC_URL, nenhuma origem externa.
+        let origemPermitida = false;
+
+        try {
+            if (process.env.PUBLIC_URL) origemPermitida = new URL(process.env.PUBLIC_URL).origin;
+        } catch { /* PUBLIC_URL inválida: mantém CORS fechado */ }
+
+        this.app.use(cors({ origin: origemPermitida }));
         this.app.use(express.json({ limit: "100kb" }));
 
         this.app.get("/", (req, res) => {

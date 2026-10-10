@@ -27,6 +27,9 @@ const TempVoiceManager =
 const Emojis =
     require("./src/utils/emojis");
 
+const NativeAutomodSync =
+    require("./src/managers/NativeAutomodSync");
+
 const {
     Client,
     GatewayIntentBits,
@@ -63,7 +66,10 @@ const client = new Client({
 
         GatewayIntentBits.GuildVoiceStates,
 
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+
+        // eventos das regras nativas de AutoMod (warn + log da Nina)
+        GatewayIntentBits.AutoModerationExecution
 
     ],
 
@@ -101,7 +107,6 @@ const client = new Client({
         GuildBanManager: 0,
         ThreadMemberManager: 0,
         DMMessageManager: 0,
-        AutoModerationRuleManager: 0,
         EntitlementManager: 0
 
         // Presences e VoiceStates ficam no padrão: os contadores Online/Em call usam
@@ -267,6 +272,9 @@ client.once(
 
         Emojis.sync(client);
 
+        // Cria/atualiza as regras nativas de AutoMod em todos os servidores
+        NativeAutomodSync.init(client);
+
         console.log(
             `🆔 ID: ${client.user.id}`
         );
@@ -280,7 +288,9 @@ client.once(
         );
 
         console.log(
-            "🟢 IA: Conectada"
+            process.env.GROQ_API_KEY
+                ? "🟢 IA: Configurada (GROQ_API_KEY presente)"
+                : "🔴 IA: GROQ_API_KEY ausente — respostas de IA vão falhar"
         );
 
         console.log(

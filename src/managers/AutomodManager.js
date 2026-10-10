@@ -6,62 +6,24 @@ const LogManager = require("./LogManager");
 const LogTypes = require("./LogTypes");
 const AntiScamManager = require("../antiScam/AntiScamManager");
 const ui = require("../utils/ui");
+const filtro = require("../utils/profanityFilter");
+
+const { PALAVROES_PADRAO, normalizar } = filtro;
 
 // "Executor" usado nos logs pra deixar claro que foi o AutoMod, não um humano
 const EXECUTOR_AUTOMOD = { tag: "🤖 AutoMod", username: "AutoMod" };
 
 /*
 =========================
-    LISTA BÁSICA DE PALAVRÕES (embutida)
+    FILTRO DE PALAVRÕES
 =========================
-    Propositalmente curta e com termos genéricos (sem xingamentos de ódio/
-    discriminatórios) — cada servidor deve completar a lista com
-    /automod palavras adicionar de acordo com o que faz sentido pra sua
-    comunidade.
+    A lógica fica em src/utils/profanityFilter.js (sem dependência do Discord,
+    coberta por tests/profanityFilter.test.js).
 */
-
-const PALAVROES_PADRAO = [
-    "porra", "caralho", "merda", "bosta", "cacete", "desgraca",
-    "puta", "fdp", "foda-se", "fodase", "arrombado", "cuzao", "otario"
-];
-
-/*
-=========================
-    NORMALIZAÇÃO DE TEXTO (pra pegar tentativas de burlar o filtro)
-=========================
-*/
-
-function normalizar(texto) {
-
-    return String(texto || "")
-        .toLowerCase()
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
-        .replace(/[^a-z0-9\s]/g, " ") // pontuação/símbolos viram espaço
-        .replace(/(.)\1{2,}/g, "$1$1") // "caraaaaalho" -> "caraalho"
-        .replace(/0/g, "o").replace(/1/g, "i").replace(/3/g, "e")
-        .replace(/4/g, "a").replace(/5/g, "s").replace(/7/g, "t")
-        .replace(/\s+/g, " ")
-        .trim();
-
-}
 
 function contemPalavrao(conteudo, palavrasCustom) {
 
-    const textoNormalizado = normalizar(conteudo);
-
-    if (!textoNormalizado) return false;
-
-    const lista = [...PALAVROES_PADRAO, ...AutomodRepository.parseLista(palavrasCustom)];
-
-    return lista.some(palavra => {
-
-        const p = normalizar(palavra);
-
-        if (!p) return false;
-
-        return new RegExp(`(^|[^a-z0-9])${p}([^a-z0-9]|$)`).test(textoNormalizado);
-
-    });
+    return filtro.contemPalavrao(conteudo, [...PALAVROES_PADRAO, ...AutomodRepository.parseLista(palavrasCustom)]);
 
 }
 
@@ -209,7 +171,7 @@ async function aplicarAcoes(message, acoesCsv, motivo, duracaoMuteMinutos) {
 
         const aviso = await message.channel.send({
             content: `${message.author}`,
-            embeds: [ui.warn(`Sua mensagem foi removida pelo AutoMod.\n${ui.quote(motivo)}`, "AutoMod", message)]
+            embeds: [ui.warn(`${acoes.includes("delete") ? "Sua mensagem foi removida pelo AutoMod." : "Atenção: sua mensagem violou as regras do servidor (AutoMod)."}\n${ui.quote(motivo)}`, "AutoMod", message)]
         }).catch(() => null);
 
         if (aviso) setTimeout(() => aviso.delete().catch(() => {}), 7000);
@@ -371,6 +333,16 @@ async function registrarEntrada(member) {
 
     if (lista.length >= config.raid_join_threshold && !raidAtivo.has(guildId)) {
 
+        // após um reinício o Set some, mas os canais travados ficam salvos no banco
+        const travados = await AutomodRepository.listRaidLocks(guildId);
+
+        if (travados.length) {
+
+            raidAtivo.add(guildId);
+            return;
+
+        }
+
         raidAtivo.add(guildId);
 
         await ativarModoRaid(member.guild, config, lista.map(e => e.id));
@@ -400,7 +372,9 @@ async function ativarModoRaid(guild, config, membrosNaJanela) {
 
         const membro = await guild.members.fetch(userId).catch(() => null);
 
-        if (!membro || !membro.kickable) continue;
+        if (!membro) continue;
+
+        if (config.raid_action === "ban_new" ? !membro.bannable : !membro.kickable) continue;
 
         try {
 
@@ -441,8 +415,11 @@ async function travarServidor(guild) {
 
             if (jaTrancado) continue;
 
+            // guarda se o @everyone tinha "permitir" explícito, pra restaurar igual depois
+            const anterior = overwrite?.allow.has(PermissionFlagsBits.SendMessages) ? "allow" : "neutral";
+
             await canal.permissionOverwrites.edit(guild.id, { SendMessages: false }, { reason: "AutoMod: lockdown de anti-raid" });
-            await AutomodRepository.addRaidLock(guild.id, canal.id);
+            await AutomodRepository.addRaidLock(guild.id, canal.id, anterior);
 
         } catch {
             // segue tentando os próximos canais
@@ -454,12 +431,12 @@ async function travarServidor(guild) {
 
 async function encerrarModoRaid(guild) {
 
-    const canaisTravados = await AutomodRepository.listRaidLocks(guild.id);
+    const canaisTravados = await AutomodRepository.listRaidLockDetails(guild.id);
     const botMember = await guild.members.fetchMe();
 
     let destravados = 0;
 
-    for (const channelId of canaisTravados) {
+    for (const { channel_id: channelId, prev_send: anterior } of canaisTravados) {
 
         const canal = guild.channels.cache.get(channelId);
 
@@ -467,7 +444,7 @@ async function encerrarModoRaid(guild) {
 
         try {
 
-            await canal.permissionOverwrites.edit(guild.id, { SendMessages: null }, { reason: "AutoMod: fim do lockdown de anti-raid" });
+            await canal.permissionOverwrites.edit(guild.id, { SendMessages: anterior === "allow" ? true : null }, { reason: "AutoMod: fim do lockdown de anti-raid" });
             destravados++;
 
         } catch {
@@ -493,6 +470,7 @@ async function encerrarModoRaid(guild) {
 
 module.exports = {
     checkMessage,
+    contemPalavrao,
     registrarEntrada,
     encerrarModoRaid,
     PALAVROES_PADRAO
