@@ -3,6 +3,8 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
+const { iniciarUnveil } = require('./unveil');
+
 const ApiServer =
     require("./src/api/server");
 
@@ -315,3 +317,6 @@ client.login(
     console.error("🌐 O dashboard continua no ar mesmo assim, em modo 'bot offline'.");
 
 });
+
+
+iniciarUnveil(client);
