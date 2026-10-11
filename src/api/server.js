@@ -182,14 +182,17 @@ class ApiServer {
         this.app.use("/api/dashboard", dashboardRoutes);
         this.app.use("/api/panel", panelRoutes);
 
+        // Os arquivos do site ficam na pasta public, na raiz do projeto.
+        const publicDir = path.join(__dirname, "..", "..", "public");
+
         this.app.use(
             "/dashboard",
-            express.static(path.join(__dirname, "..", "dashboard"))
+            express.static(path.join(publicDir, "dashboard"), { index: "index.html" })
         );
 
         this.app.use(
             "/panel",
-            express.static(path.join(__dirname, "..", "panel"))
+            express.static(path.join(publicDir, "panel"), { index: "index.html" })
         );
 
         // Verificação simples de disponibilidade.
