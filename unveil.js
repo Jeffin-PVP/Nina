@@ -1,3 +1,4 @@
+const { Events } = require('discord.js');
 
 const BASE_URL =
     'https://unveil.shardweb.app/api/bots/1551732753047879860';
@@ -38,7 +39,7 @@ async function enviarServerCount(client) {
 }
 
 function iniciarUnveil(client) {
-    client.once('ready', () => {
+    client.once(Events.ClientReady, () => {
         enviarServerCount(client);
 
         setInterval(() => {

@@ -56,9 +56,18 @@ module.exports = {
 
         }
 
-        await EconomyManager.removeMoney(guildId, userId, bet);
-
         await interaction.deferReply();
+
+        // Só segue se a aposta foi realmente debitada (retorno antes ignorado)
+        const paid = await EconomyManager.removeMoney(guildId, userId, bet);
+
+        if (!paid) {
+
+            return interaction.editReply({
+                embeds: [ui.error("Seu saldo mudou e agora é insuficiente para essa aposta.", "Saldo insuficiente", interaction)]
+            });
+
+        }
 
         const result = [spin(), spin(), spin()];
 
@@ -69,17 +78,24 @@ module.exports = {
             result
         ];
 
+        // A animação é só visual: se uma edição falhar, o prêmio continua valendo
         for (const frame of frames) {
 
-            const embed = ui.titled(
-                ui.COLORS.game,
-                "slots",
-                "Caça-Níquel",
-                `${ui.LINE}\n## ${reels(frame)}\n${ui.LINE}\n${e("dice")} Girando...`,
-                interaction
-            ).setFooter({ text: `Aposta: ${ui.num(bet)} moedas` });
+            try {
 
-            await interaction.editReply({ embeds: [embed] });
+                const embed = ui.titled(
+                    ui.COLORS.game,
+                    "slots",
+                    "Caça-Níquel",
+                    `${ui.LINE}\n## ${reels(frame)}\n${ui.LINE}\n${e("dice")} Girando...`,
+                    interaction
+                ).setFooter({ text: `Aposta: ${ui.num(bet)} moedas` });
+
+                await interaction.editReply({ embeds: [embed] });
+
+            } catch {
+                // ignora falha de animação
+            }
 
             await new Promise(resolve => setTimeout(resolve, 700));
 

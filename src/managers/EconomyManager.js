@@ -82,27 +82,12 @@ class EconomyManager {
         amount
     ) {
 
-        const user =
-            await EconomyRepository.getUser(
-                guildId,
-                userId
-            );
-
-        if (user.wallet < amount) {
-
-            return false;
-
-        }
-
-        await EconomyRepository.removeWallet(
-
+        // Checagem de saldo e débito num único passo atômico
+        return EconomyRepository.tryRemoveWallet(
             guildId,
             userId,
             amount
-
         );
-
-        return true;
 
     }
 
@@ -152,31 +137,18 @@ class EconomyManager {
         amount
     ) {
 
-        const user =
-            await EconomyRepository.getUser(
+        const debited =
+            await EconomyRepository.tryRemoveWallet(
                 guildId,
-                userId
+                userId,
+                amount
             );
 
-        if (
-
-            amount <= 0 ||
-
-            user.wallet < amount
-
-        ) {
+        if (!debited) {
 
             return false;
 
         }
-
-        await EconomyRepository.removeWallet(
-
-            guildId,
-            userId,
-            amount
-
-        );
 
         await EconomyRepository.addBank(
 
@@ -196,31 +168,18 @@ class EconomyManager {
         amount
     ) {
 
-        const user =
-            await EconomyRepository.getUser(
+        const debited =
+            await EconomyRepository.tryRemoveBank(
                 guildId,
-                userId
+                userId,
+                amount
             );
 
-        if (
-
-            amount <= 0 ||
-
-            user.bank < amount
-
-        ) {
+        if (!debited) {
 
             return false;
 
         }
-
-        await EconomyRepository.removeBank(
-
-            guildId,
-            userId,
-            amount
-
-        );
 
         await EconomyRepository.addWallet(
 
@@ -362,6 +321,26 @@ class EconomyManager {
                 profile.total
 
         };
+
+    }
+
+    /*
+    =========================
+        COLETA ATÔMICA (daily / work)
+    =========================
+        Marca o horário e libera a recompensa só se o cooldown já passou.
+        Retorna true se esta chamada ganhou a coleta.
+    */
+
+    static claimDailySlot(guildId, userId, now, cooldownMs) {
+
+        return EconomyRepository.tryClaimCooldown(guildId, userId, "daily_at", now, cooldownMs);
+
+    }
+
+    static claimWorkSlot(guildId, userId, now, cooldownMs) {
+
+        return EconomyRepository.tryClaimCooldown(guildId, userId, "work_at", now, cooldownMs);
 
     }
 

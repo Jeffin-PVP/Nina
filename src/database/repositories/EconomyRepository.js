@@ -34,7 +34,7 @@ class EconomyRepository {
             await database.run(
 
                 `
-                INSERT INTO economy_users (
+                INSERT OR IGNORE INTO economy_users (
 
                     guild_id,
                     user_id
@@ -167,26 +167,20 @@ class EconomyRepository {
 
     }
 
+    // As operações abaixo são UM único UPDATE (atômico no SQLite). Ler o saldo,
+    // calcular em JS e gravar depois permitia perder valores quando dois
+    // comandos do mesmo usuário rodavam ao mesmo tempo.
     static async addWallet(
         guildId,
         userId,
         amount
     ) {
 
-        const wallet =
-            await this.getWallet(
-                guildId,
-                userId
-            );
+        await this.getUser(guildId, userId);
 
-        await this.setWallet(
-
-            guildId,
-
-            userId,
-
-            wallet + amount
-
+        await database.run(
+            `UPDATE economy_users SET wallet = wallet + ? WHERE guild_id = ? AND user_id = ?`,
+            [amount, guildId, userId]
         );
 
     }
@@ -197,24 +191,77 @@ class EconomyRepository {
         amount
     ) {
 
-        const wallet =
-            await this.getWallet(
-                guildId,
-                userId
-            );
+        await this.getUser(guildId, userId);
 
-        await this.setWallet(
-
-            guildId,
-
-            userId,
-
-            Math.max(
-                0,
-                wallet - amount
-            )
-
+        await database.run(
+            `UPDATE economy_users SET wallet = MAX(0, wallet - ?) WHERE guild_id = ? AND user_id = ?`,
+            [amount, guildId, userId]
         );
+
+    }
+
+    // Debita SOMENTE se houver saldo (checagem e débito no mesmo UPDATE).
+    // Retorna true se debitou, false se o saldo era insuficiente.
+    static async tryRemoveWallet(
+        guildId,
+        userId,
+        amount
+    ) {
+
+        if (!(amount > 0)) return false;
+
+        await this.getUser(guildId, userId);
+
+        const result = await database.run(
+            `UPDATE economy_users SET wallet = wallet - ? WHERE guild_id = ? AND user_id = ? AND wallet >= ?`,
+            [amount, guildId, userId, amount]
+        );
+
+        return result.changes > 0;
+
+    }
+
+    static async tryRemoveBank(
+        guildId,
+        userId,
+        amount
+    ) {
+
+        if (!(amount > 0)) return false;
+
+        await this.getUser(guildId, userId);
+
+        const result = await database.run(
+            `UPDATE economy_users SET bank = bank - ? WHERE guild_id = ? AND user_id = ? AND bank >= ?`,
+            [amount, guildId, userId, amount]
+        );
+
+        return result.changes > 0;
+
+    }
+
+    // Marca daily/work como coletado SOMENTE se o cooldown já passou.
+    // Evita coletar duas vezes com dois comandos disparados ao mesmo tempo.
+    static async tryClaimCooldown(
+        guildId,
+        userId,
+        column,
+        now,
+        cooldownMs
+    ) {
+
+        if (column !== "daily_at" && column !== "work_at") {
+            throw new TypeError(`Coluna de cooldown inválida: ${column}`);
+        }
+
+        await this.getUser(guildId, userId);
+
+        const result = await database.run(
+            `UPDATE economy_users SET ${column} = ? WHERE guild_id = ? AND user_id = ? AND (${column} IS NULL OR ${column} + ? <= ?)`,
+            [now, guildId, userId, cooldownMs, now]
+        );
+
+        return result.changes > 0;
 
     }
 
@@ -265,20 +312,11 @@ class EconomyRepository {
         amount
     ) {
 
-        const bank =
-            await this.getBank(
-                guildId,
-                userId
-            );
+        await this.getUser(guildId, userId);
 
-        await this.setBank(
-
-            guildId,
-
-            userId,
-
-            bank + amount
-
+        await database.run(
+            `UPDATE economy_users SET bank = bank + ? WHERE guild_id = ? AND user_id = ?`,
+            [amount, guildId, userId]
         );
 
     }
@@ -289,23 +327,11 @@ class EconomyRepository {
         amount
     ) {
 
-        const bank =
-            await this.getBank(
-                guildId,
-                userId
-            );
+        await this.getUser(guildId, userId);
 
-        await this.setBank(
-
-            guildId,
-
-            userId,
-
-            Math.max(
-                0,
-                bank - amount
-            )
-
+        await database.run(
+            `UPDATE economy_users SET bank = MAX(0, bank - ?) WHERE guild_id = ? AND user_id = ?`,
+            [amount, guildId, userId]
         );
 
     }
@@ -444,20 +470,11 @@ DAILY
         amount
     ) {
 
-        const xp =
-            await this.getXP(
-                guildId,
-                userId
-            );
+        await this.getUser(guildId, userId);
 
-        await this.setXP(
-
-            guildId,
-
-            userId,
-
-            xp + amount
-
+        await database.run(
+            `UPDATE economy_users SET xp = xp + ? WHERE guild_id = ? AND user_id = ?`,
+            [amount, guildId, userId]
         );
 
     }
@@ -758,28 +775,25 @@ TRANSFERÊNCIA
             toUserId
         );
 
-        const sender =
-            await this.getUser(
+        // Débito condicional e atômico: se dois /pay rodarem ao mesmo tempo com o
+        // mesmo saldo, só um passa (antes os dois passavam e o destinatário
+        // recebia o valor em dobro).
+        const debited =
+            await this.tryRemoveWallet(
+
                 guildId,
-                fromUserId
+
+                fromUserId,
+
+                amount
+
             );
 
-        if (sender.wallet < amount) {
+        if (!debited) {
 
             return false;
 
         }
-
-        // Remove do remetente
-        await this.removeWallet(
-
-            guildId,
-
-            fromUserId,
-
-            amount
-
-        );
 
         // Adiciona ao destinatário
         await this.addWallet(

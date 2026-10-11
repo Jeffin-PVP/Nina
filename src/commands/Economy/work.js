@@ -94,11 +94,22 @@ module.exports = {
 
         }
 
+        // Reserva a coleta de forma atômica ANTES de pagar (evita /work duplo)
+        const claimed = await EconomyManager.claimWorkSlot(guildId, userId, now, WORK_COOLDOWN);
+
+        if (!claimed) {
+
+            return interaction.reply({
+                embeds: [ui.error("Você já trabalhou há pouco. Descanse um pouco!", "Você está cansado!", interaction)],
+                flags: MessageFlags.Ephemeral
+            });
+
+        }
+
         const job = jobs[Math.floor(Math.random() * jobs.length)];
         const reward = Math.floor(Math.random() * (job.max - job.min + 1)) + job.min;
 
-        await EconomyManager.addCoins(guildId, userId, reward, `Work (${job.name})`);
-        await EconomyManager.updateWork(guildId, userId, now);
+        await EconomyManager.addCoins(guildId, userId, reward);
 
         const updated = await EconomyManager.getProfile(guildId, userId);
 

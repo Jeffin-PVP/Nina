@@ -476,8 +476,15 @@ function close() {
     try { db.close(); } catch {}
 }
 
-process.once("SIGINT", close);
-process.once("SIGTERM", close);
+// Registrar um listener de SIGINT/SIGTERM remove o comportamento padrão de
+// encerrar o processo; por isso, depois de fechar o banco, saímos explicitamente.
+function shutdown() {
+    close();
+    process.exit(0);
+}
+
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);
 
 module.exports = {
     db,

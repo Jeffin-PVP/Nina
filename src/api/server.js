@@ -20,7 +20,28 @@ class ApiServer {
         this.client = client;
         this.app = express();
 
-        this.app.use(cors());
+        // CORS restrito ao endereço público do painel/dashboard. Como o site é
+        // servido por este mesmo servidor, requisições do próprio site não
+        // dependem de CORS; qualquer outra origem fica bloqueada.
+        let corsOrigin = false;
+
+        try {
+            if (process.env.PUBLIC_URL) {
+                corsOrigin = new URL(process.env.PUBLIC_URL).origin;
+            }
+        } catch {
+            console.warn("[API] PUBLIC_URL inválida; CORS desativado para outras origens.");
+        }
+
+        this.app.use(cors({ origin: corsOrigin }));
+
+        // Atrás de proxy reverso (Railway, Render, etc.) o IP real vem em
+        // X-Forwarded-For; sem isso, o limite de tentativas de login do
+        // dashboard enxergaria todos como o mesmo IP do proxy.
+        if (process.env.TRUST_PROXY) {
+            const valor = process.env.TRUST_PROXY;
+            this.app.set("trust proxy", /^\d+$/.test(valor) ? Number(valor) : valor);
+        }
         this.app.use(express.json({ limit: "100kb" }));
         this.app.use(express.urlencoded({ extended: true }));
 
@@ -178,9 +199,11 @@ class ApiServer {
         // ==========================================
         // ROTAS DA API E PAINÉIS EXISTENTES
         // ==========================================
-        this.app.use("/api", routes);
-        this.app.use("/api/dashboard", dashboardRoutes);
-        this.app.use("/api/panel", panelRoutes);
+        // Cada módulo exporta uma função que recebe o client e devolve o Router.
+        // Montar a função direto no Express faria toda requisição ficar pendurada.
+        this.app.use("/api/dashboard", dashboardRoutes(this.client));
+        this.app.use("/api/panel", panelRoutes(this.client));
+        this.app.use("/api", routes(this.client));
 
         // Os arquivos do site ficam na pasta public, na raiz do projeto.
         const publicDir = path.join(__dirname, "..", "..", "public");

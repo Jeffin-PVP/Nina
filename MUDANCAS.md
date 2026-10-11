@@ -23,3 +23,10 @@
 ## Não alterado (decisão sua)
 - `process.on("uncaughtException")` continua só registrando o erro; o ideal é registrar e reiniciar.
 - Sessões do painel continuam em memória (todos deslogam ao reiniciar).
+
+
+## Correções de revisão (erros encontrados e corrigidos)
+- `src/api/server.js`: `routes`, `dashboardRoutes` e `panelRoutes` agora são chamados com `(client)` (antes toda a API travava); CORS realmente restrito ao `PUBLIC_URL`; `TRUST_PROXY` opcional para o IP real atrás de proxy.
+- `src/database/database.js`: SIGINT/SIGTERM agora fecham o banco e encerram o processo.
+- `unveil.js`: usa `Events.ClientReady` (o evento `ready` é depreciado).
+- Economia: `addWallet/removeWallet/addBank/removeBank/addXP` atômicos; `transfer`, `removeMoney`, `deposit` e `withdraw` com débito condicional (sem duplicar moedas); `/daily` e `/work` com coleta atômica; `coinflip`/`slots` só rodam se a aposta foi debitada; `getUser` com `INSERT OR IGNORE`.

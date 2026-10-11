@@ -43,8 +43,20 @@ module.exports = {
 
         }
 
-        await EconomyManager.addCoins(guildId, userId, DAILY_AMOUNT, "Daily");
-        await EconomyManager.updateDaily(guildId, userId, now);
+        // Reserva a coleta de forma atômica ANTES de pagar: dois /daily
+        // simultâneos não conseguem receber a recompensa duas vezes.
+        const claimed = await EconomyManager.claimDailySlot(guildId, userId, now, DAILY_COOLDOWN);
+
+        if (!claimed) {
+
+            return interaction.reply({
+                embeds: [ui.error("Você já coletou hoje!", "Daily indisponível", interaction)],
+                flags: MessageFlags.Ephemeral
+            });
+
+        }
+
+        await EconomyManager.addCoins(guildId, userId, DAILY_AMOUNT);
 
         const updated = await EconomyManager.getProfile(guildId, userId);
 
