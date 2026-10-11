@@ -176,43 +176,28 @@ module.exports = (client) => {
                 SERVIDORES DO PAINEL
             =========================
 
-                Dono da Nina:
-                - pode ver TODOS os servidores onde o bot está;
-                - isso inclui servidores onde o dono não está pessoalmente.
+                A lista sempre parte dos servidores retornados pelo OAuth
+                do próprio usuário. Ser dono da Nina não deve incluir
+                servidores em que esse usuário não participa.
 
-                Outros usuários:
-                - continuam vendo somente servidores onde estão;
-                - precisam ter permissão de gerenciar o servidor.
+                O usuário precisa ser dono do servidor ou ter permissão
+                de Administrador/Gerenciar servidor.
             */
 
             const isOwner = String(user.id) === String(process.env.OWNER_ID);
 
-            let guilds;
-
-            if (isOwner) {
-
-                guilds = [...client.guilds.cache.values()]
-                    .map(g => ({
-                        id: g.id,
-                        name: g.name,
-                        icon: g.iconURL({ extension: "png", size: 128 }),
-                        botPresent: true
-                    }))
-                    .sort((a, b) => a.name.localeCompare(b.name));
-
-            } else {
-
-                guilds = guildsRaw
-                    .filter(temPermissaoDeGerenciar)
-                    .map(g => ({
-                        id: g.id,
-                        name: g.name,
-                        icon: g.icon ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png` : null,
-                        botPresent: client.guilds.cache.has(g.id)
-                    }))
-                    .sort((a, b) => Number(b.botPresent) - Number(a.botPresent));
-
-            }
+            const guilds = guildsRaw
+                .filter(temPermissaoDeGerenciar)
+                .map(g => ({
+                    id: g.id,
+                    name: g.name,
+                    icon: g.icon
+                        ? `https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png`
+                        : null,
+                    botPresent: client.guilds.cache.has(g.id)
+                }))
+                .sort((a, b) => Number(b.botPresent) - Number(a.botPresent)
+                    || a.name.localeCompare(b.name));
 
             limparSessoesExpiradas();
 
