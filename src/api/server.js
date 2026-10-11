@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
-
+// O Discord.js v14 não exporta mais o ClientEvents, então importamos apenas os builders que precisamos.
 const {
     EmbedBuilder,
     ActionRowBuilder,
