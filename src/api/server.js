@@ -46,23 +46,23 @@ class ApiServer {
         this.app.use(express.urlencoded({ extended: true }));
 
         // ==========================================
-        // UNVEIL - WEBHOOK DE VOTOS
+        // REVEYL - WEBHOOK DE VOTOS
         // ==========================================
-        this.app.post("/api/unveil/vote", async (req, res) => {
+        this.app.post("/api/reveyl/vote", async (req, res) => {
             try {
-                const secret = process.env.UNVEIL_WEBHOOK_SECRET;
+                const secret = process.env.REVEYL_WEBHOOK_SECRET;
                 const authorization = req.get("Authorization");
 
-                // Confere a senha configurada no Unveil.
+                // Confere a senha configurada no Reveyl.
                 if (!secret || authorization !== secret) {
-                    console.warn("[Unveil Vote] Autorização inválida.");
+                    console.warn("[Reveyl Vote] Autorização inválida.");
                     return res.sendStatus(401);
                 }
 
                 const { bot, user, type } = req.body || {};
 
                 // Não registrar tokens, senhas ou cabeçalhos de autorização.
-                console.log("[Unveil Vote] Payload recebido:", {
+                console.log("[Reveyl Vote] Payload recebido:", {
                     bot: bot ?? null,
                     user: user ?? null,
                     type: type ?? null,
@@ -72,7 +72,7 @@ class ApiServer {
 
                 // Se o bot ainda estiver iniciando, não processa o voto.
                 if (!this.client.isReady()) {
-                    console.warn("[Unveil Vote] Bot ainda não está pronto.");
+                    console.warn("[Reveyl Vote] Bot ainda não está pronto.");
                     return res.sendStatus(503);
                 }
 
@@ -84,7 +84,7 @@ class ApiServer {
                     !/^\d{17,20}$/.test(String(user))
                 ) {
                     console.log(
-                        "[Unveil Vote] Teste ou evento não contabilizado."
+                        "[Reveyl Vote] Teste ou evento não contabilizado."
                     );
                     return res.sendStatus(204);
                 }
@@ -92,17 +92,17 @@ class ApiServer {
                 // Impede contabilizar um voto destinado a outro bot.
                 if (bot && String(bot) !== this.client.user.id) {
                     console.warn(
-                        "[Unveil Vote] O ID recebido não corresponde à Nina."
+                        "[Reveyl Vote] O ID recebido não corresponde à Nina."
                     );
                     return res.sendStatus(204);
                 }
 
-                const channelId = process.env.UNVEIL_VOTE_CHANNEL_ID;
-                const voteUrl = process.env.UNVEIL_VOTE_URL;
+                const channelId = process.env.REVEYL_VOTE_CHANNEL_ID;
+                const voteUrl = process.env.REVEYL_VOTE_URL;
 
                 if (!channelId) {
                     console.error(
-                        "[Unveil Vote] UNVEIL_VOTE_CHANNEL_ID não configurado."
+                        "[Reveyl Vote] REVEYL_VOTE_CHANNEL_ID não configurado."
                     );
                     return res.sendStatus(500);
                 }
@@ -112,14 +112,14 @@ class ApiServer {
 
                 if (!channel || !channel.isTextBased() || !channel.send) {
                     console.error(
-                        "[Unveil Vote] Canal não encontrado ou não é de texto."
+                        "[Reveyl Vote] Canal não encontrado ou não é de texto."
                     );
                     return res.sendStatus(500);
                 }
 
                 // Salva a contagem de votos recebidos desde a instalação.
                 const dataDir = path.join(__dirname, "..", "..", "data");
-                const votesFile = path.join(dataDir, "unveil-votes.json");
+                const votesFile = path.join(dataDir, "reveyl-votes.json");
 
                 fs.mkdirSync(dataDir, { recursive: true });
 
@@ -132,7 +132,7 @@ class ApiServer {
                         );
                     } catch (error) {
                         console.error(
-                            "[Unveil Vote] Erro ao ler o arquivo de votos:",
+                            "[Reveyl Vote] Erro ao ler o arquivo de votos:",
                             error.message
                         );
                     }
@@ -150,7 +150,7 @@ class ApiServer {
                     .setColor(0xf569ff)
                     .setTitle("🌟 A Nina recebeu um voto!")
                     .setDescription(
-                        `<@${user}> votou na Nina pelo Unveil. Obrigado pelo apoio!`
+                        `<@${user}> votou na Nina pelo Reveyl. Obrigado pelo apoio!`
                     )
                     .addFields(
                         {
@@ -185,13 +185,13 @@ class ApiServer {
                 });
 
                 console.log(
-                    `[Unveil Vote] Voto de ${user} processado com sucesso.`
+                    `[Reveyl Vote] Voto de ${user} processado com sucesso.`
                 );
 
                 // O webhook espera uma resposta HTTP 2xx.
                 return res.sendStatus(204);
             } catch (error) {
-                console.error("[Unveil Vote] Erro no webhook:", error);
+                console.error("[Reveyl Vote] Erro no webhook:", error);
                 return res.sendStatus(500);
             }
         });

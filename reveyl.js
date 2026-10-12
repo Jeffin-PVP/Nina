@@ -1,13 +1,13 @@
 const { Events } = require('discord.js');
 
 const BASE_URL =
-    'https://unveil.shardweb.app/api/bots/1551732753047879860';
+    'https://reveyl.shardweb.app/api/bots/1551732753047879860';
 
 async function enviarServerCount(client) {
-    const token = process.env.UNVEIL_TOKEN;
+    const token = process.env.REVEYL_TOKEN;
 
     if (!token) {
-        console.error('[Unveil] UNVEIL_TOKEN não configurado no .env');
+        console.error('[Reveyl] REVEYL_TOKEN não configurado no .env');
         return;
     }
 
@@ -26,19 +26,19 @@ async function enviarServerCount(client) {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok || data.ok === false) {
-            console.error('[Unveil] Erro:', response.status, data);
+            console.error('[Reveyl] Erro:', response.status, data);
             return;
         }
 
         console.log(
-            `[Unveil] Server count enviado: ${client.guilds.cache.size}`
+            `[Reveyl] Server count enviado: ${client.guilds.cache.size}`
         );
     } catch (error) {
-        console.error('[Unveil] Falha ao enviar estatísticas:', error);
+        console.error('[Reveyl] Falha ao enviar estatísticas:', error);
     }
 }
 
-function iniciarUnveil(client) {
+function iniciarReveyl(client) {
     client.once(Events.ClientReady, () => {
         enviarServerCount(client);
 
@@ -48,4 +48,4 @@ function iniciarUnveil(client) {
     });
 }
 
-module.exports = { iniciarUnveil, enviarServerCount };
+module.exports = { iniciarReveyl, enviarServerCount };

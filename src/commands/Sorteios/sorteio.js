@@ -190,6 +190,12 @@ module.exports = {
 
             }
 
+            if (!interaction.guild) {
+                return interaction.reply({
+                    content: 'Este comando só pode ser usado dentro de um servidor.',
+                    ephemeral: true
+                });
+            }
             const botMember = await guild.members.fetchMe();
             const permissoesCanal = canal.permissionsFor(botMember);
 
@@ -229,7 +235,7 @@ module.exports = {
                 guild,
                 executor: interaction.user,
                 extra: { prize: premio, winners: vencedores, channelId: canal.id }
-            }).catch(() => {});
+            }).catch(() => { });
 
             return ui.respond(interaction, ui.panel({
                 color: ui.COLORS.success,
@@ -336,7 +342,7 @@ module.exports = {
                 guild,
                 executor: interaction.user,
                 extra: { prize: giveawayAtualizado.prize, mudancas: mudancas.join("\n") }
-            }).catch(() => {});
+            }).catch(() => { });
 
             return ui.respond(interaction, ui.panel({
                 color: ui.COLORS.success,
@@ -406,7 +412,7 @@ module.exports = {
                 guild,
                 executor: interaction.user,
                 extra: { prize: giveaway.prize }
-            }).catch(() => {});
+            }).catch(() => { });
 
             return ui.ok(interaction, `O sorteio ${ui.code(id)} (**${giveaway.prize}**) foi cancelado.`, "Sorteio cancelado");
 

@@ -178,6 +178,7 @@ module.exports = {
 
             }
 
+            if (!interaction.guild) return interaction.reply({ content: 'Este comando só pode ser usado em servidores.', ephemeral: true });
             const config = await TicketRepository.getConfig(guild.id);
 
             if (!config.parent_channel_id) {

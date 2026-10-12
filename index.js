@@ -3,7 +3,7 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
-const { iniciarUnveil } = require('./unveil');
+const { iniciarReveyl } = require('./reveyl');
 
 const ApiServer =
     require("./src/api/server");
@@ -319,4 +319,4 @@ client.login(
 });
 
 
-iniciarUnveil(client);
+iniciarReveyl(client);
