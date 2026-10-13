@@ -605,3 +605,137 @@ img, svg { max-width: 100% }
 table { display: block; max-width: 100%; overflow-x: auto }
 input, select, textarea { max-width: 100% }
 @media (max-width: 720px) { .btn, button, input, select, textarea { min-height: 40px } }
+
+
+
+/* ===== Nina UI refinement: identidade visual e acabamento ===== */
+:root {
+    --bg: #0b0c10;
+    --panel: #111319;
+    --panel-2: #171922;
+    --border: #292b36;
+    --texto: #f1f0f5;
+    --texto-sutil: #9a9baa;
+    --acento: #e879f9;
+    --acento-2: #d946ef;
+    --sucesso: #63d9a1;
+    --aviso: #f4c96b;
+    --perigo: #fb7185;
+    --sans: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+html { color-scheme: dark; }
+body {
+    background:
+      radial-gradient(ellipse at 78% -15%, rgba(217,70,239,.075), transparent 38%),
+      var(--bg);
+    letter-spacing: .005em;
+}
+button, input, textarea { transition: border-color .16s ease, background .16s ease, color .16s ease, transform .16s ease; }
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--acento);
+    outline-offset: 2px;
+}
+.login-card {
+    width: min(390px, calc(100vw - 32px));
+    padding: 34px;
+    background: rgba(17,19,25,.96);
+    border-color: #30303d;
+    border-radius: 14px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.38);
+}
+.login-marca {
+    color: var(--texto);
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 750;
+    letter-spacing: -.02em;
+}
+.login-ponto {
+    background: var(--acento);
+    box-shadow: 0 0 0 4px rgba(232,121,249,.10);
+}
+.login-card h1 { font-size: 25px; letter-spacing: -.04em; }
+#form-login input {
+    min-height: 44px;
+    border-radius: 9px;
+    background: #0c0d12;
+}
+#form-login input:focus { border-color: var(--acento); }
+#form-login button {
+    min-height: 44px;
+    border-radius: 9px;
+    background: var(--acento);
+    color: #211024;
+}
+#form-login button:hover { background: #f0abfc; }
+.topbar {
+    min-height: 68px;
+    padding: 12px clamp(16px, 3vw, 34px);
+    background: rgba(17,19,25,.94);
+    border-bottom-color: #292b36;
+}
+.topbar-bot img { border-radius: 10px; }
+.topbar-bot strong { letter-spacing: -.015em; }
+.dot.online { box-shadow: 0 0 0 3px rgba(99,217,161,.10); }
+.corpo { min-height: calc(100vh - 68px); }
+.sidebar {
+    width: 224px;
+    flex: 0 0 224px;
+    padding: 22px 12px;
+    background: rgba(15,16,22,.96);
+    border-right-color: #292b36;
+}
+.nav-item {
+    position: relative;
+    padding: 11px 13px;
+    border-radius: 8px;
+    font-weight: 550;
+}
+.nav-item.ativo {
+    color: #f4d7f7;
+    background: rgba(232,121,249,.10);
+    box-shadow: inset 2px 0 0 var(--acento);
+}
+.nav-item:hover:not(.ativo) { background: #1b1c25; }
+.conteudo {
+    width: 100%;
+    max-width: 1180px;
+    padding: clamp(24px, 4vw, 44px);
+}
+.secao h2 { font-size: clamp(22px, 2vw, 27px); letter-spacing: -.04em; }
+.secao-sub { font-size: 13.5px; }
+.stat-card, .grafico-card, .info-card, .list-card, .servidor-card {
+    border-radius: 11px;
+    border-color: #2a2c37;
+    box-shadow: 0 4px 18px rgba(0,0,0,.10);
+}
+.stat-card {
+    padding: 18px;
+    background: linear-gradient(145deg, #171922, #13151c);
+}
+.stat-label { font-size: 12px; letter-spacing: .02em; }
+.stat-valor { letter-spacing: -.035em; }
+input, textarea, select {
+    border-radius: 8px;
+}
+button:active { transform: translateY(1px); }
+@media (max-width: 760px) {
+    .corpo { display: block; }
+    .sidebar {
+        width: 100%;
+        padding: 10px 12px;
+        border-right: 0;
+        border-bottom: 1px solid var(--border);
+        flex-direction: row;
+        overflow-x: auto;
+        gap: 6px;
+    }
+    .nav-item { flex: 0 0 auto; white-space: nowrap; }
+    .nav-item.ativo { box-shadow: inset 0 -2px 0 var(--acento); }
+    .conteudo { padding: 24px 16px; }
+    .login-card { padding: 28px 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+
