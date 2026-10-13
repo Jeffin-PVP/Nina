@@ -3,7 +3,6 @@ const {
     PermissionFlagsBits
 } = require("discord.js");
 
-const ui = require("../../utils/ui");
 const ConfigPanelManager = require("../../managers/ConfigPanelManager");
 
 module.exports = {
@@ -18,13 +17,8 @@ module.exports = {
 
     async execute(interaction) {
 
-        const payload = await ConfigPanelManager.buildHome(interaction);
-
-        return ui.respond(
-            interaction,
-            payload.embeds[0],
-            { ephemeral: true, components: payload.components }
-        );
+        // Painel em Container (Components V2), visível só para quem abriu.
+        return ConfigPanelManager.show(interaction);
 
     }
 

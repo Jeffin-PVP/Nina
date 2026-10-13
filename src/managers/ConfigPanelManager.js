@@ -5,10 +5,18 @@ const {
     StringSelectMenuBuilder,
     ChannelSelectMenuBuilder,
     RoleSelectMenuBuilder,
-    ChannelType
+    ChannelType,
+    ContainerBuilder,
+    SectionBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    TextDisplayBuilder,
+    ThumbnailBuilder,
+    MessageFlags
 } = require("discord.js");
 
 const ui = require("../utils/ui");
+const { e } = require("../utils/emojis");
 const GuildRepository = require("../database/repositories/GuildRepository");
 const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
@@ -17,9 +25,21 @@ const AutoroleRepository = require("../database/repositories/AutoroleRepository"
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
-const TempVoiceManager = require("./TempVoiceManager");
 const LockdownManager = require("./LockdownManager");
 const { CATEGORIES } = require("./LogCategories");
+
+/*
+=========================
+    /config — Components V2
+=========================
+Todas as telas são um único Container (Components V2). Os customIds dos
+botões/menus são os mesmos da versão antiga com embeds, então o handler
+(src/interactions/config/panelHandler.js) continua funcionando igual.
+
+Limites do Discord por mensagem V2: 40 componentes (contando os aninhados)
+e 4000 caracteres somando todos os textos. Cada tela abaixo fica bem
+abaixo disso (a maior usa ~30 componentes).
+*/
 
 const CATEGORY_OPTIONS = [
     { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "⚙️" },
@@ -34,35 +54,39 @@ const CATEGORY_OPTIONS = [
     { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "🔒" }
 ];
 
+const NOT_SET = "*Não configurado*";
+
 function permissionOk(interaction) {
     return interaction.memberPermissions?.has("ManageGuild");
 }
 
-function mainComponents() {
-    const select = new StringSelectMenuBuilder()
-        .setCustomId("config_category")
-        .setPlaceholder("Escolha uma área para configurar")
-        .addOptions(CATEGORY_OPTIONS.map(o => ({
-            label: o.label,
-            value: o.value,
-            description: o.description,
-            emoji: o.emoji
-        })));
+/*
+=========================
+    BLOCOS REUTILIZÁVEIS
+=========================
+*/
 
-    return [
-        new ActionRowBuilder().addComponents(select),
-        new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji("🔄").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
-        )
-    ];
-}
+/** Nome de emoji da Nina ("config") ou emoji literal ("🔊"). */
+const ico = name => /^[a-z]+$/i.test(name) ? e(name) : name;
 
-function backRow() {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji("◀️").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
-    );
+const card = color => new ContainerBuilder().setAccentColor(color);
+
+const text = content => new TextDisplayBuilder().setContent(ui.clip(content || "—", 3500));
+
+const addText = (container, content) => container.addTextDisplayComponents(text(content));
+
+const addSep = container => container.addSeparatorComponents(
+    new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+);
+
+const addRow = (container, ...components) => container.addActionRowComponents(
+    new ActionRowBuilder().addComponents(...components)
+);
+
+/** Cabeçalho padrão: "## ⚙️ Título" + linha pequena de subtítulo. */
+function addHeader(container, emoji, title, subtitle) {
+    addText(container, `## ${ico(emoji)}  ${title}${subtitle ? `\n${subtitle}` : ""}`);
+    addSep(container);
 }
 
 function toggleButton(id, enabled, label = "") {
@@ -73,222 +97,292 @@ function toggleButton(id, enabled, label = "") {
         .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Danger);
 }
 
-async function buildHome(interaction) {
-    const settings = await GuildRepository.getSettings(interaction.guild.id);
-    const automod = await AutomodRepository.get(interaction.guild.id);
-    const welcome = await WelcomeRepository.get(interaction.guild.id);
-    const tickets = await TicketRepository.getConfig(interaction.guild.id);
-    const stats = await ServerStatsRepository.get(interaction.guild.id);
-    const antinuke = await AntiNukeRepository.get(interaction.guild.id);
-    const lockdown = await LockdownManager.getConfig(interaction.guild.id);
+/** Linha de configuração: texto à esquerda, botão ON/OFF à direita. */
+function addToggle(container, { id, title, description, enabled }) {
+    container.addSectionComponents(
+        new SectionBuilder()
+            .addTextDisplayComponents(
+                text(`**${title}**\n-# ${description}`)
+            )
+            .setButtonAccessory(toggleButton(id, enabled))
+    );
+}
 
-    const configured = [
-        ["🤖 AutoMod", automod.enabled],
-        ["👋 Boas-vindas", welcome.enabled],
-        ["🎫 Tickets", tickets.enabled && !!tickets.parent_channel_id],
-        ["📜 Logs", !!settings.log_channel],
-        ["💰 Economia", settings.economy_enabled],
-        ["🛡️ Moderação", settings.moderation_enabled],
-        ["📊 Stats", stats.enabled],
-        ["☢️ Anti-Nuke", antinuke.enabled],
-        ["🔊 TempVoice", (await TempVoiceRepository.get(interaction.guild.id)).enabled],
-        ["🔒 Lockdown", lockdown.enabled]
+function navButtons(extra = []) {
+    return [
+        ...extra,
+        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji("◀️").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
+    ];
+}
+
+/** Separador + rodapé com Voltar/Fechar (e botões extras opcionais). */
+function addNav(container, extra = []) {
+    addSep(container);
+    addRow(container, ...navButtons(extra));
+}
+
+function actionButton(id, label, emoji, style = ButtonStyle.Secondary) {
+    return new ButtonBuilder().setCustomId(id).setLabel(label).setEmoji(emoji).setStyle(style);
+}
+
+const channelSelect = (id, placeholder, ...types) =>
+    new ChannelSelectMenuBuilder().setCustomId(id).setPlaceholder(placeholder).setChannelTypes(...types);
+
+const roleSelect = (id, placeholder) =>
+    new RoleSelectMenuBuilder().setCustomId(id).setPlaceholder(placeholder);
+
+const finish = container => ({
+    flags: MessageFlags.IsComponentsV2,
+    components: [container],
+    // Nomes e textos vêm do servidor/usuários: nunca marca ninguém.
+    allowedMentions: { parse: [] }
+});
+
+const stateColor = enabled => enabled ? ui.COLORS.success : ui.COLORS.neutral;
+const dots = rows => rows.map(([name, on]) => `${ui.dot(on)} ${name}`).join("\n");
+const mention = id => id ? `<#${id}>` : NOT_SET;
+const roleMention = id => id ? `<@&${id}>` : NOT_SET;
+
+/*
+=========================
+    TELAS
+=========================
+*/
+
+async function buildHome(interaction) {
+    const guildId = interaction.guild.id;
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice] = await Promise.all([
+        GuildRepository.getSettings(guildId),
+        AutomodRepository.get(guildId),
+        WelcomeRepository.get(guildId),
+        TicketRepository.getConfig(guildId),
+        ServerStatsRepository.get(guildId),
+        AntiNukeRepository.get(guildId),
+        LockdownManager.getConfig(guildId),
+        TempVoiceRepository.get(guildId)
+    ]);
+
+    const groups = [
+        ["🛡️ Proteção", [
+            ["AutoMod", automod.enabled],
+            ["Anti-Nuke", antinuke.enabled],
+            ["Lockdown", lockdown.enabled],
+            ["Moderação", settings.moderation_enabled]
+        ]],
+        ["👥 Comunidade", [
+            ["Boas-vindas", welcome.enabled],
+            ["Tickets", tickets.enabled && !!tickets.parent_channel_id],
+            ["Logs", !!settings.log_channel],
+            ["Economia", settings.economy_enabled]
+        ]],
+        ["🧰 Utilidades", [
+            ["Stats", stats.enabled],
+            ["TempVoice", tempvoice.enabled]
+        ]]
     ];
 
-    const status = configured.map(([name, enabled]) => `${ui.dot(enabled)} ${name}`).join("\n");
+    const all = groups.flatMap(([, items]) => items);
+    const active = all.filter(([, on]) => on).length;
 
-    return {
-        embeds: [ui.panel({
-            color: ui.COLORS.brand,
-            emoji: "config",
-            title: "Configuração da Nina",
-            description: `Configure os sistemas de **${interaction.guild.name}** sem precisar decorar vários comandos.\n\nSelecione uma categoria abaixo para começar.`,
-            thumbnail: interaction.guild.iconURL({ size: 256 }),
-            fields: [
-                ui.field("config", "Sistemas", status, false),
-                ui.field("info", "Permissão", "Gerenciar Servidor", false)
-            ],
-            footer: "Os comandos antigos continuam disponíveis durante a migração.",
-            source: interaction
-        })],
-        components: mainComponents()
-    };
+    const container = card(ui.COLORS.brand);
+
+    const title = `## ${ico("config")}  Painel da Nina\nConfigure **${interaction.guild.name}** sem decorar comandos.\n-# ${active} de ${all.length} sistemas ativos`;
+    const icon = interaction.guild.iconURL({ size: 256 });
+
+    if (icon) {
+        container.addSectionComponents(
+            new SectionBuilder()
+                .addTextDisplayComponents(text(title))
+                .setThumbnailAccessory(new ThumbnailBuilder().setURL(icon))
+        );
+    } else {
+        addText(container, title);
+    }
+
+    addSep(container);
+
+    addText(container, groups.map(([name, items]) =>
+        `**${name}**\n${items.map(([label, on]) => `${ui.dot(on)} ${label}`).join("  ·  ")}`
+    ).join("\n\n"));
+
+    addSep(container);
+
+    addText(container, "**Escolha uma área para configurar**");
+    container.addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+            new StringSelectMenuBuilder()
+                .setCustomId("config_category")
+                .setPlaceholder("Selecione uma área…")
+                .addOptions(CATEGORY_OPTIONS.map(o => ({
+                    label: o.label,
+                    value: o.value,
+                    description: o.description,
+                    emoji: o.emoji
+                })))
+        )
+    );
+
+    addSep(container);
+    addRow(
+        container,
+        new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji("🔄").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
+    );
+
+    addText(container, "-# Requer a permissão Gerenciar Servidor · Os comandos antigos continuam disponíveis.");
+
+    return finish(container);
 }
 
 async function buildGeneral(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
-    const row1 = new ActionRowBuilder().addComponents(
-        toggleButton("config_toggle:economy", !!s.economy_enabled),
-        toggleButton("config_toggle:moderation", !!s.moderation_enabled),
-        toggleButton("config_toggle:levelup", !!s.levelup_enabled)
-    );
-    row1.components[0].setLabel(`Economia: ${s.economy_enabled ? "ON" : "OFF"}`);
-    row1.components[1].setLabel(`Moderação: ${s.moderation_enabled ? "ON" : "OFF"}`);
-    row1.components[2].setLabel(`Level-up: ${s.levelup_enabled ? "ON" : "OFF"}`);
+    const container = card(ui.COLORS.info);
 
-    return {
-        embeds: [ui.panel({
-            color: ui.COLORS.info,
-            emoji: "config",
-            title: "Configuração geral",
-            description: "Ative ou desative os principais sistemas do servidor.",
-            fields: [
-                ui.field("coin", "Economia", ui.toggle(s.economy_enabled)),
-                ui.field("shield", "Moderação", ui.toggle(s.moderation_enabled)),
-                ui.field("star", "Avisos de level-up", ui.toggle(s.levelup_enabled)),
-                ui.field("log", "Canal de logs", s.log_channel ? `<#${s.log_channel}>` : "Não configurado", false)
-            ],
-            source: interaction
-        })],
-        components: [row1, backRow()]
-    };
+    addHeader(container, "config", "Configuração geral", "Ative ou desative os principais sistemas do servidor.");
+
+    addToggle(container, { id: "config_toggle:economy", title: `${e("coin")} Economia`, description: "Moedas, trabalho, loja e jogos de aposta.", enabled: !!s.economy_enabled });
+    addToggle(container, { id: "config_toggle:moderation", title: `${e("shield")} Moderação`, description: "Comandos de ban, kick, timeout e avisos.", enabled: !!s.moderation_enabled });
+    addToggle(container, { id: "config_toggle:levelup", title: `${e("star")} Avisos de level-up`, description: "Mensagem quando um membro sobe de nível.", enabled: !!s.levelup_enabled });
+
+    addSep(container);
+    addText(container, `**${e("log")} Canal de logs**\n${mention(s.log_channel)}`);
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildAutomod(interaction) {
     const c = await AutomodRepository.get(interaction.guild.id);
-    const rules = [
+    const container = card(c.enabled ? ui.COLORS.success : ui.COLORS.neutral);
+
+    addHeader(container, "shield", "AutoMod", "Proteção automática contra spam, convites, menções, raid e outros abusos.");
+
+    addToggle(container, { id: "config_toggle:automod", title: "Sistema AutoMod", description: `Punição padrão: mute de ${c.mute_duration_minutes} minuto(s).`, enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, `**Regras**\n${dots([
         ["🚨 Spam", c.spam_enabled],
-        ["😀 Emojis", c.emoji_enabled],
+        ["😀 Emojis em excesso", c.emoji_enabled],
         ["🤬 Palavrões", c.swear_enabled],
-        ["📢 Menções", c.mention_enabled],
+        ["📢 Menções em massa", c.mention_enabled],
         ["🔗 Convites", c.invite_enabled],
         ["🛑 Anti-Raid", c.raid_enabled],
-        ["🖼️ Anti-Scam", c.image_enabled]
-    ];
+        ["🖼️ Anti-Scam (imagens)", c.image_enabled]
+    ])}`);
 
-    const rows = [
-        new ActionRowBuilder().addComponents(toggleButton("config_toggle:automod", !!c.enabled).setLabel(c.enabled ? "AutoMod: ON" : "AutoMod: OFF")),
-        new ActionRowBuilder().addComponents(
-            toggleButton("config_toggle:spam", !!c.spam_enabled).setLabel(`Spam: ${c.spam_enabled ? "ON" : "OFF"}`),
-            toggleButton("config_toggle:emoji", !!c.emoji_enabled).setLabel(`Emojis: ${c.emoji_enabled ? "ON" : "OFF"}`),
-            toggleButton("config_toggle:swear", !!c.swear_enabled).setLabel(`Palavrões: ${c.swear_enabled ? "ON" : "OFF"}`)
-        ),
-        new ActionRowBuilder().addComponents(
-            toggleButton("config_toggle:mention", !!c.mention_enabled).setLabel(`Menções: ${c.mention_enabled ? "ON" : "OFF"}`),
-            toggleButton("config_toggle:invite", !!c.invite_enabled).setLabel(`Convites: ${c.invite_enabled ? "ON" : "OFF"}`),
-            toggleButton("config_toggle:raid", !!c.raid_enabled).setLabel(`Anti-Raid: ${c.raid_enabled ? "ON" : "OFF"}`)
-        ),
-        new ActionRowBuilder().addComponents(
-            toggleButton("config_toggle:image", !!c.image_enabled).setLabel(`Anti-Scam: ${c.image_enabled ? "ON" : "OFF"}`),
-            new ButtonBuilder().setCustomId("config_modal:automod_spam").setLabel("Limites do Spam").setEmoji("🚨").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("config_modal:automod_raid").setLabel("Limites do Raid").setEmoji("🛑").setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId("config_modal:automod_image").setLabel("Config. Anti-Scam").setEmoji("🖼️").setStyle(ButtonStyle.Secondary)
-        ),
-        backRow()
-    ];
+    addRow(
+        container,
+        toggleButton("config_toggle:spam", !!c.spam_enabled, "Spam"),
+        toggleButton("config_toggle:emoji", !!c.emoji_enabled, "Emojis"),
+        toggleButton("config_toggle:swear", !!c.swear_enabled, "Palavrões"),
+        toggleButton("config_toggle:mention", !!c.mention_enabled, "Menções")
+    );
+    addRow(
+        container,
+        toggleButton("config_toggle:invite", !!c.invite_enabled, "Convites"),
+        toggleButton("config_toggle:raid", !!c.raid_enabled, "Anti-Raid"),
+        toggleButton("config_toggle:image", !!c.image_enabled, "Anti-Scam")
+    );
 
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "shield",
-            title: "AutoMod",
-            description: "Proteção automática contra spam, convites, menções, raid e outros abusos.",
-            fields: [
-                ui.field("shield", "Status", ui.toggle(c.enabled)),
-                ui.field("warn", "Regras", rules.map(([n, v]) => `${ui.dot(v)} ${n}`).join("\n"), false),
-                ui.field("timeout", "Mute", `${c.mute_duration_minutes} minuto(s)`)
-            ],
-            source: interaction
-        })],
-        components: rows
-    };
+    addSep(container);
+    addText(container, "**Limites e ajustes**");
+    addRow(
+        container,
+        actionButton("config_modal:automod_spam", "Spam", "🚨"),
+        actionButton("config_modal:automod_raid", "Raid", "🛑"),
+        actionButton("config_modal:automod_image", "Anti-Scam", "🖼️")
+    );
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildWelcome(interaction) {
     const c = await WelcomeRepository.get(interaction.guild.id);
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "sparkle",
-            title: "Boas-vindas",
-            description: "Configure o sistema de entrada dos novos membros.",
-            fields: [
-                ui.field("config", "Status", ui.toggle(c.enabled)),
-                ui.field("channel", "Canal", c.channel_id ? `<#${c.channel_id}>` : "Não configurado", false),
-                ui.field("info", "Título", c.title_text),
-                ui.field("log", "Mensagem", ui.clip(c.message_content, 1024), false),
-                ui.field("image", "Fundo", c.background_url ? `[Ver imagem](${c.background_url})` : "Padrão (gradiente)", false)
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(toggleButton("config_toggle:welcome", !!c.enabled).setLabel(c.enabled ? "Boas-vindas: ON" : "Boas-vindas: OFF")),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder().setCustomId("config_channel:welcome").setPlaceholder("Escolher canal de boas-vindas").setChannelTypes(ChannelType.GuildText)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_modal:welcome_text").setLabel("Editar textos").setEmoji("📝").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_modal:welcome_background").setLabel("Imagem de fundo").setEmoji("🖼️").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_clear:welcome_background").setLabel("Remover fundo").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId("config_welcome_test").setLabel("Testar").setEmoji("🧪").setStyle(ButtonStyle.Secondary)
-            ),
-            backRow()
-        ]
-    };
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, "sparkle", "Boas-vindas", "Cartão e mensagem enviados quando alguém entra no servidor.");
+
+    addToggle(container, { id: "config_toggle:welcome", title: "Sistema de boas-vindas", description: c.channel_id ? `Enviando em <#${c.channel_id}>` : "Escolha um canal abaixo para começar.", enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, [
+        `**Título**\n${ui.clip(c.title_text, 200) || NOT_SET}`,
+        `**Mensagem**\n> ${ui.clip(String(c.message_content || "").replace(/\n/g, "\n> "), 600) || NOT_SET}`,
+        `**Fundo**\n${c.background_url ? `[Ver imagem](${c.background_url})` : "Padrão (gradiente)"}`
+    ].join("\n\n"));
+
+    addSep(container);
+    addText(container, "**Canal de boas-vindas**");
+    addRow(container, channelSelect("config_channel:welcome", "Escolher canal de boas-vindas", ChannelType.GuildText));
+
+    addRow(
+        container,
+        actionButton("config_modal:welcome_text", "Textos", "📝"),
+        actionButton("config_modal:welcome_background", "Fundo", "🖼️"),
+        actionButton("config_clear:welcome_background", "Remover fundo", "🗑️", ButtonStyle.Danger),
+        actionButton("config_welcome_test", "Testar", "🧪")
+    );
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildTickets(interaction) {
     const c = await TicketRepository.getConfig(interaction.guild.id);
-    return {
-        embeds: [ui.panel({
-            color: c.enabled && c.parent_channel_id ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "ticket",
-            title: "Tickets",
-            description: "Configure o atendimento do servidor.",
-            fields: [
-                ui.field("config", "Status", ui.toggle(c.enabled && !!c.parent_channel_id)),
-                ui.field("channel", "Canal dos tickets", c.parent_channel_id ? `<#${c.parent_channel_id}>` : "Não configurado"),
-                ui.field("shield", "Suporte", c.support_role_id ? `<@&${c.support_role_id}>` : "Não configurado")
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(toggleButton("config_toggle:tickets", !!c.enabled).setLabel(c.enabled ? "Tickets: ON" : "Tickets: OFF")),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder().setCustomId("config_channel:tickets").setPlaceholder("Escolher canal dos tickets").setChannelTypes(ChannelType.GuildText)
-            ),
-            new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder().setCustomId("config_role:tickets").setPlaceholder("Escolher cargo de suporte")
-            ),
-            backRow()
-        ]
-    };
+    const active = c.enabled && !!c.parent_channel_id;
+    const container = card(stateColor(active));
+
+    addHeader(container, "ticket", "Tickets", "Atendimento e suporte do servidor.");
+
+    addToggle(container, { id: "config_toggle:tickets", title: "Sistema de tickets", description: active ? "Funcionando." : "Defina o canal dos tickets para ativar de fato.", enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, `**${e("channel")} Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**${e("shield")} Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+
+    addRow(container, channelSelect("config_channel:tickets", "Escolher canal dos tickets", ChannelType.GuildText));
+    addRow(container, roleSelect("config_role:tickets", "Escolher cargo de suporte"));
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildLogs(interaction) {
-    const s = await GuildRepository.getSettings(interaction.guild.id);
-    const disabled = await GuildRepository.getDisabledCategories(interaction.guild.id);
-    const statsLogsEnabled = await GuildRepository.isStatsLogsEnabled(interaction.guild.id);
-    const categories = Object.entries(CATEGORIES).map(([key, value]) => `${ui.dot(!disabled.includes(key))} ${value.label}`).join("\n");
+    const guildId = interaction.guild.id;
+    const [s, disabled, statsLogsEnabled] = await Promise.all([
+        GuildRepository.getSettings(guildId),
+        GuildRepository.getDisabledCategories(guildId),
+        GuildRepository.isStatsLogsEnabled(guildId)
+    ]);
+    const container = card(s.log_channel ? ui.COLORS.success : ui.COLORS.neutral);
 
-    return {
-        embeds: [ui.panel({
-            color: s.log_channel ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "log",
-            title: "Logs",
-            description: "Escolha o canal e quais eventos a Nina deve registrar.",
-            fields: [
-                ui.field("channel", "Canal", s.log_channel ? `<#${s.log_channel}>` : "Não configurado", false),
-                ui.field("log", "Categorias", categories || "Nenhuma", false),
-                ui.field("chart", "Logs dos Stats", ui.toggle(statsLogsEnabled, "Ativados", "Desativados"), false)
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder().setCustomId("config_channel:logs").setPlaceholder("Escolher canal de logs").setChannelTypes(ChannelType.GuildText)
-            ),
-            new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder().setCustomId("config_log_category").setPlaceholder("Ativar/desativar categoria").addOptions(
-                    Object.entries(CATEGORIES).slice(0, 25).map(([key, value]) => ({ label: value.label, value: key, emoji: value.emoji }))
-                )
-            ),
-            new ActionRowBuilder().addComponents(
-                toggleButton("config_logs:stats", statsLogsEnabled, "Logs dos Stats")
-            ),
-            backRow()
-        ]
-    };
+    addHeader(container, "log", "Logs", "Escolha o canal e quais eventos a Nina deve registrar.");
+
+    addText(container, `**${e("channel")} Canal de logs**\n${mention(s.log_channel)}`);
+    addRow(container, channelSelect("config_channel:logs", "Escolher canal de logs", ChannelType.GuildText));
+
+    addSep(container);
+
+    const entries = Object.entries(CATEGORIES);
+    const lines = entries.map(([key, value]) => `${ui.dot(!disabled.includes(key))} ${value.emoji ? `${value.emoji} ` : ""}${value.label}`);
+    const half = Math.ceil(lines.length / 2);
+    addText(container, `**Categorias**\n${lines.slice(0, half).join("\n")}`);
+    if (lines.length > half) addText(container, lines.slice(half).join("\n"));
+
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_log_category")
+            .setPlaceholder("Ativar/desativar uma categoria")
+            .addOptions(entries.slice(0, 25).map(([key, value]) => ({ label: value.label, value: key, emoji: value.emoji })))
+    );
+
+    addSep(container);
+    addToggle(container, { id: "config_logs:stats", title: `${e("config")} Logs dos Stats`, description: "Registra a atualização dos canais de contadores.", enabled: statsLogsEnabled });
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildAutorole(interaction) {
@@ -299,59 +393,68 @@ async function buildAutorole(interaction) {
         AutoroleRepository.listLevelRoles(guildId),
         AutoroleRepository.listReactionRoles(guildId)
     ]);
+    const container = card(ui.COLORS.info);
 
-    return {
-        embeds: [ui.panel({
-            color: ui.COLORS.info,
-            emoji: "role",
-            title: "Autoroles",
-            description: "Gerencie os cargos automáticos do servidor.",
-            fields: [
-                ui.field("user", "Cargos de entrada", `${join.length}`),
-                ui.field("role", "Self-roles", `${self.length}`),
-                ui.field("role", "Cargos por reação", `${reactions.length}`),
-                ui.field("star", "Cargos por nível", `${level.length}`),
-                ui.field("info", "Configuração", "Cargos de entrada, self-roles, cargos por reação e recompensas por nível podem ser gerenciados diretamente aqui.", false),
-                ...(self.length ? [ui.field("role", "Botões configurados", self.slice(0, 10).map(role => `• ${role.label} · <@&${role.role_id}>`).join("\n"), false)] : []),
-                ...(reactions.length ? [ui.field("role", "Regras por reação", reactions.slice(0, 5).map(rule => `#${rule.id} · <#${rule.channel_id}> · <@&${rule.role_id}>`).join("\n"), false)] : [])
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder().setCustomId("config_role:autorole_join").setPlaceholder("Adicionar cargo de entrada")
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_modal:autorole_selfrole").setLabel("Adicionar self-role").setEmoji("🎭").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_modal:autorole_level").setLabel("Cargo por nível").setEmoji("⭐").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_modal:autorole_reaction").setLabel("Adicionar reação").setEmoji("🔁").setStyle(ButtonStyle.Secondary)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId("config_autorole:publish").setLabel("Publicar painel de botões aqui").setEmoji("📨").setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId("config_modal:autorole_reaction_remove").setLabel("Remover regra de reação").setEmoji("🗑️").setStyle(ButtonStyle.Danger),
-                new ButtonBuilder().setCustomId("config_modal:autorole_note").setLabel("Comandos avançados").setEmoji("ℹ️").setStyle(ButtonStyle.Secondary)
-            ),
-            ...(self.length ? [new ActionRowBuilder().addComponents(
-                new StringSelectMenuBuilder()
-                    .setCustomId("config_selfrole_remove")
-                    .setPlaceholder("Remover cargos de botão")
-                    .setMinValues(1)
-                    .setMaxValues(self.length)
-                    .addOptions(self.map(role => ({
-                        label: role.label.slice(0, 100),
-                        value: role.role_id,
-                        description: `Cargo ${role.role_id}`
-                    })))
-            )] : []),
-            backRow()
-        ]
-    };
+    addHeader(container, "role", "Autoroles", "Cargos automáticos, por botão, por reação e por nível.");
+
+    addText(container, [
+        `${e("user")} **Entrada:** ${join.length}`,
+        `${e("role")} **Self-roles:** ${self.length}`,
+        `🔁 **Reações:** ${reactions.length}`,
+        `${e("star")} **Níveis:** ${level.length}`
+    ].join("  ·  "));
+
+    if (self.length) {
+        addSep(container);
+        addText(container, `**Botões configurados**\n${self.slice(0, 10).map(role => `• ${role.label} · <@&${role.role_id}>`).join("\n")}${self.length > 10 ? `\n-# +${self.length - 10} outros` : ""}`);
+    }
+
+    if (reactions.length) {
+        addSep(container);
+        addText(container, `**Regras por reação**\n${reactions.slice(0, 5).map(rule => `#${rule.id} · <#${rule.channel_id}> · <@&${rule.role_id}>`).join("\n")}${reactions.length > 5 ? `\n-# +${reactions.length - 5} outras` : ""}`);
+    }
+
+    addSep(container);
+    addText(container, "**Cargo automático de entrada**");
+    addRow(container, roleSelect("config_role:autorole_join", "Adicionar cargo de entrada"));
+
+    addRow(
+        container,
+        actionButton("config_modal:autorole_selfrole", "Self-role", "🎭"),
+        actionButton("config_modal:autorole_level", "Por nível", "⭐"),
+        actionButton("config_modal:autorole_reaction", "Por reação", "🔁")
+    );
+    addRow(
+        container,
+        actionButton("config_autorole:publish", "Publicar painel aqui", "📨", ButtonStyle.Primary),
+        actionButton("config_modal:autorole_reaction_remove", "Remover reação", "🗑️", ButtonStyle.Danger),
+        actionButton("config_modal:autorole_note", "Ajuda", "ℹ️")
+    );
+
+    if (self.length) {
+        addRow(
+            container,
+            new StringSelectMenuBuilder()
+                .setCustomId("config_selfrole_remove")
+                .setPlaceholder("Remover cargos de botão")
+                .setMinValues(1)
+                .setMaxValues(Math.min(self.length, 25))
+                .addOptions(self.slice(0, 25).map(role => ({
+                    label: role.label.slice(0, 100),
+                    value: role.role_id,
+                    description: `Cargo ${role.role_id}`
+                })))
+        );
+    }
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildLockdown(interaction) {
     const config = await LockdownManager.getConfig(interaction.guild.id);
-    const list = ids => ids.length ? ids.map(id => `<#${id}>`).join(", ") : "Nenhum";
-    const roleList = ids => ids.length ? ids.map(id => `<@&${id}>`).join(", ") : "Nenhum";
+    const list = ids => ids.length ? ids.map(id => `<#${id}>`).join(" ") : "*Nenhum*";
+    const roleList = ids => ids.length ? ids.map(id => `<@&${id}>`).join(" ") : "*Nenhum*";
     const channelTypes = [
         ChannelType.GuildText,
         ChannelType.GuildAnnouncement,
@@ -359,99 +462,67 @@ async function buildLockdown(interaction) {
         ChannelType.GuildVoice,
         ChannelType.GuildStageVoice
     ];
+    const container = card(config.active ? ui.COLORS.error : ui.COLORS.info);
 
-    return {
-        embeds: [ui.panel({
-            color: config.active ? ui.COLORS.error : ui.COLORS.info,
-            emoji: config.active ? "lock" : "unlock",
-            title: "Lockdown",
-            description: "Configure canais, categorias e cargos que mantêm ou perdem acesso durante o bloqueio. Administradores continuam tendo acesso pelo bypass do Discord.",
-            fields: [
-                ui.field("info", "Sistema", config.enabled ? "Ativado" : "Desativado"),
-                ui.field("lock", "Estado", config.active ? "LOCKDOWN ATIVO" : "Inativo"),
-                ui.field("channel", "Canais", list(config.channel_ids), false),
-                ui.field("channel", "Categorias", list(config.category_ids), false),
-                ui.field("role", "Acesso permitido", roleList(config.allowed_role_ids), false),
-                ui.field("role", "Acesso negado", roleList(config.denied_role_ids), false),
-                ui.field("info", "Cargos sobrepostos", "Não use o mesmo cargo nas duas listas. Se um membro tiver cargos diferentes das duas listas, o Discord dá prioridade às permissões permitidas de cargo.", false)
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                toggleButton("config_lockdown:enabled", config.enabled, "Sistema"),
-                new ButtonBuilder()
-                    .setCustomId("config_lockdown:lock")
-                    .setLabel("Trancar selecionados")
-                    .setEmoji("🔒")
-                    .setStyle(ButtonStyle.Danger)
-                    .setDisabled(!config.enabled || config.active),
-                new ButtonBuilder()
-                    .setCustomId("config_lockdown:unlock")
-                    .setLabel("Destrancar")
-                    .setEmoji("🔓")
-                    .setStyle(ButtonStyle.Success)
-                    .setDisabled(!config.active),
-                new ButtonBuilder()
-                    .setCustomId("config_home")
-                    .setLabel("Voltar")
-                    .setEmoji("◀️")
-                    .setStyle(ButtonStyle.Secondary)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder()
-                    .setCustomId("config_channel:lockdown_channels")
-                    .setPlaceholder("Selecionar canais de texto e voz (substitui a lista)")
-                    .setChannelTypes(...channelTypes)
-                    .setDefaultChannels(
-                        ...config.channel_ids.filter(id =>
-                            interaction.guild.channels.cache.has(id)
-                        )
-                    )
-                    .setMinValues(0)
-                    .setMaxValues(25)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder()
-                    .setCustomId("config_channel:lockdown_categories")
-                    .setPlaceholder("Selecionar categorias (substitui a lista)")
-                    .setChannelTypes(ChannelType.GuildCategory)
-                    .setDefaultChannels(
-                        ...config.category_ids.filter(id =>
-                            interaction.guild.channels.cache.has(id)
-                        )
-                    )
-                    .setMinValues(0)
-                    .setMaxValues(25)
-            ),
-            new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder()
-                    .setCustomId("config_role:lockdown_allowed")
-                    .setPlaceholder("Cargos com acesso durante o lockdown")
-                    .setDefaultRoles(
-                        ...config.allowed_role_ids.filter(id =>
-                            interaction.guild.roles.cache.has(id)
-                        )
-                    )
-                    .setMinValues(0)
-                    .setMaxValues(25)
-            ),
-            new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder()
-                    .setCustomId("config_role:lockdown_denied")
-                    .setPlaceholder("Cargos sem acesso durante o lockdown")
-                    .setDefaultRoles(
-                        ...config.denied_role_ids.filter(id =>
-                            interaction.guild.roles.cache.has(id)
-                        )
-                    )
-                    .setMinValues(0)
-                    .setMaxValues(25)
-            )
-        ]
-    };
+    addHeader(
+        container,
+        config.active ? "lock" : "unlock",
+        "Lockdown",
+        "Tranque canais e categorias rapidamente. Administradores continuam com acesso pelo bypass do Discord."
+    );
+
+    addText(container, `${config.active ? "🚨 **LOCKDOWN ATIVO**" : "✅ **Lockdown inativo**"}\n-# Sistema ${config.enabled ? "ativado" : "desativado"}`);
+
+    addRow(
+        container,
+        toggleButton("config_lockdown:enabled", config.enabled, "Sistema"),
+        actionButton("config_lockdown:lock", "Trancar", "🔒", ButtonStyle.Danger).setDisabled(!config.enabled || config.active),
+        actionButton("config_lockdown:unlock", "Destrancar", "🔓", ButtonStyle.Success).setDisabled(!config.active)
+    );
+
+    addSep(container);
+    addText(container, [
+        `**${e("channel")} Canais**\n${list(config.channel_ids)}`,
+        `**📁 Categorias**\n${list(config.category_ids)}`,
+        `**✅ Acesso permitido**\n${roleList(config.allowed_role_ids)}`,
+        `**⛔ Acesso negado**\n${roleList(config.denied_role_ids)}`
+    ].join("\n\n"));
+    addText(container, "-# Não use o mesmo cargo nas duas listas. Se um membro tiver cargos das duas listas, o Discord prioriza a permissão permitida.");
+
+    addSep(container);
+
+    addRow(
+        container,
+        channelSelect("config_channel:lockdown_channels", "Canais de texto e voz (substitui a lista)", ...channelTypes)
+            .setDefaultChannels(...config.channel_ids.filter(id => interaction.guild.channels.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:lockdown_categories", "Categorias (substitui a lista)", ChannelType.GuildCategory)
+            .setDefaultChannels(...config.category_ids.filter(id => interaction.guild.channels.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        roleSelect("config_role:lockdown_allowed", "Cargos com acesso durante o lockdown")
+            .setDefaultRoles(...config.allowed_role_ids.filter(id => interaction.guild.roles.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        roleSelect("config_role:lockdown_denied", "Cargos sem acesso durante o lockdown")
+            .setDefaultRoles(...config.denied_role_ids.filter(id => interaction.guild.roles.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+
+    addNav(container);
+    return finish(container);
 }
-
 
 async function buildStats(interaction) {
     const c = await ServerStatsRepository.get(interaction.guild.id);
@@ -460,58 +531,49 @@ async function buildStats(interaction) {
         ["offline", "⚫ Offline"], ["voice", "🔊 Em call"], ["channels", "💬 Canais"],
         ["categories", "📁 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
     ];
-    const rows = [];
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, "chart", "Stats do servidor", "Canais de voz bloqueados que mostram contadores atualizados automaticamente.");
+
+    addToggle(container, { id: "config_stats:enabled", title: "Sistema de Stats", description: "Cria ou remove os canais de contadores.", enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, "**Contadores exibidos**");
+
     for (let i = 0; i < counters.length; i += 3) {
-        rows.push(new ActionRowBuilder().addComponents(...counters.slice(i, i + 3).map(([key, label]) =>
-            toggleButton(`config_stats:${key}`, !!c[`${key}_enabled`], label)
-        )));
+        addRow(
+            container,
+            ...counters.slice(i, i + 3).map(([key, label]) =>
+                toggleButton(`config_stats:${key}`, !!c[`${key}_enabled`], label)
+            )
+        );
     }
-    rows.push(new ActionRowBuilder().addComponents(
-        toggleButton("config_stats:enabled", !!c.enabled, "Stats"),
-        new ButtonBuilder().setCustomId("config_stats:update").setLabel("Atualizar agora").setEmoji("🔄").setStyle(ButtonStyle.Secondary)
-    ));
-    rows.push(backRow());
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "chart",
-            title: "Stats do servidor",
-            description: "Ative os contadores que deseja exibir. A Nina cria canais de voz bloqueados e atualiza os números automaticamente.",
-            fields: [
-                ui.field("chart", "Status", ui.toggle(c.enabled, "Ativo", "Desativado")),
-                ui.field("info", "Contadores", counters.map(([key, label]) => `${ui.dot(c[`${key}_enabled`])} ${label}`).join("\n"), false)
-            ],
-            source: interaction
-        })],
-        components: rows
-    };
+
+    addNav(container, [actionButton("config_stats:update", "Atualizar agora", "🔄")]);
+    return finish(container);
 }
 
 async function buildAntiNuke(interaction) {
     const c = await AntiNukeRepository.get(interaction.guild.id);
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.error : ui.COLORS.neutral,
-            emoji: "shield",
-            title: "Anti-Nuke",
-            description: `${ui.dot(c.enabled)} ${c.enabled ? "Proteção ativa contra ações destrutivas em massa." : "Proteção desativada."}`,
-            fields: [
-                ui.field("clock", "Janela", `${c.window_seconds}s`),
-                ui.field("channel", "Canais", `${c.channel_limit}`),
-                ui.field("role", "Cargos", `${c.role_limit}`),
-                ui.field("user", "Bans/Kicks", `${c.member_limit}`),
-                ui.field("config", "Ação", c.action === "ban" ? "Banir + remover cargos" : "Remover cargos")
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                toggleButton("config_antinuke:enabled", !!c.enabled, "Anti-Nuke"),
-                new ButtonBuilder().setCustomId("config_modal:antinuke").setLabel("Configurar limites").setEmoji("⚙️").setStyle(ButtonStyle.Secondary)
-            ),
-            backRow()
-        ]
-    };
+    const container = card(c.enabled ? ui.COLORS.error : ui.COLORS.neutral);
+
+    addHeader(container, "shield", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
+
+    addToggle(container, { id: "config_antinuke:enabled", title: "Proteção Anti-Nuke", description: c.enabled ? "Proteção ativa." : "Proteção desativada.", enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, [
+        `${e("clock")} **Janela de detecção:** ${c.window_seconds}s`,
+        `${e("channel")} **Canais:** ${c.channel_limit}`,
+        `${e("role")} **Cargos:** ${c.role_limit}`,
+        `${e("user")} **Bans/Kicks:** ${c.member_limit}`,
+        `${e("config")} **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
+    ].join("\n"));
+
+    addRow(container, actionButton("config_modal:antinuke", "Configurar limites", "⚙️"));
+
+    addNav(container);
+    return finish(container);
 }
 
 async function buildTempVoice(interaction) {
@@ -519,125 +581,74 @@ async function buildTempVoice(interaction) {
     const rooms = await TempVoiceRepository.getRooms(interaction.guild.id);
     const trigger = c.trigger_channel_id ? interaction.guild.channels.cache.get(c.trigger_channel_id) : null;
     const category = c.category_id ? interaction.guild.channels.cache.get(c.category_id) : null;
-    const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
 
-    const nameMode = c.name_template === "🔊 {username}" ? "Nome de usuário" : c.name_template === "🔊 {user}" ? "Nome de exibição" : `Personalizado: ${c.name_template}`;
-    const ownerPerms = [
-        ["Renomear", c.owner_rename], ["Bloquear", c.owner_lock], ["Alterar limite", c.owner_limit],
-        ["Expulsar", c.owner_kick], ["Bloquear membro", c.owner_ban], ["Transferir dono", c.owner_transfer], ["Excluir", c.owner_delete]
-    ].map(([name, value]) => `${ui.dot(value)} ${name}`).join("\n");
+    const nameMode = c.name_template === "🔊 {username}" ? "Nome de usuário"
+        : c.name_template === "🔊 {user}" ? "Nome de exibição"
+            : `Personalizado: \`${c.name_template}\``;
 
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "🔊",
-            title: "TempVoice",
-            description: "Configure as salas temporárias deste servidor. As alterações ficam salvas no SQLite.",
-            fields: [
-                ui.field("power", "Status", ui.toggle(c.enabled)),
-                ui.field("channel", "Canal para criar sala", trigger ? `<#${trigger.id}>` : "Não configurado", false),
-                ui.field("folder", "Categoria das salas", category ? `<#${category.id}>` : "Não configurada"),
-                ui.field("edit", "Formato do nome", nameMode, false),
-                ui.field("users", "Limite padrão", c.default_limit ? `${c.default_limit} membros` : "Sem limite"),
-                ui.field("lock", "Bloqueio automático", ui.toggle(c.auto_lock)),
-                ui.field("shield", "Admin/Moderação", `${c.admin_manage ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>"} Gerenciar salas\n${managerRole ? `Cargo: <@&${managerRole.id}>` : "Cargo: não definido"}`, false),
-                ui.field("key", "Permissões do dono", ownerPerms, false),
-                ui.field("stats", "Salas ativas", `\`${rooms.length}\``)
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                toggleButton("config_tempvoice:enabled", !!c.enabled, "TempVoice"),
-                new ButtonBuilder().setCustomId("config_tempvoice:autocreate").setLabel("Criar estrutura").setEmoji("🏗️").setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId("config_tempvoice:name").setLabel("Nome").setEmoji("✏️").setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId("config_tempvoice:limit").setLabel("Limite").setEmoji("👥").setStyle(ButtonStyle.Secondary),
-                toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
-            ),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder()
-                    .setCustomId("config_tempvoice:trigger")
-                    .setPlaceholder("Escolher canal de entrada")
-                    .setChannelTypes(ChannelType.GuildVoice)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ChannelSelectMenuBuilder()
-                    .setCustomId("config_tempvoice:category")
-                    .setPlaceholder("Escolher categoria das salas")
-                    .setChannelTypes(ChannelType.GuildCategory)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("config_tempvoice:permissions_page")
-                    .setLabel("Permissões e cargos")
-                    .setEmoji("🛡️")
-                    .setStyle(ButtonStyle.Secondary)
-            ),
-            backRow()
-        ]
-    };
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, "🔊", "TempVoice", "Salas de voz temporárias criadas e removidas automaticamente.");
+
+    addToggle(container, { id: "config_tempvoice:enabled", title: "Sistema TempVoice", description: `${rooms.length} sala(s) ativa(s) agora.`, enabled: !!c.enabled });
+
+    addSep(container);
+    addText(container, [
+        `**Canal de entrada**\n${trigger ? `<#${trigger.id}>` : NOT_SET}`,
+        `**Categoria das salas**\n${category ? `<#${category.id}>` : NOT_SET}`,
+        `**Nome das salas**\n${nameMode}`,
+        `**Limite padrão**\n${c.default_limit ? `${c.default_limit} membros` : "Sem limite"}`
+    ].join("\n\n"));
+
+    addRow(container, channelSelect("config_tempvoice:trigger", "Escolher canal de entrada", ChannelType.GuildVoice));
+    addRow(container, channelSelect("config_tempvoice:category", "Escolher categoria das salas", ChannelType.GuildCategory));
+
+    addRow(
+        container,
+        actionButton("config_tempvoice:autocreate", "Criar estrutura", "🏗️", ButtonStyle.Primary),
+        actionButton("config_tempvoice:name", "Nome", "✏️"),
+        actionButton("config_tempvoice:limit", "Limite", "👥"),
+        toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
+    );
+
+    addNav(container, [actionButton("config_tempvoice:permissions_page", "Permissões", "🛡️")]);
+    return finish(container);
 }
 
 async function buildTempVoicePermissions(interaction) {
     const c = await TempVoiceRepository.get(interaction.guild.id);
     const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
+    const container = card(stateColor(c.enabled));
 
-    return {
-        embeds: [ui.panel({
-            color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "🛡️",
-            title: "TempVoice • Permissões",
-            description: "Defina quem pode administrar as salas e quais ações o dono da sala pode executar.",
-            fields: [
-                ui.field("shield", "Admins/Moderação", c.admin_manage ? "<:botao_on:1557820524305064056> Ativado" : "<:botao_off:1557820521088024696> Desativado"),
-                ui.field("role", "Cargo de gerenciamento", managerRole ? `<@&${managerRole.id}>` : "Não definido"),
-                ui.field("key", "Permissões do dono", [
-                    ["Renomear", c.owner_rename],
-                    ["Bloquear", c.owner_lock],
-                    ["Alterar limite", c.owner_limit],
-                    ["Expulsar", c.owner_kick],
-                    ["Bloquear membro", c.owner_ban],
-                    ["Transferir dono", c.owner_transfer],
-                    ["Excluir", c.owner_delete]
-                ].map(([name, value]) => `${value ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>"} ${name}`).join("\n"))
-            ],
-            source: interaction
-        })],
-        components: [
-            new ActionRowBuilder().addComponents(
-                toggleButton("config_tempvoice:admin", !!c.admin_manage, "Admins/Moderação")
-            ),
-            new ActionRowBuilder().addComponents(
-                new RoleSelectMenuBuilder()
-                    .setCustomId("config_tempvoice:role")
-                    .setPlaceholder("Escolher cargo que pode gerenciar salas")
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("config_tempvoice:permissions")
-                    .setLabel("Permissões do dono")
-                    .setEmoji("🔐")
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId("config_tempvoice:permissions2")
-                    .setLabel("Mais permissões")
-                    .setEmoji("🛠️")
-                    .setStyle(ButtonStyle.Secondary)
-            ),
-            new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId("config_tempvoice:permissions_back")
-                    .setLabel("Voltar ao TempVoice")
-                    .setEmoji("◀️")
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId("config_close")
-                    .setLabel("Fechar")
-                    .setEmoji("✖️")
-                    .setStyle(ButtonStyle.Danger)
-            )
-        ]
-    };
+    addHeader(container, "🛡️", "TempVoice • Permissões", "Quem administra as salas e o que o dono da sala pode fazer.");
+
+    addToggle(container, { id: "config_tempvoice:admin", title: "Admins/Moderação gerenciam salas", description: managerRole ? `Cargo de gerenciamento: <@&${managerRole.id}>` : "Nenhum cargo de gerenciamento definido.", enabled: !!c.admin_manage });
+
+    addSep(container);
+    addText(container, `**Permissões do dono da sala**\n${dots([
+        ["Renomear", c.owner_rename],
+        ["Bloquear", c.owner_lock],
+        ["Alterar limite", c.owner_limit],
+        ["Expulsar", c.owner_kick],
+        ["Bloquear membro", c.owner_ban],
+        ["Transferir dono", c.owner_transfer],
+        ["Excluir", c.owner_delete]
+    ])}`);
+
+    addRow(container, roleSelect("config_tempvoice:role", "Cargo que pode gerenciar salas"));
+    addRow(
+        container,
+        actionButton("config_tempvoice:permissions", "Permissões do dono", "🔐"),
+        actionButton("config_tempvoice:permissions2", "Mais permissões", "🛠️")
+    );
+
+    addSep(container);
+    addRow(
+        container,
+        actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", "◀️"),
+        actionButton("config_close", "Fechar", "✖️", ButtonStyle.Danger)
+    );
+    return finish(container);
 }
 
 async function build(interaction, category) {
@@ -657,10 +668,22 @@ async function build(interaction, category) {
     }
 }
 
+/**
+ * Abre (ou atualiza) uma tela do painel.
+ * - mode "edit": atualiza a mensagem do painel que gerou a interação.
+ * - mode "reply": envia o painel como resposta efêmera (inicial ou após defer).
+ */
 async function show(interaction, category = null, mode = "reply") {
     const payload = await build(interaction, category);
+
     if (mode === "edit") return interaction.update(payload);
-    return ui.respond(interaction, payload.embeds?.[0], { ephemeral: true, components: payload.components || [] });
+
+    if (interaction.deferred && !interaction.replied) return interaction.editReply(payload);
+
+    return interaction.reply({
+        ...payload,
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+    });
 }
 
 module.exports = {

@@ -160,9 +160,12 @@ async function execute(interaction) {
                 });
             } catch (error) {
                 console.error(`[Config:Lockdown:${guild.id}] Falha ao executar ${target}:`, error);
-                return interaction.editReply({
+                // O painel é Components V2: não aceita embeds na mesma mensagem,
+                // então o painel é restaurado e o erro vai num aviso separado.
+                await interaction.editReply(await ConfigPanelManager.build(interaction, "lockdown"));
+                return interaction.followUp({
                     embeds: [ui.error(error.message, "Falha no lockdown", interaction)],
-                    components: await ConfigPanelManager.build(interaction, "lockdown").then(payload => payload.components)
+                    flags: MessageFlags.Ephemeral
                 });
             }
         }
