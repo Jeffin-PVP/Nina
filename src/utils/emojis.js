@@ -12,7 +12,7 @@ const FALLBACK = {
     ok: "✅", error: "❌", warn: "⚠️", info: "ℹ️",
     lock: "🔒", unlock: "🔓", ban: "🔨", unban: "♻️", kick: "👢",
     timeout: "⏳", purge: "🧹", clock: "🕒", role: "🏷️", nick: "✏️", shield: "🛡️",
-    coin: "<:Niquel:1560347086199722035>", wallet: "👛", bank: "🏦", gift: "🎁", work: "💼", trophy: "🏆",
+    coin: "🪙", wallet: "👛", bank: "🏦", gift: "🎁", work: "💼", trophy: "🏆",
     pay: "💸", deposit: "📥", withdraw: "📤",
     dice: "🎲", slots: "🎰",
     ping: "📶", help: "❓", user: "👤", server: "🏰", sparkle: "✨", star: "⭐",
@@ -37,6 +37,16 @@ async function sync(client) {
 
         for (const emoji of emojis.values()) {
 
+            // Emoji da moeda Níquel: procura pelo ID e pelo nome na lista de emojis da aplicação.
+            if (emoji.id === "1560347086199722035" || emoji.name?.toLowerCase() === "niquel") {
+                cache.set("coin", {
+                    id: emoji.id,
+                    name: emoji.name,
+                    animated: Boolean(emoji.animated),
+                    text: emoji.toString()
+                });
+            }
+
             if (!emoji.name?.startsWith(PREFIX)) continue;
 
             cache.set(emoji.name.slice(PREFIX.length), {
@@ -46,6 +56,12 @@ async function sync(client) {
                 text: emoji.toString()
             });
 
+        }
+
+        if (cache.has("coin")) {
+            console.log(`🪙 Emoji Níquel carregado: ${cache.get("coin").text}`);
+        } else {
+            console.warn("⚠️ Emoji personalizado Níquel não encontrado nos emojis da aplicação; usando 🪙. Confira se o emoji está em Developer Portal > sua aplicação > Emojis.");
         }
 
         console.log(`✨ Emojis de interface carregados: ${cache.size} (${Object.keys(FALLBACK).filter(name => !cache.has(name)).length} do conjunto base usando Unicode)`);
