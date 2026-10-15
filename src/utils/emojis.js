@@ -12,7 +12,7 @@ const FALLBACK = {
     ok: "✅", error: "❌", warn: "⚠️", info: "ℹ️",
     lock: "🔒", unlock: "🔓", ban: "🔨", unban: "♻️", kick: "👢",
     timeout: "⏳", purge: "🧹", clock: "🕒", role: "🏷️", nick: "✏️", shield: "🛡️",
-    coin: "🪙", wallet: "👛", bank: "🏦", gift: "🎁", work: "💼", trophy: "🏆",
+    coin: "<:Niquel:1560347086199722035>", wallet: "👛", bank: "🏦", gift: "🎁", work: "💼", trophy: "🏆",
     pay: "💸", deposit: "📥", withdraw: "📤",
     dice: "🎲", slots: "🎰",
     ping: "📶", help: "❓", user: "👤", server: "🏰", sparkle: "✨", star: "⭐",

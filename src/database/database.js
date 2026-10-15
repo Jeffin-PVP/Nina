@@ -448,6 +448,8 @@ function initializeDatabase() {
     try {
         for (const statement of statements) db.exec(statement);
         migrateGlobalEconomy();
+        // A economia usa um único saldo global: incorpora saldos bancários antigos à carteira.
+        db.exec("UPDATE economy_global_users SET wallet = wallet + bank, bank = 0 WHERE bank <> 0");
         for (const statement of indexes) db.exec(statement);
         migrateGuildSettingsSchema();
         migrateTempVoiceSchema();

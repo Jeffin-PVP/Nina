@@ -29,14 +29,12 @@ module.exports = {
         const need = LevelManager.xpNeededForLevel(profile.level);
         const current = Math.max(0, profile.xp - base);
 
-        const embed = ui.titled(ui.COLORS.economy, "wallet", `Carteira de ${user.displayName ?? user.username}`, null, interaction)
+        const embed = ui.titled(ui.COLORS.economy, "wallet", `Saldo de ${user.displayName ?? user.username}`, null, interaction)
             .setThumbnail(user.displayAvatarURL({ size: 256 }))
             .addFields(
-                { name: `${e("coin")} Carteira`, value: ui.money(profile.wallet), inline: true },
-                { name: `${e("bank")} Banco`, value: ui.money(profile.bank), inline: true },
-                { name: `${e("sparkle")} Patrimônio`, value: ui.money(profile.total), inline: true },
+                { name: `${e("coin")} Saldo global`, value: ui.money(profile.total), inline: true },
                 {
-                    name: `${e("star")} Nível ${profile.level}`,
+                    name: `${e("star")} Nível neste servidor: ${profile.level}`,
                     value: `\`${ui.bar(current, need, 12)}\` ${ui.num(current)}/${ui.num(need)} XP`
                 }
             );

@@ -134,19 +134,30 @@ class EconomyRepository {
     }
 
     static async transfer(guildId, fromUserId, toUserId, amount) {
-        if (!(amount > 0) || fromUserId === toUserId) return false;
+        if (!Number.isSafeInteger(amount) || amount <= 0 || fromUserId === toUserId) return false;
         await this.ensureGlobalUser(fromUserId);
         await this.ensureGlobalUser(toUserId);
-        // O débito condicional impede saldo negativo e transferências duplicadas concorrentes.
-        const debited = await this.tryRemoveWallet("GLOBAL", fromUserId, amount);
-        if (!debited) return false;
+
+        // Transação SQLite única: nunca debita sem creditar, nem duplica transferências.
+        const db = database.db;
+        db.exec("BEGIN IMMEDIATE");
         try {
-            await this.addWallet("GLOBAL", toUserId, amount);
-            await this.addTransaction("GLOBAL", fromUserId, -amount, "PAY", `Transferência para ${toUserId}`);
-            await this.addTransaction("GLOBAL", toUserId, amount, "PAY", `Recebido de ${fromUserId}`);
+            const debit = db.prepare(
+                `UPDATE economy_global_users SET wallet = wallet - ? WHERE user_id = ? AND wallet >= ?`
+            ).run(amount, fromUserId, amount);
+            if (Number(debit.changes) !== 1) {
+                db.exec("ROLLBACK");
+                return false;
+            }
+            db.prepare(`UPDATE economy_global_users SET wallet = wallet + ? WHERE user_id = ?`).run(amount, toUserId);
+            db.prepare(`INSERT INTO economy_transactions (guild_id, user_id, amount, type, description) VALUES ('GLOBAL', ?, ?, 'PAY', ?)`)
+                .run(fromUserId, -amount, `Transferência para ${toUserId}`);
+            db.prepare(`INSERT INTO economy_transactions (guild_id, user_id, amount, type, description) VALUES ('GLOBAL', ?, ?, 'PAY', ?)`)
+                .run(toUserId, amount, `Recebido de ${fromUserId}`);
+            db.exec("COMMIT");
             return true;
         } catch (error) {
-            await this.addWallet("GLOBAL", fromUserId, amount);
+            try { db.exec("ROLLBACK"); } catch {}
             throw error;
         }
     }

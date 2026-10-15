@@ -31,16 +31,16 @@ module.exports = {
 
         for (const user of ranking) {
 
-            const member = await interaction.guild.members.fetch(user.user_id).catch(() => null);
-
-            if (!member) continue;
+            // O ranking é global: não filtramos por membros do servidor atual.
+            const rankedUser = await interaction.client.users.fetch(user.user_id).catch(() => null);
+            const displayName = rankedUser?.globalName ?? rankedUser?.username ?? `Usuário ${user.user_id.slice(-4)}`;
 
             if (position === 1) top = user.total;
 
             const icon = MEDALS[position - 1] ?? `\`${String(position).padStart(2, "0")}\``;
 
             lines.push(
-                `${icon} **${rankedUser.globalName ?? rankedUser.username}**\n` +
+                `${icon} **${displayName.replace(/([\\*_~`|>])/g, "\\$1")}**\n` +
                 `┗ ${ui.money(user.total)}  \`${ui.bar(user.total, top, 8)}\``
             );
 
