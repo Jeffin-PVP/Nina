@@ -50,6 +50,8 @@ const tempVoiceModals =
 const tempVoiceUsers =
     require("../interactions/tempVoice/userSelectHandler");
 
+const amongUs = require("../managers/AmongUsAnnouncementManager");
+
 module.exports = {
 
     name: Events.InteractionCreate,
@@ -112,6 +114,10 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("amongus_modal:")) {
+                    return amongUs.handleModal(interaction);
+                }
+
                 return modalSubmit.execute(interaction);
 
             }
@@ -164,6 +170,11 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("amongus:")) {
+                    if (interaction.customId.startsWith("amongus:code:")) return amongUs.showCode(interaction);
+                    return amongUs.handleButton(interaction);
+                }
+
                 return embedButtons.execute(interaction);
 
             }
@@ -176,6 +187,8 @@ module.exports = {
 
             if (interaction.isChannelSelectMenu()) {
 
+                if (interaction.customId.startsWith("amongus:channel:")) return amongUs.handleSelect(interaction);
+
                 if (interaction.customId.startsWith("config_channel:")) {
                     return configPanel.execute(interaction);
                 }
@@ -185,6 +198,8 @@ module.exports = {
             }
 
             if (interaction.isRoleSelectMenu()) {
+
+                if (interaction.customId.startsWith("amongus:role:")) return amongUs.handleSelect(interaction);
 
                 if (interaction.customId.startsWith("config_role:")) {
                     return configPanel.execute(interaction);
