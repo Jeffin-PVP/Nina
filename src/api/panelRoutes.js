@@ -729,10 +729,14 @@ module.exports = (client) => {
         const settings = await GuildRepository.getSettings(guildId);
         const stats = await database.get(`
             SELECT COUNT(*) AS users,
-                   COALESCE(SUM(wallet + bank), 0) AS totalWealth,
-                   COALESCE(SUM(xp), 0) AS totalXp
+                   COALESCE(SUM(wallet + bank), 0) AS totalWealth
+            FROM economy_global_users
+        `);
+        const levelStats = await database.get(`
+            SELECT COALESCE(SUM(xp), 0) AS totalXp
             FROM economy_users WHERE guild_id = ?
         `, [guildId]);
+        stats.totalXp = Number(levelStats?.totalXp || 0);
         const leaderboard = await EconomyRepository.getLeaderboard(guildId, 10);
         res.json({
             enabled: !!settings.economy_enabled,

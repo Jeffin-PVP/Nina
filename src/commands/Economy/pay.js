@@ -9,17 +9,17 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName("pay")
-        .setDescription("Transfira moedas para outro membro.")
+        .setDescription("Transfira Níqueis para outro membro.")
         .addUserOption(option =>
             option
                 .setName("usuario")
-                .setDescription("Quem receberá as moedas.")
+                .setDescription("Quem receberá as Níqueis.")
                 .setRequired(true)
         )
         .addIntegerOption(option =>
             option
                 .setName("quantidade")
-                .setDescription("Quantidade de moedas.")
+                .setDescription("Quantidade de Níqueis.")
                 .setRequired(true)
                 .setMinValue(1)
         ),
@@ -34,7 +34,7 @@ module.exports = {
         if (receiver.bot) {
 
             return interaction.reply({
-                embeds: [ui.error("Você não pode enviar moedas para bots.", "Transferência inválida", interaction)]
+                embeds: [ui.error("Você não pode enviar Níqueis para bots.", "Transferência inválida", interaction)]
             });
 
         }
@@ -42,7 +42,7 @@ module.exports = {
         if (receiver.id === sender.id) {
 
             return interaction.reply({
-                embeds: [ui.error("Você não pode enviar moedas para si mesmo.", "Transferência inválida", interaction)]
+                embeds: [ui.error("Você não pode enviar Níqueis para si mesmo.", "Transferência inválida", interaction)]
             });
 
         }

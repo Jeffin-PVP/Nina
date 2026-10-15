@@ -11,7 +11,7 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName("leaderboard")
-        .setDescription("Mostra os usuários mais ricos do servidor."),
+        .setDescription("Mostra o ranking global de Níqueis da Nina."),
 
     async execute(interaction) {
 
@@ -20,7 +20,7 @@ module.exports = {
         if (!ranking.length) {
 
             return interaction.reply({
-                embeds: [ui.info("Ainda não há ninguém na economia deste servidor.", "Ranking vazio", interaction)]
+                embeds: [ui.info("Ainda não há ninguém na economia global da Nina.", "Ranking vazio", interaction)]
             });
 
         }
@@ -40,7 +40,7 @@ module.exports = {
             const icon = MEDALS[position - 1] ?? `\`${String(position).padStart(2, "0")}\``;
 
             lines.push(
-                `${icon} **${member.user.displayName ?? member.user.username}**\n` +
+                `${icon} **${rankedUser.globalName ?? rankedUser.username}**\n` +
                 `┗ ${ui.money(user.total)}  \`${ui.bar(user.total, top, 8)}\``
             );
 
@@ -58,7 +58,7 @@ module.exports = {
 
         if (interaction.guild.iconURL()) embed.setThumbnail(interaction.guild.iconURL({ size: 256 }));
 
-        embed.setFooter({ text: `${interaction.guild.name} • Nina`, iconURL: interaction.client.user.displayAvatarURL() });
+        embed.setFooter({ text: `Economia global • Nina`, iconURL: interaction.client.user.displayAvatarURL() });
 
         return interaction.reply({ embeds: [embed] });
 

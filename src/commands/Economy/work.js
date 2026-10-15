@@ -66,7 +66,7 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName("work")
-        .setDescription("Trabalhe para ganhar moedas."),
+        .setDescription("Trabalhe para ganhar Níqueis."),
 
     async execute(interaction) {
 

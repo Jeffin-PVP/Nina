@@ -9,11 +9,11 @@ module.exports = {
 
     data: new SlashCommandBuilder()
         .setName("deposit")
-        .setDescription("Deposita moedas no banco.")
+        .setDescription("Deposita Níqueis no banco.")
         .addIntegerOption(option =>
             option
                 .setName("quantidade")
-                .setDescription("Quantidade de moedas")
+                .setDescription("Quantidade de Níqueis")
                 .setRequired(true)
                 .setMinValue(1)
         ),

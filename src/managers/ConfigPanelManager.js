@@ -16,7 +16,7 @@ const {
 } = require("discord.js");
 
 const ui = require("../utils/ui");
-const { e, component } = require("../utils/emojis");
+const { e } = require("../utils/emojis");
 const GuildRepository = require("../database/repositories/GuildRepository");
 const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
@@ -93,7 +93,7 @@ function toggleButton(id, enabled, label = "") {
     return new ButtonBuilder()
         .setCustomId(id)
         .setLabel(label ? `${label}: ${enabled ? "ON" : "OFF"}` : (enabled ? "ON" : "OFF"))
-        .setEmoji(enabled ? component("ok") : component("error"))
+        .setEmoji(enabled ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>")
         .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Danger);
 }
 

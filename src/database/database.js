@@ -56,6 +56,15 @@ const statements = [
         PRIMARY KEY (guild_id, user_id)
     )`,
 
+    `CREATE TABLE IF NOT EXISTS economy_global_users (
+        user_id TEXT PRIMARY KEY,
+        wallet INTEGER NOT NULL DEFAULT 0 CHECK (wallet >= 0),
+        bank INTEGER NOT NULL DEFAULT 0 CHECK (bank >= 0),
+        daily_at INTEGER NULL,
+        work_at INTEGER NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     `CREATE TABLE IF NOT EXISTS economy_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         guild_id TEXT NOT NULL,
@@ -409,12 +418,36 @@ function migrateTempVoiceSchema() {
     }
 }
 
+function migrateGlobalEconomy() {
+    // Executa uma única vez: preserva os saldos antigos somando os saldos por servidor.
+    const marker = db.prepare("SELECT value FROM bot_settings WHERE key = ?").get("economy_global_migration_v1");
+    if (marker) return;
+
+    db.exec(`
+        INSERT INTO economy_global_users (user_id, wallet, bank, daily_at, work_at)
+        SELECT user_id,
+               SUM(wallet),
+               SUM(bank),
+               MAX(daily_at),
+               MAX(work_at)
+        FROM economy_users
+        GROUP BY user_id
+        ON CONFLICT(user_id) DO UPDATE SET
+            wallet = economy_global_users.wallet + excluded.wallet,
+            bank = economy_global_users.bank + excluded.bank,
+            daily_at = CASE WHEN economy_global_users.daily_at IS NULL THEN excluded.daily_at WHEN excluded.daily_at IS NULL THEN economy_global_users.daily_at ELSE MAX(economy_global_users.daily_at, excluded.daily_at) END,
+            work_at = CASE WHEN economy_global_users.work_at IS NULL THEN excluded.work_at WHEN excluded.work_at IS NULL THEN economy_global_users.work_at ELSE MAX(economy_global_users.work_at, excluded.work_at) END
+    `);
+    db.prepare("INSERT INTO bot_settings (key, value) VALUES (?, ?)").run("economy_global_migration_v1", new Date().toISOString());
+}
+
 function initializeDatabase() {
     if (initialized) return;
 
     db.exec("BEGIN");
     try {
         for (const statement of statements) db.exec(statement);
+        migrateGlobalEconomy();
         for (const statement of indexes) db.exec(statement);
         migrateGuildSettingsSchema();
         migrateTempVoiceSchema();

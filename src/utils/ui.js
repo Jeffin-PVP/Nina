@@ -176,7 +176,7 @@ const nothing = (interaction, description, title, opts = {}) =>
 const num = n => Number(n ?? 0).toLocaleString("pt-BR");
 
 /** Valor monetário com a moeda personalizada. */
-const money = n => `${e("coin")} **${num(n)}**`;
+const money = n => `${e("coin")} **${num(n)} Níqueis**`;
 
 /** Timestamp do Discord (<t:...>). style: R (relativo), f, F, D, d, t, T */
 const ts = (ms, style = "R") => `<t:${Math.floor(ms / 1000)}:${style}>`;
