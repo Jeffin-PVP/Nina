@@ -1,6 +1,6 @@
 /*
 Envia os PNGs de assets/emojis/ para os Application Emojis do bot
-(Developer Portal → seu app → aba "Emojis").
+(Developer Portal → seu app → aba "Emojis"). Aceita .png e .gif (animados).
 
 Uso:
     npm run emojis            # envia só os que ainda não existem
@@ -30,7 +30,7 @@ const force = process.argv.includes("--force");
     const rest = new REST({ version: "10" }).setToken(TOKEN);
 
     const files = fs.readdirSync(DIR)
-        .filter(f => f.startsWith("ui_") && f.endsWith(".png"))
+        .filter(f => f.startsWith("ui_") && /\.(png|gif)$/i.test(f))
         .sort();
 
     const { items = [] } = await rest.get(Routes.applicationEmojis(CLIENT_ID));
@@ -42,7 +42,8 @@ const force = process.argv.includes("--force");
 
     for (const file of files) {
 
-        const name = path.basename(file, ".png");
+        const ext = path.extname(file).toLowerCase();
+        const name = path.basename(file, ext);
         const current = existing.get(name);
 
         if (current && !force) {
@@ -57,7 +58,8 @@ const force = process.argv.includes("--force");
                 await rest.delete(Routes.applicationEmoji(CLIENT_ID, current.id));
             }
 
-            const image = `data:image/png;base64,${fs.readFileSync(path.join(DIR, file)).toString("base64")}`;
+            const mime = ext === ".gif" ? "image/gif" : "image/png";
+            const image = `data:${mime};base64,${fs.readFileSync(path.join(DIR, file)).toString("base64")}`;
 
             await rest.post(Routes.applicationEmojis(CLIENT_ID), { body: { name, image } });
 

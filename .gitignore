@@ -1,6 +1,8 @@
 node_modules/
 images/
 assets/
+iconpack/*
+iconpack/
 
 # Banco local antigo (não usado pela Nina)
 src/database/*.sqlite

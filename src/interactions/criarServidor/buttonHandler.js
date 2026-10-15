@@ -16,7 +16,7 @@ function buildResumoEmbed(sessao, resultado) {
         emoji: "server",
         title: "Servidor criado com sucesso!",
         description:
-            `<:Nina_engenheira:1552064823976529951> Tudo pronto!\n\n` +
+            `${ui.mood("engenheira")} Tudo pronto!\n\n` +
             `${ui.quote(`**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n**Segurança reforçada:** ${sessao.segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`)}`,
         fields: [
             ui.field("crown", "Cargos criados", ui.num(resultado.cargosCriados)),

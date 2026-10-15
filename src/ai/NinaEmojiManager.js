@@ -1,3 +1,15 @@
+/*
+=========================
+    EMOJIS DA NINA (expressões)
+=========================
+Os emojis "Nina_*" são Application Emojis (Developer Portal → Emojis).
+No ClientReady o bot busca todos eles (Emojis.sync → NinaEmojiManager.sync)
+e passa a usar o ID/animação reais. Os IDs abaixo servem só de reserva,
+caso o fetch falhe ou o emoji ainda não tenha sido encontrado.
+*/
+
+const PREFIX = "Nina_";
+
 const EMOJIS = {
     uau: "<:Nina_uau:1552058129108181022>",
     triste: "<:Nina_triste:1552058125341958324>",
@@ -24,42 +36,83 @@ const EMOJIS = {
     brava: "<:Nina_brava:1552058051073282100>",
     bebendo: "<:Nina_bebendo:1552058048082874428>",
     apaixonada: "<:Nina_apaixonada:1552058044978831400>",
-    agradecida: "<:Nina_agradecida:1552058042185547898>"
+    agradecida: "<:Nina_agradecida:1552058042185547898>",
+    engenheira: "<:Nina_engenheira:1552064823976529951>"
 };
 
-const ALLOWED = new Set(Object.keys(EMOJIS));
-const MARKER = /\[\[NINA_EMOTION:([a-zA-Z]+)\]\]/i;
+// Emojis encontrados na aplicação (chave em minúsculas → texto do emoji).
+const live = new Map();
+
+// Nomes sem diferenciar maiúsculas e sem "_"/espaços: "muito_brava" → "muitobrava".
+const normalize = value => String(value).toLowerCase().replace(/[^a-z]/g, "");
+
+// Chave normalizada → nome canônico (ex.: "muitobrava" → "muitoBrava").
+const canonical = new Map(Object.keys(EMOJIS).map(key => [normalize(key), key]));
+
+// Aceita [[NINA_EMOTION:oi]], [[ NINA_EMOTION: oi ]], [NINA_EMOTION:oi], muito_brava...
+const MARKER = /\[{1,2}\s*NINA_EMOTION\s*:\s*([a-zA-Z_ ]+?)\s*\]{1,2}/gi;
+
+/** Atualiza o cache com os Application Emojis "Nina_*". Retorna os nomes que faltam. */
+function sync(emojis) {
+
+    live.clear();
+
+    for (const emoji of emojis.values()) {
+
+        if (!emoji.name?.startsWith(PREFIX)) continue;
+
+        const name = emoji.name.slice(PREFIX.length);
+
+        live.set(normalize(name), emoji.toString());
+
+        // Emoji novo (não previsto no mapa de reserva) também vira emoção válida.
+        if (!canonical.has(normalize(name))) canonical.set(normalize(name), name);
+
+    }
+
+    return Object.keys(EMOJIS).filter(key => !live.has(normalize(key)));
+
+}
 
 function get(name) {
-    return EMOJIS[name] || null;
+
+    if (!name) return null;
+
+    const key = normalize(name);
+    const fallbackName = canonical.get(key);
+
+    return live.get(key) ?? (fallbackName ? EMOJIS[fallbackName] : null) ?? null;
+
 }
 
 function apply(content) {
     if (!content) return { content: "", emotion: null, emoji: null };
 
-    const match = content.match(MARKER);
-    if (!match) return { content: content.trim(), emotion: null, emoji: null };
+    const matches = [...content.matchAll(MARKER)];
+    if (!matches.length) return { content: content.trim(), emotion: null, emoji: null };
 
-    const emotion = match[1].toLowerCase();
-    const normalized = Object.keys(EMOJIS).find(key => key.toLowerCase() === emotion);
-    const emoji = normalized && ALLOWED.has(normalized) ? EMOJIS[normalized] : null;
-
+    // Remove todos os marcadores técnicos; usa o primeiro que for válido.
     const clean = content.replace(MARKER, "").trim();
 
-    if (!emoji) {
-        return { content: clean, emotion: null, emoji: null };
+    for (const match of matches) {
+
+        const emotion = canonical.get(normalize(match[1]));
+        const emoji = emotion ? get(emotion) : null;
+
+        if (emoji) return { content: clean, emotion, emoji };
+
     }
 
-    return {
-        content: clean,
-        emotion: normalized,
-        emoji
-    };
+    return { content: clean, emotion: null, emoji: null };
 }
 
 module.exports = {
     EMOJIS,
+    PREFIX,
+    sync,
     get,
     apply,
-    allowedEmotions: [...ALLOWED]
+    get allowedEmotions() {
+        return [...canonical.values()];
+    }
 };

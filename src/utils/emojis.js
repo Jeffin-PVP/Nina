@@ -20,6 +20,8 @@ const FALLBACK = {
     config: "⚙️", log: "📜", channel: "#️⃣", image: "🖼️", mail: "✉️", boost: "🚀"
 };
 
+const NinaEmojiManager = require("../ai/NinaEmojiManager");
+
 const PREFIX = "ui_";
 
 const cache = new Map();
@@ -46,7 +48,14 @@ async function sync(client) {
 
         }
 
-        console.log(`✨ Emojis personalizados carregados: ${cache.size}/${Object.keys(FALLBACK).length}`);
+        console.log(`✨ Emojis de interface carregados: ${cache.size} (${Object.keys(FALLBACK).filter(name => !cache.has(name)).length} do conjunto base usando Unicode)`);
+
+        // Expressões da Nina (Nina_*): usa os IDs reais da aplicação.
+        const ausentes = NinaEmojiManager.sync(emojis);
+
+        if (ausentes.length) {
+            console.warn(`⚠️ Emojis Nina_* não encontrados na aplicação (usando ID de reserva): ${ausentes.join(", ")}`);
+        }
 
     } catch (error) {
 
