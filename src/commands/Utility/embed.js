@@ -32,7 +32,7 @@ module.exports = {
             color: "#5865F2",
             title: "Nova Embed",
             description:
-                "Clique em **📝 Editar** para começar a montar sua embed.",
+                "Clique em **<:ui_title:1560327153088860200> Editar** para começar a montar sua embed.",
             author: {},
             footer: {},
             fields: [],

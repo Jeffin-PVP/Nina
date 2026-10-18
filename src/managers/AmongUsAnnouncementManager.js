@@ -55,11 +55,11 @@ function previewEmbed(data, interaction) {
     .setTitle('👾 Sala de Among Us aberta!')
     .setDescription(data.notes || 'Entre na partida e venha jogar com a gente!')
     .addFields(
-      { name: '🔑 Código da sala', value: `\`${data.code}\``, inline: true },
-      { name: '🌎 Região', value: data.region, inline: true },
-      { name: '🗺️ Mapa', value: data.map || 'Não informado', inline: true },
-      { name: '👥 Jogadores', value: data.players ? `${data.players} vagas/jogadores` : 'Não informado', inline: true },
-      { name: '🎮 Anfitrião', value: `<@${interaction.user.id}>`, inline: true }
+      { name: '<:ui_key:1560326937769943082> Código da sala', value: `\`${data.code}\``, inline: true },
+      { name: '<:ui_web:1560327191240253450> Região', value: data.region, inline: true },
+      { name: '<:ui_timestamp:1560327150815543447> Mapa', value: data.map || 'Não informado', inline: true },
+      { name: '<:ui_users:1560327175826313336> Jogadores', value: data.players ? `${data.players} vagas/jogadores` : 'Não informado', inline: true },
+      { name: '<:user:1561426447414071406> Anfitrião', value: `<@${interaction.user.id}>`, inline: true }
     )
     .setFooter({ text: 'Nina • Among Us | Confira o código antes de entrar' })
     .setTimestamp();

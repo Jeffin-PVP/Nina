@@ -15,7 +15,7 @@ module.exports = {
             .setColor("#7C3AED")
             .setTitle("🏓 Pong!")
             .setDescription(
-                `Estou online! ${emojis.status.on}\n\n**Latência:** \`${ping}ms\``
+                `<:ui_wifi:1560327197942874132> Estou online! \n\n**<:ping:1561491471071322222> Latência:** \`${ping}ms\``
             )
             .setImage(
                 "https://cdn.discordapp.com/attachments/1529246810265358416/1556808606589132840/injectCloud.png?backend=b2&ex=6ac5827f&is=6ac430ff&hm=5ea5a7ff9e55b9a3a0468103040aeb227f57f4d3767926bdcd33971e543a9981&"
@@ -23,13 +23,13 @@ module.exports = {
 
         const buttons = createLinkButtons([
             {
-                label: "Painel",
-                emoji: "⚙️",
+                label: "Painel Web",
+                emoji: "<:ui_settings:1560327092078645258>",
                 url: LINKS.painel
             },
             {
-                label: "Hospedagem",
-                emoji: "🚀",
+                label: "Inject Cloud",
+                emoji: "<:ui_rocket:1560327081345155082>",
                 url: LINKS.hospedagem
             }
         ]);
