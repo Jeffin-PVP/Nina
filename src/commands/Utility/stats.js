@@ -70,7 +70,7 @@ module.exports = {
         if (subcommand === "atualizar") {
             await interaction.deferReply({ ephemeral: true });
             await ServerStatsManager.updateGuild(guild);
-            return interaction.editReply("🔄 **Contadores atualizados.**");
+            return interaction.editReply("<a:ui_torefresh:1560327155819225178> **Contadores atualizados.**");
         }
 
         if (subcommand === "contador") {

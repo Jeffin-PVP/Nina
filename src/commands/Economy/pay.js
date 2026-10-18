@@ -52,7 +52,7 @@ module.exports = {
             .setCustomId("nina_pay_reject")
             .setLabel("Recusar / cancelar")
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji("✖️");
+            .setEmoji("<:ui_cancel:1560326759059030188>️");
 
         const row = new ActionRowBuilder().addComponents(confirmButton, rejectButton);
         const embed = ui.titled(

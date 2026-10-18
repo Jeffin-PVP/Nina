@@ -111,8 +111,8 @@ function addToggle(container, { id, title, description, enabled }) {
 function navButtons(extra = []) {
     return [
         ...extra,
-        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji("◀️").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji("<:ui_arrowl:1560326702721146890>").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("<:ui_cancel:1560326759059030188>️").setStyle(ButtonStyle.Danger)
     ];
 }
 
@@ -226,8 +226,8 @@ async function buildHome(interaction) {
     addSep(container);
     addRow(
         container,
-        new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji("🔄").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("✖️").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji("<a:ui_torefresh:1560327155819225178>").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("<:ui_cancel:1560326759059030188>️").setStyle(ButtonStyle.Danger)
     );
 
     addText(container, "-# Requer a permissão Gerenciar Servidor · Os comandos antigos continuam disponíveis.");
@@ -471,21 +471,21 @@ async function buildLockdown(interaction) {
         "Tranque canais e categorias rapidamente. Administradores continuam com acesso pelo bypass do Discord."
     );
 
-    addText(container, `${config.active ? "🚨 **LOCKDOWN ATIVO**" : "✅ **Lockdown inativo**"}\n-# Sistema ${config.enabled ? "ativado" : "desativado"}`);
+    addText(container, `${config.active ? "<:botao_off:1557820521088024696> **LOCKDOWN ATIVO**" : "<:botao_on:1557820524305064056> **Lockdown inativo**"}\n-# Sistema ${config.enabled ? "ativado" : "desativado"}`);
 
     addRow(
         container,
         toggleButton("config_lockdown:enabled", config.enabled, "Sistema"),
-        actionButton("config_lockdown:lock", "Trancar", "🔒", ButtonStyle.Danger).setDisabled(!config.enabled || config.active),
-        actionButton("config_lockdown:unlock", "Destrancar", "🔓", ButtonStyle.Success).setDisabled(!config.active)
+        actionButton("config_lockdown:lock", "Trancar", "<:lock:1561418439879565404>", ButtonStyle.Danger).setDisabled(!config.enabled || config.active),
+        actionButton("config_lockdown:unlock", "Destrancar", "<:unlock:1561421260372582490>", ButtonStyle.Success).setDisabled(!config.active)
     );
 
     addSep(container);
     addText(container, [
-        `**${e("channel")} Canais**\n${list(config.channel_ids)}`,
-        `**📁 Categorias**\n${list(config.category_ids)}`,
-        `**✅ Acesso permitido**\n${roleList(config.allowed_role_ids)}`,
-        `**⛔ Acesso negado**\n${roleList(config.denied_role_ids)}`
+        `**<:ui_textc:1560327137024544808> Canais**\n${list(config.channel_ids)}`,
+        `**<:ui_dir:1560326823894712370> Categorias**\n${list(config.category_ids)}`,
+        `**<:ui_check:1560326782610047098> Acesso permitido**\n${roleList(config.allowed_role_ids)}`,
+        `**<:ui_dnd:1560326836230295663> Acesso negado**\n${roleList(config.denied_role_ids)}`
     ].join("\n\n"));
     addText(container, "-# Não use o mesmo cargo nas duas listas. Se um membro tiver cargos das duas listas, o Discord prioriza a permissão permitida.");
 
@@ -529,7 +529,7 @@ async function buildStats(interaction) {
     const counters = [
         ["members", "👥 Membros"], ["bots", "🤖 Bots"], ["online", "🟢 Online"],
         ["offline", "⚫ Offline"], ["voice", "🔊 Em call"], ["channels", "💬 Canais"],
-        ["categories", "📁 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
+        ["categories", "📂 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
     ];
     const container = card(stateColor(c.enabled));
 
@@ -549,7 +549,7 @@ async function buildStats(interaction) {
         );
     }
 
-    addNav(container, [actionButton("config_stats:update", "Atualizar agora", "🔄")]);
+    addNav(container, [actionButton("config_stats:update", "Atualizar agora", "<a:ui_torefresh:1560327155819225178>")]);
     return finish(container);
 }
 
@@ -557,20 +557,20 @@ async function buildAntiNuke(interaction) {
     const c = await AntiNukeRepository.get(interaction.guild.id);
     const container = card(c.enabled ? ui.COLORS.error : ui.COLORS.neutral);
 
-    addHeader(container, "shield", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
+    addHeader(container, "<:shield:1561427396719284334>", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
 
     addToggle(container, { id: "config_antinuke:enabled", title: "Proteção Anti-Nuke", description: c.enabled ? "Proteção ativa." : "Proteção desativada.", enabled: !!c.enabled });
 
     addSep(container);
     addText(container, [
-        `${e("clock")} **Janela de detecção:** ${c.window_seconds}s`,
-        `${e("channel")} **Canais:** ${c.channel_limit}`,
-        `${e("role")} **Cargos:** ${c.role_limit}`,
-        `${e("user")} **Bans/Kicks:** ${c.member_limit}`,
-        `${e("config")} **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
+        `<:clock:1561426917717053530> **Janela de detecção:** ${c.window_seconds}s`,
+        `<:ui_textc:1560327137024544808> **Canais:** ${c.channel_limit}`,
+        `<:user:1561426447414071406> **Cargos:** ${c.role_limit}`,
+        `<:ui_hammer:1560326916345700407> **Bans/Kicks:** ${c.member_limit}`,
+        `<:ui_settings:1560327092078645258> **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
     ].join("\n"));
 
-    addRow(container, actionButton("config_modal:antinuke", "Configurar limites", "⚙️"));
+    addRow(container, actionButton("config_modal:antinuke", "Configurar limites", "<:ui_settings:1560327092078645258>"));
 
     addNav(container);
     return finish(container);
@@ -588,7 +588,7 @@ async function buildTempVoice(interaction) {
 
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "🔊", "TempVoice", "Salas de voz temporárias criadas e removidas automaticamente.");
+    addHeader(container, "<:ui_voicec:1560327180486058107>", "TempVoice", "Salas de voz temporárias criadas e removidas automaticamente.");
 
     addToggle(container, { id: "config_tempvoice:enabled", title: "Sistema TempVoice", description: `${rooms.length} sala(s) ativa(s) agora.`, enabled: !!c.enabled });
 
@@ -605,13 +605,13 @@ async function buildTempVoice(interaction) {
 
     addRow(
         container,
-        actionButton("config_tempvoice:autocreate", "Criar estrutura", "🏗️", ButtonStyle.Primary),
-        actionButton("config_tempvoice:name", "Nome", "✏️"),
-        actionButton("config_tempvoice:limit", "Limite", "👥"),
+        actionButton("config_tempvoice:autocreate", "Criar estrutura", "<:ui_wrench:1560327206969024613>", ButtonStyle.Primary),
+        actionButton("config_tempvoice:name", "Nome", "<:ui_title:1560327153088860200>"),
+        actionButton("config_tempvoice:limit", "Limite", "<:ui_users:1560327175826313336>"),
         toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
     );
 
-    addNav(container, [actionButton("config_tempvoice:permissions_page", "Permissões", "🛡️")]);
+    addNav(container, [actionButton("config_tempvoice:permissions_page", "Permissões", "<:shield:1561427396719284334>")]);
     return finish(container);
 }
 
@@ -620,7 +620,7 @@ async function buildTempVoicePermissions(interaction) {
     const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "🛡️", "TempVoice • Permissões", "Quem administra as salas e o que o dono da sala pode fazer.");
+    addHeader(container, "<:shield:1561427396719284334>", "TempVoice • Permissões", "Quem administra as salas e o que o dono da sala pode fazer.");
 
     addToggle(container, { id: "config_tempvoice:admin", title: "Admins/Moderação gerenciam salas", description: managerRole ? `Cargo de gerenciamento: <@&${managerRole.id}>` : "Nenhum cargo de gerenciamento definido.", enabled: !!c.admin_manage });
 
@@ -638,15 +638,15 @@ async function buildTempVoicePermissions(interaction) {
     addRow(container, roleSelect("config_tempvoice:role", "Cargo que pode gerenciar salas"));
     addRow(
         container,
-        actionButton("config_tempvoice:permissions", "Permissões do dono", "🔐"),
-        actionButton("config_tempvoice:permissions2", "Mais permissões", "🛠️")
+        actionButton("config_tempvoice:permissions", "Permissões do dono", "<:lock:1561418439879565404>"),
+        actionButton("config_tempvoice:permissions2", "Mais permissões", "<:ui_wrench:1560327206969024613>")
     );
 
     addSep(container);
     addRow(
         container,
-        actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", "◀️"),
-        actionButton("config_close", "Fechar", "✖️", ButtonStyle.Danger)
+        actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", "<:ui_arrowl:1560326702721146890>"),
+        actionButton("config_close", "Fechar", "<:ui_cancel:1560326759059030188>️", ButtonStyle.Danger)
     );
     return finish(container);
 }
