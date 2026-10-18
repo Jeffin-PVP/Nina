@@ -164,19 +164,19 @@ async function buildHome(interaction) {
     ]);
 
     const groups = [
-        ["🛡️ Proteção", [
+        ["<:shield:1561427396719284334> Proteção", [
             ["AutoMod", automod.enabled],
             ["Anti-Nuke", antinuke.enabled],
             ["Lockdown", lockdown.enabled],
             ["Moderação", settings.moderation_enabled]
         ]],
-        ["👥 Comunidade", [
+        ["<:ui_users:1560327175826313336> Comunidade", [
             ["Boas-vindas", welcome.enabled],
             ["Tickets", tickets.enabled && !!tickets.parent_channel_id],
             ["Logs", !!settings.log_channel],
             ["Economia", settings.economy_enabled]
         ]],
-        ["🧰 Utilidades", [
+        ["<:ui_wrench:1560327206969024613> Utilidades", [
             ["Stats", stats.enabled],
             ["TempVoice", tempvoice.enabled]
         ]]
@@ -239,14 +239,14 @@ async function buildGeneral(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
     const container = card(ui.COLORS.info);
 
-    addHeader(container, "config", "Configuração geral", "Ative ou desative os principais sistemas do servidor.");
+    addHeader(container, "<:ui_settings:1560327092078645258>", "Configuração geral", "Ative ou desative os principais sistemas do servidor.");
 
-    addToggle(container, { id: "config_toggle:economy", title: `${e("coin")} Economia`, description: "Moedas, trabalho, loja e jogos de aposta.", enabled: !!s.economy_enabled });
-    addToggle(container, { id: "config_toggle:moderation", title: `${e("shield")} Moderação`, description: "Comandos de ban, kick, timeout e avisos.", enabled: !!s.moderation_enabled });
-    addToggle(container, { id: "config_toggle:levelup", title: `${e("star")} Avisos de level-up`, description: "Mensagem quando um membro sobe de nível.", enabled: !!s.levelup_enabled });
+    addToggle(container, { id: "config_toggle:economy", title: `<:moneybag:1561484846159757513> Economia`, description: "Moedas, trabalho, loja e jogos de aposta.", enabled: !!s.economy_enabled });
+    addToggle(container, { id: "config_toggle:moderation", title: `<:shield:1561427396719284334> Moderação`, description: "Comandos de ban, kick, timeout e avisos.", enabled: !!s.moderation_enabled });
+    addToggle(container, { id: "config_toggle:levelup", title: `<:ui_up:1560327169148846100> Avisos de level-up`, description: "Mensagem quando um membro sobe de nível.", enabled: !!s.levelup_enabled });
 
     addSep(container);
-    addText(container, `**${e("log")} Canal de logs**\n${mention(s.log_channel)}`);
+    addText(container, `**<:ui_logs:1560326969311232011> Canal de logs**\n${mention(s.log_channel)}`);
 
     addNav(container);
     return finish(container);
@@ -256,7 +256,7 @@ async function buildAutomod(interaction) {
     const c = await AutomodRepository.get(interaction.guild.id);
     const container = card(c.enabled ? ui.COLORS.success : ui.COLORS.neutral);
 
-    addHeader(container, "shield", "AutoMod", "Proteção automática contra spam, convites, menções, raid e outros abusos.");
+    addHeader(container, "<:shield:1561427396719284334>", "AutoMod", "Proteção automática contra spam, convites, menções, raid e outros abusos.");
 
     addToggle(container, { id: "config_toggle:automod", title: "Sistema AutoMod", description: `Punição padrão: mute de ${c.mute_duration_minutes} minuto(s).`, enabled: !!c.enabled });
 
@@ -289,9 +289,9 @@ async function buildAutomod(interaction) {
     addText(container, "**Limites e ajustes**");
     addRow(
         container,
-        actionButton("config_modal:automod_spam", "Spam", "🚨"),
-        actionButton("config_modal:automod_raid", "Raid", "🛑"),
-        actionButton("config_modal:automod_image", "Anti-Scam", "🖼️")
+        actionButton("config_modal:automod_spam", "Spam", "<:ui_content:1560326801673420922>"),
+        actionButton("config_modal:automod_raid", "Raid", "<:ui_invite:1560326931075833916>"),
+        actionButton("config_modal:automod_image", "Anti-Scam", "<:ui_window:1560327200039768276>")
     );
 
     addNav(container);
@@ -319,10 +319,10 @@ async function buildWelcome(interaction) {
 
     addRow(
         container,
-        actionButton("config_modal:welcome_text", "Textos", "📝"),
-        actionButton("config_modal:welcome_background", "Fundo", "🖼️"),
-        actionButton("config_clear:welcome_background", "Remover fundo", "🗑️", ButtonStyle.Danger),
-        actionButton("config_welcome_test", "Testar", "🧪")
+        actionButton("config_modal:welcome_text", "Textos", "<:ui_content:1560326801673420922>"),
+        actionButton("config_modal:welcome_background", "Fundo", "<:ui_window:1560327200039768276>"),
+        actionButton("config_clear:welcome_background", "Remover fundo", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger),
+        actionButton("config_welcome_test", "Testar", "<:ui_flask:1560326880945512659>")
     );
 
     addNav(container);
@@ -339,7 +339,7 @@ async function buildTickets(interaction) {
     addToggle(container, { id: "config_toggle:tickets", title: "Sistema de tickets", description: active ? "Funcionando." : "Defina o canal dos tickets para ativar de fato.", enabled: !!c.enabled });
 
     addSep(container);
-    addText(container, `**${e("channel")} Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**${e("shield")} Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+    addText(container, `**<:ui_textc:1560327137024544808> Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
 
     addRow(container, channelSelect("config_channel:tickets", "Escolher canal dos tickets", ChannelType.GuildText));
     addRow(container, roleSelect("config_role:tickets", "Escolher cargo de suporte"));
@@ -357,9 +357,9 @@ async function buildLogs(interaction) {
     ]);
     const container = card(s.log_channel ? ui.COLORS.success : ui.COLORS.neutral);
 
-    addHeader(container, "log", "Logs", "Escolha o canal e quais eventos a Nina deve registrar.");
+    addHeader(container, "<:ui_logs:1560326969311232011>", "Logs", "Escolha o canal e quais eventos a Nina deve registrar.");
 
-    addText(container, `**${e("channel")} Canal de logs**\n${mention(s.log_channel)}`);
+    addText(container, `**<:ui_textc:1560327137024544808> Canal de logs**\n${mention(s.log_channel)}`);
     addRow(container, channelSelect("config_channel:logs", "Escolher canal de logs", ChannelType.GuildText));
 
     addSep(container);
@@ -379,7 +379,7 @@ async function buildLogs(interaction) {
     );
 
     addSep(container);
-    addToggle(container, { id: "config_logs:stats", title: `${e("config")} Logs dos Stats`, description: "Registra a atualização dos canais de contadores.", enabled: statsLogsEnabled });
+    addToggle(container, { id: "config_logs:stats", title: `<:ui_chart:1560326780693250089> Logs dos Stats`, description: "Registra a atualização dos canais de contadores.", enabled: statsLogsEnabled });
 
     addNav(container);
     return finish(container);
@@ -395,13 +395,13 @@ async function buildAutorole(interaction) {
     ]);
     const container = card(ui.COLORS.info);
 
-    addHeader(container, "role", "Autoroles", "Cargos automáticos, por botão, por reação e por nível.");
+    addHeader(container, "<:user:1561426447414071406>", "Autoroles", "Cargos automáticos, por botão, por reação e por nível.");
 
     addText(container, [
-        `${e("user")} **Entrada:** ${join.length}`,
-        `${e("role")} **Self-roles:** ${self.length}`,
-        `🔁 **Reações:** ${reactions.length}`,
-        `${e("star")} **Níveis:** ${level.length}`
+        `<:ui_invite:1560326931075833916> **Entrada:** ${join.length}`,
+        `<:user:1561426447414071406> **Self-roles:** ${self.length}`,
+        `<:ui_buttonclick:1560326757209473076> **Reações:** ${reactions.length}`,
+        `<:trophy:1561479467971387422> **Níveis:** ${level.length}`
     ].join("  ·  "));
 
     if (self.length) {
@@ -420,15 +420,15 @@ async function buildAutorole(interaction) {
 
     addRow(
         container,
-        actionButton("config_modal:autorole_selfrole", "Self-role", "🎭"),
-        actionButton("config_modal:autorole_level", "Por nível", "⭐"),
-        actionButton("config_modal:autorole_reaction", "Por reação", "🔁")
+        actionButton("config_modal:autorole_selfrole", "Self-role", "<:user:1561426447414071406>"),
+        actionButton("config_modal:autorole_level", "Por nível", "<:trophy:1561479467971387422>"),
+        actionButton("config_modal:autorole_reaction", "Por reação", "<:ui_buttonclick:1560326757209473076>")
     );
     addRow(
         container,
-        actionButton("config_autorole:publish", "Publicar painel aqui", "📨", ButtonStyle.Primary),
-        actionButton("config_modal:autorole_reaction_remove", "Remover reação", "🗑️", ButtonStyle.Danger),
-        actionButton("config_modal:autorole_note", "Ajuda", "ℹ️")
+        actionButton("config_autorole:publish", "Publicar painel aqui", "<:ui_send:1560327089993810011>", ButtonStyle.Primary),
+        actionButton("config_modal:autorole_reaction_remove", "Remover reação", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger),
+        actionButton("config_modal:autorole_note", "Ajuda", "<:info:1561478835877453945>")
     );
 
     if (self.length) {
@@ -467,7 +467,7 @@ async function buildLockdown(interaction) {
     addHeader(
         container,
         config.active ? "lock" : "unlock",
-        "Lockdown",
+        "<:lock:1561418439879565404>",
         "Tranque canais e categorias rapidamente. Administradores continuam com acesso pelo bypass do Discord."
     );
 
