@@ -45,7 +45,7 @@ abaixo disso (a maior usa ~30 componentes).
 
 const CATEGORY_OPTIONS = [
     { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "<:config:1562187516625555496>" },
-    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "<:bot:1562187511848243271>" },
+    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "<:ui_bot:1560326748313493546>" },
     { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: "<:escudo:1562187519150395393>" },
     { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "<:aceno:1562187509490778162>" },
     { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "<:ticket:1562187545914380319>" },
@@ -623,9 +623,9 @@ async function buildLockdown(interaction) {
 async function buildStats(interaction) {
     const c = await ServerStatsRepository.get(interaction.guild.id);
     const counters = [
-        ["members", "👥 Membros"], ["bots", "🤖 Bots"], ["online", "🟢 Online"],
-        ["offline", "⚫ Offline"], ["voice", "🔊 Em call"], ["channels", "💬 Canais"],
-        ["categories", "📂 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
+        ["members", "<:membros:1562187531246637107> Membros"], ["bots", "<:bot:1562187511848243271> Bots"], ["online", "<:online:1562187537957519401> Online"],
+        ["offline", "<:offline:1562187536066027680> Offline"], ["voice", "<:voz:1562187549932388383> Em call"], ["channels", "<:ui_textc:1560327137024544808> Canais"],
+        ["categories", "<:pasta:1562187541585600533> Categorias"], ["roles", "<:cargo:1562189000544882808> Cargos"], ["servers", "<:server:1561430145259016262> Servidores"]
     ];
     const container = card(stateColor(c.enabled));
 
