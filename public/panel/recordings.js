@@ -101,11 +101,11 @@
             return `<div class="list-row" data-rec-id="${r.id}">
                 <div>
                     <b>${ctx.IC("mic")} ${ctx.esc(dateTime(r.startedAt))} · #${ctx.esc(r.channelName || "canal")}</b>
-                    <small>Iniciada por ${ctx.esc(r.startedByName || r.startedBy)} · ${duration(r.durationMs)} · ${size(r.sizeBytes)} · ${r.participants} participante(s) · Áudio: ${statusLabel} · Transcrição: ${TRANSCRIPT[r.transcriptStatus] || "—"}</small>
+                    <small>Iniciada por ${ctx.esc(r.startedByName || r.startedBy)} · ${duration(r.durationMs)} · ${size(r.sizeBytes)} · ${r.participants} participante(s) · ${r.hasAudio ? `Áudio: ${statusLabel}` : "Áudio não guardado"} · Transcrição: ${TRANSCRIPT[r.transcriptStatus] || "—"}</small>
                 </div>
                 <div class="form-actions">
-                    <button class="btn ghost" data-rec-action="audio" ${audioReady && r.hasAudio ? "" : "disabled"}${r.hasAudio ? "" : ' title="Neste modo só a transcrição é guardada"'}>Baixar áudio</button>
-                    <button class="btn secondary" data-rec-action="transcribe" ${canTranscribe ? "" : "disabled"}>Transcrever</button>
+                    ${r.hasAudio ? `<button class="btn ghost" data-rec-action="audio" ${audioReady ? "" : "disabled"}>Baixar áudio</button>
+                    <button class="btn secondary" data-rec-action="transcribe" ${canTranscribe ? "" : "disabled"}>Transcrever</button>` : ""}
                     <button class="btn ghost" data-rec-action="transcript" ${r.transcriptStatus === "ready" ? "" : "disabled"}>Baixar transcrição</button>
                     <button class="btn danger" data-rec-action="delete" ${r.status === "recording" ? "disabled" : ""}>Excluir</button>
                 </div>

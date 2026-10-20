@@ -798,6 +798,7 @@ async function buildDetail({ guild, member, recording, notice = null }) {
     const audioReady = recording.status === "ready";
     const canTranscribe = allowed && audioReady && ["none", "failed"].includes(recording.transcript_status);
     const transcriptReady = allowed && recording.transcript_status === "ready";
+    const keepsAudio = RecordingApi.supportsAudio(recording.remote_id);
 
     const container = startContainer(audioReady ? ui.COLORS.success : ui.COLORS.neutral, notice);
 
@@ -808,15 +809,17 @@ async function buildDetail({ guild, member, recording, notice = null }) {
         `**Iniciada por:** <@${recording.started_by}>`,
         `**Duração:** ${formatDuration(recording.duration_ms)} · **Tamanho:** ${recording.size_bytes ? formatBytes(recording.size_bytes) : "—"}`,
         `**Participantes:** ${recording.participants.length}`,
-        `**Áudio:** ${STATUS_LABELS[recording.status] || recording.status}`,
+        keepsAudio
+            ? `**Áudio:** ${STATUS_LABELS[recording.status] || recording.status}`
+            : "**Áudio:** não guardado (só a transcrição fica salva)",
         `**Transcrição:** ${TRANSCRIPT_LABELS[recording.transcript_status] || "—"}`
     ].join("\n")));
     container.addSeparatorComponents(separator());
-    container.addActionRowComponents(row(
-        button(`voicerec:dl:${recording.id}`, "Baixar gravação", "💾", ButtonStyle.Primary).setDisabled(!allowed || !audioReady || !RecordingApi.supportsAudio(recording.remote_id)),
-        button(`voicerec:tr:${recording.id}`, "Transcrever", "📝", ButtonStyle.Success).setDisabled(!canTranscribe),
-        button(`voicerec:dltr:${recording.id}`, "Baixar transcrição", "📄", ButtonStyle.Primary).setDisabled(!transcriptReady)
-    ));
+    // Sem áudio guardado a transcrição é automática: só faz sentido o botão de baixar o texto.
+    container.addActionRowComponents(row(...(keepsAudio ? [
+        button(`voicerec:dl:${recording.id}`, "Baixar gravação", "💾", ButtonStyle.Primary).setDisabled(!allowed || !audioReady),
+        button(`voicerec:tr:${recording.id}`, "Transcrever", "📝", ButtonStyle.Success).setDisabled(!canTranscribe)
+    ] : []), button(`voicerec:dltr:${recording.id}`, "Baixar transcrição", "📄", ButtonStyle.Primary).setDisabled(!transcriptReady)));
     container.addActionRowComponents(row(
         button(`voicerec:view:${recording.id}`, "Atualizar status", "🔄"),
         button("voicerec:list", "Voltar", "⬅️")
