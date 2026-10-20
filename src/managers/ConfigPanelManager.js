@@ -26,6 +26,7 @@ const ServerStatsRepository = require("../database/repositories/ServerStatsRepos
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
+const SecurityManager = require("./SecurityManager");
 const LockdownManager = require("./LockdownManager");
 const { CATEGORIES } = require("./LogCategories");
 
@@ -310,29 +311,66 @@ async function buildSecurity(interaction) {
         SecurityRepository.listRules(guildId)
     ]);
     const container = card(c.topic_enabled || c.honeypot_enabled || c.behavior_enabled ? ui.COLORS.success : ui.COLORS.neutral);
-    addHeader(container, "<:shield:1561427396719284334>", "Security Center", "TopicGuard e Honeypot. Ações adicionais permanecem configuráveis e conservadoras.");
+    addHeader(container, "<:shield:1561427396719284334>", "Security Center", "TopicGuard, Honeypot e sinais comportamentais.");
 
     addToggle(container, { id: "config_toggle:topicguard", title: "TopicGuard", description: `${rules.length} regra(s) cadastrada(s). Detecta assuntos proibidos por canal.`, enabled: !!c.topic_enabled });
     addToggle(container, { id: "config_toggle:security_context", title: "Análise contextual por IA", description: "Opcional; só analisa mensagens que correspondem a palavras de regras. Se falhar, não apaga a mensagem.", enabled: !!c.contextual_enabled });
     addToggle(container, { id: "config_toggle:security_warn", title: "Advertência por violação", description: "Registra uma advertência no sistema de avisos da Nina após uma remoção confirmada.", enabled: !!c.topic_warn_enabled });
     addToggle(container, { id: "config_toggle:security_timeout", title: "Timeout por violação", description: `Opcional e mais severo; duração atual: ${c.topic_timeout_minutes} minuto(s).`, enabled: !!c.topic_timeout_enabled });
     addRow(container, actionButton("config_modal:security_timeout", "Duração do timeout", "<:ui_timedout:1560327148315615234>"));
-    addToggle(container, { id: "config_toggle:security_honeypot", title: "Canal-isca", description: c.honeypot_channel_id ? `Canal: <#${c.honeypot_channel_id}>` : "Escolha um canal dedicado para registrar interações suspeitas.", enabled: !!c.honeypot_enabled });
     addToggle(container, { id: "config_toggle:security_behavior", title: "Sinais comportamentais", description: "Detecta padrões repetitivos e envia alertas para revisão humana; não pune automaticamente.", enabled: !!c.behavior_enabled });
 
     addSep(container);
-    addText(container, "**Canal-isca**\nSelecione o canal monitorado. Configure as permissões com cuidado: uma interação é apenas um sinal, não prova de abuso.");
+    addText(container, `**Regras TopicGuard**\n${rules.length} regra(s) cadastrada(s). Gerencie as palavras e os canais em uma tela separada para manter este painel dentro do limite de componentes do Discord.`);
+    addText(container, `**Honeypot** ${ui.dot(!!c.honeypot_enabled)}\n${c.honeypot_enabled && c.honeypot_channel_id ? `Canal-isca: <#${c.honeypot_channel_id}> • Ação: **${SecurityManager.HONEYPOT_ACTION_LABELS[c.honeypot_action] || "Banimento"}**` : "Canal-isca que pune automaticamente quem enviar mensagem nele."}`);
+    addRow(container,
+        actionButton("config_security:rules", "Gerenciar regras", "<:ui_content:1560326801673420922>", ButtonStyle.Primary),
+        actionButton("config_security:honeypot", "Configurar Honeypot", "<:shield:1561427396719284334>", ButtonStyle.Primary)
+    );
+    addText(container, "-# A Nina ignora administradores e quem tem Gerenciar Servidor. Requer Gerenciar Servidor para configurar.");
+    addNav(container);
+    return finish(container);
+}
+
+const HONEYPOT_ACTION_OPTIONS = [
+    { value: "ban", label: "Banimento", description: "Bane quem enviar mensagem no canal-isca", emoji: "🔨" },
+    { value: "kick", label: "Expulsão", description: "Expulsa quem enviar mensagem no canal-isca", emoji: "👢" },
+    { value: "timeout", label: "Timeout de 24h", description: "Silencia por 24 horas", emoji: "⏳" },
+    { value: "log", label: "Somente registrar", description: "Não pune; apenas alerta a moderação", emoji: "📝" }
+];
+
+async function buildHoneypot(interaction) {
+    const c = await SecurityRepository.get(interaction.guild.id);
+    const container = card(c.honeypot_enabled ? ui.COLORS.success : ui.COLORS.neutral);
+    addHeader(container, "<:shield:1561427396719284334>", "Honeypot", "Canal-isca para detectar contas automatizadas. Quem enviar mensagem nele sofre a ação programada.");
+
+    addToggle(container, {
+        id: "config_toggle:security_honeypot",
+        title: "Honeypot",
+        description: c.honeypot_channel_id ? `Canal-isca: <#${c.honeypot_channel_id}>` : "Escolha primeiro o canal-isca abaixo.",
+        enabled: !!c.honeypot_enabled
+    });
+
+    const issues = c.honeypot_enabled ? SecurityManager.honeypotDiagnostics(interaction.guild, c) : [];
+    addText(container, issues.length
+        ? `**⚠️ Atenção**\n${issues.map(item => `• ${item}`).join("\n")}`
+        : `**Status**\n${c.honeypot_enabled ? "✅ Tudo certo: o aviso está publicado e as permissões estão corretas." : "Desligado."}`);
+    addSep(container);
+
+    addText(container, `**Canal-isca**\n${mention(c.honeypot_channel_id)}\n-# Deve ser visível e liberado para @everyone. Ao escolher, a Nina publica o aviso no canal.`);
     addRow(container, channelSelect("config_channel:security_honeypot", "Escolher canal-isca", ChannelType.GuildText));
-    addText(container, `**Canal de alertas**\n${mention(c.alert_channel_id)}\nSe não definido, a Nina tentará usar o canal de logs existente.`);
+
+    addText(container, `**Ação programada**\n${SecurityManager.HONEYPOT_ACTION_LABELS[c.honeypot_action] || "Banimento"}`);
+    addRow(container, new StringSelectMenuBuilder()
+        .setCustomId("config_honeypot_action")
+        .setPlaceholder("Escolher ação")
+        .addOptions(HONEYPOT_ACTION_OPTIONS.map(option => ({ ...option, default: option.value === c.honeypot_action }))));
+
+    addText(container, `**Canal de alertas**\n${mention(c.alert_channel_id)}\n-# Se não definido, usa o canal de logs.`);
     addRow(container, channelSelect("config_channel:security_alert", "Escolher canal de alertas", ChannelType.GuildText));
 
-    addSep(container);
-    addText(container, `**Regras TopicGuard**\n${rules.length} regra(s) cadastrada(s). Gerencie as palavras e os canais em uma tela separada para manter este painel dentro do limite de componentes do Discord.`);
-    addRow(container,
-        actionButton("config_security:rules", "Gerenciar regras", "<:ui_content:1560326801673420922>", ButtonStyle.Primary)
-    );
-    addText(container, "-# Por segurança, a Nina ignora administradores/Gerenciar Servidor e não aplica punições extras automaticamente. Requer Gerenciar Servidor para configurar.");
-    addNav(container);
+    addRow(container, actionButton("config_security:notice", "Reenviar aviso", "<:ui_send:1560327089993810011>", ButtonStyle.Primary));
+    addNav(container, [actionButton("config_security:back", "Security Center", "<:shield:1561427396719284334>")]);
     return finish(container);
 }
 
@@ -715,6 +753,7 @@ async function build(interaction, category) {
         case "automod": return buildAutomod(interaction);
         case "security": return buildSecurity(interaction);
         case "security_rules": return buildSecurityRules(interaction);
+        case "honeypot": return buildHoneypot(interaction);
         case "welcome": return buildWelcome(interaction);
         case "tickets": return buildTickets(interaction);
         case "logs": return buildLogs(interaction);

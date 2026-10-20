@@ -8,11 +8,15 @@ const DEFAULTS = {
     topic_timeout_minutes: 5,
     honeypot_enabled: 0,
     honeypot_channel_id: null,
+    honeypot_action: "ban",
+    honeypot_message_id: null,
+    honeypot_notice_channel_id: null,
     behavior_enabled: 0,
     alert_channel_id: null,
     ignored_roles: "[]"
 };
 
+const HONEYPOT_ACTIONS = ["ban", "kick", "timeout", "log"];
 const VALID_SETTINGS = new Set(Object.keys(DEFAULTS));
 const CACHE_TTL_MS = 15000;
 const configCache = new Map();
@@ -43,8 +47,9 @@ class SecurityRepository {
             `INSERT INTO security_settings (
                 guild_id, topic_enabled, contextual_enabled, topic_warn_enabled,
                 topic_timeout_enabled, topic_timeout_minutes, honeypot_enabled,
-                honeypot_channel_id, behavior_enabled, alert_channel_id, ignored_roles
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                honeypot_channel_id, honeypot_action, honeypot_message_id, honeypot_notice_channel_id,
+                behavior_enabled, alert_channel_id, ignored_roles
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(guild_id) DO UPDATE SET
                 topic_enabled = excluded.topic_enabled,
                 contextual_enabled = excluded.contextual_enabled,
@@ -53,6 +58,9 @@ class SecurityRepository {
                 topic_timeout_minutes = excluded.topic_timeout_minutes,
                 honeypot_enabled = excluded.honeypot_enabled,
                 honeypot_channel_id = excluded.honeypot_channel_id,
+                honeypot_action = excluded.honeypot_action,
+                honeypot_message_id = excluded.honeypot_message_id,
+                honeypot_notice_channel_id = excluded.honeypot_notice_channel_id,
                 behavior_enabled = excluded.behavior_enabled,
                 alert_channel_id = excluded.alert_channel_id,
                 ignored_roles = excluded.ignored_roles`,
@@ -60,6 +68,8 @@ class SecurityRepository {
                 next.topic_warn_enabled ? 1 : 0, next.topic_timeout_enabled ? 1 : 0,
                 Math.max(1, Math.min(60, Number(next.topic_timeout_minutes) || 5)),
                 next.honeypot_enabled ? 1 : 0, next.honeypot_channel_id || null,
+                HONEYPOT_ACTIONS.includes(next.honeypot_action) ? next.honeypot_action : "ban",
+                next.honeypot_message_id || null, next.honeypot_notice_channel_id || null,
                 next.behavior_enabled ? 1 : 0, next.alert_channel_id || null,
                 typeof next.ignored_roles === "string" ? next.ignored_roles : JSON.stringify(next.ignored_roles || [])]
         );
@@ -101,6 +111,24 @@ class SecurityRepository {
         return result;
     }
 
+    static async setRuleEnabled(guildId, ruleId, enabled) {
+        const result = await database.run(
+            "UPDATE security_topic_rules SET enabled = ? WHERE guild_id = ? AND id = ?",
+            [enabled ? 1 : 0, guildId, ruleId]
+        );
+        rulesCache.delete(guildId);
+        return result;
+    }
+
+    static async listEvents(guildId, limit = 15) {
+        const rows = await database.all(
+            `SELECT id, channel_id, user_id, event_type, reason, created_at
+             FROM security_events WHERE guild_id = ? ORDER BY id DESC LIMIT ?`,
+            [guildId, Math.max(1, Math.min(50, Number(limit) || 15))]
+        );
+        return rows || [];
+    }
+
     static async logEvent({ guildId, channelId = null, userId = null, eventType, reason, details = null }) {
         await database.run(
             `INSERT INTO security_events (guild_id, channel_id, user_id, event_type, reason, details_json)
@@ -114,5 +142,7 @@ class SecurityRepository {
 function safeJson(value, fallback) {
     try { return JSON.parse(value); } catch { return fallback; }
 }
+
+SecurityRepository.HONEYPOT_ACTIONS = HONEYPOT_ACTIONS;
 
 module.exports = SecurityRepository;

@@ -60,6 +60,8 @@
                             alt=""></span> AutoMod</button>
                 <button class="nav-item" data-section="seguranca"><span class="nav-icon"><img
                             src="icons/security.svg?v=5" alt=""></span> Segurança</button>
+                <button class="nav-item" data-section="honeypot"><span class="nav-icon"><img
+                            src="icons/cadeado.svg?v=5" alt=""></span> Honeypot &amp; TopicGuard</button>
                 <button class="nav-item" data-section="antinuke"><span class="nav-icon"><img
                             src="icons/antinuke.svg?v=5" alt=""></span> Anti-Nuke</button>
                 <button class="nav-item" data-section="boasvindas"><span class="nav-icon"><img
@@ -247,6 +249,114 @@
                             automaticamente golpe. A classificação usa sinais visuais e pode ter incerteza.</div>
                         <div class="form-actions"><button id="btn-salvar-seguranca" class="btn primary">Salvar
                                 segurança</button><span id="seguranca-feedback" class="feedback"></span></div>
+                    </div>
+                </section>
+                <section id="secao-honeypot" class="section hidden">
+                    <div class="section-head">
+                        <div class="eyebrow">SECURITY CENTER</div>
+                        <h2>Honeypot &amp; TopicGuard</h2>
+                        <p>Canal-isca que pune contas automatizadas e bloqueio de assuntos proibidos por canal.</p>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Honeypot</h3>
+                                <p>Quem enviar mensagem no canal-isca sofre a ação programada. Administradores e
+                                    cargos ignorados nunca são punidos.</p>
+                            </div>
+                        </div>
+                        <div class="setting">
+                            <div><b>Ativar Honeypot</b><small>A Nina publica o aviso no canal e age sobre qualquer
+                                    mensagem enviada nele.</small></div><label class="switch"><input id="hp-enabled"
+                                    type="checkbox"><i></i></label>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field"><label>Canal-isca</label><select id="hp-channel"></select><small>Deve
+                                    ser visível e liberado para @everyone.</small></div>
+                            <div class="field"><label>Ação programada</label><select id="hp-action"></select></div>
+                            <div class="field"><label>Canal de alertas</label><select id="hp-alert"></select><small>Se
+                                    vazio, usa o canal de logs.</small></div>
+                            <div class="field"><label>Cargos ignorados (Ctrl/Cmd para vários)</label><select
+                                    id="hp-roles" multiple size="5"></select></div>
+                        </div>
+                        <div class="field"><label>Prévia do aviso no canal</label>
+                            <div class="notice warning" id="hp-preview" style="white-space:pre-line"></div>
+                        </div>
+                        <div id="hp-issues"></div>
+                        <div class="form-actions">
+                            <button id="btn-hp-save" class="btn primary">Salvar Honeypot</button>
+                            <button id="btn-hp-notice" class="btn">Reenviar aviso</button>
+                            <span id="hp-feedback" class="feedback"></span>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>TopicGuard</h3>
+                                <p>Apaga mensagens que falam de assuntos proibidos no canal da regra.</p>
+                            </div>
+                        </div>
+                        <div class="setting">
+                            <div><b>Ativar TopicGuard</b><small>Usa as regras cadastradas abaixo.</small></div><label
+                                class="switch"><input id="tg-enabled" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="setting">
+                            <div><b>Análise contextual por IA</b><small>Só analisa mensagens que batem com as
+                                    palavras. Se a IA falhar, a mensagem é mantida.</small></div><label
+                                class="switch"><input id="tg-context" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="setting">
+                            <div><b>Advertir ao remover</b><small>Registra um aviso no sistema de advertências.</small>
+                            </div><label class="switch"><input id="tg-warn" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="setting">
+                            <div><b>Timeout ao remover</b><small>Mais severo; use com cuidado.</small></div><label
+                                class="switch"><input id="tg-timeout" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field"><label>Duração do timeout (minutos)</label><input id="tg-timeout-min"
+                                    type="number" min="1" max="60"></div>
+                        </div>
+                        <div class="setting">
+                            <div><b>Sinais comportamentais</b><small>Alerta a moderação sobre spam repetitivo; não pune
+                                    sozinho.</small></div><label class="switch"><input id="tg-behavior"
+                                    type="checkbox"><i></i></label>
+                        </div>
+                        <div class="form-actions">
+                            <button id="btn-tg-save" class="btn primary">Salvar TopicGuard</button>
+                            <span id="tg-feedback" class="feedback"></span>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Regras do TopicGuard</h3>
+                                <p>Cada regra vale para um canal de texto. Máximo de 50 regras.</p>
+                            </div>
+                        </div>
+                        <div class="grid-3">
+                            <div class="field"><label>Canal</label><select id="tg-rule-channel"></select></div>
+                            <div class="field"><label>Assunto proibido</label><input id="tg-rule-topic" maxlength="80"
+                                    placeholder="Política"></div>
+                            <div class="field"><label>Palavras (separe por vírgula)</label><input id="tg-rule-words"
+                                    placeholder="eleições, candidato, voto"></div>
+                        </div>
+                        <div class="form-actions"><button id="btn-tg-add-rule" class="btn primary">Adicionar
+                                regra</button><span id="tg-rule-feedback" class="feedback"></span></div>
+                        <div id="tg-rules" class="list"></div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Eventos recentes</h3>
+                                <p>Últimas ações do Security Center neste servidor.</p>
+                            </div>
+                        </div>
+                        <div id="sec-events" class="list"></div>
                     </div>
                 </section>
                 <section id="secao-boasvindas" class="section hidden">

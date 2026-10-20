@@ -383,6 +383,9 @@ const statements = [
         topic_timeout_minutes INTEGER NOT NULL DEFAULT 5,
         honeypot_enabled INTEGER NOT NULL DEFAULT 0,
         honeypot_channel_id TEXT NULL,
+        honeypot_action TEXT NOT NULL DEFAULT 'ban',
+        honeypot_message_id TEXT NULL,
+        honeypot_notice_channel_id TEXT NULL,
         behavior_enabled INTEGER NOT NULL DEFAULT 0,
         alert_channel_id TEXT NULL,
         ignored_roles TEXT NOT NULL DEFAULT '[]'
@@ -442,10 +445,19 @@ function migrateSecuritySchema() {
     const migrations = [
         ["topic_warn_enabled", "INTEGER NOT NULL DEFAULT 0"],
         ["topic_timeout_enabled", "INTEGER NOT NULL DEFAULT 0"],
-        ["topic_timeout_minutes", "INTEGER NOT NULL DEFAULT 5"]
+        ["topic_timeout_minutes", "INTEGER NOT NULL DEFAULT 5"],
+        ["honeypot_action", "TEXT NOT NULL DEFAULT 'ban'"],
+        ["honeypot_message_id", "TEXT NULL"],
+        ["honeypot_notice_channel_id", "TEXT NULL"]
     ];
+    const hadHoneypotAction = columns.has("honeypot_action");
     for (const [name, definition] of migrations) {
         if (columns.size && !columns.has(name)) db.exec(`ALTER TABLE security_settings ADD COLUMN ${name} ${definition}`);
+    }
+    // Servidores que já usavam o canal-isca (apenas alertas) continuam só registrando
+    // até o administrador escolher a ação e publicar o aviso: nada de ban sem aviso prévio.
+    if (columns.size && !hadHoneypotAction) {
+        db.exec("UPDATE security_settings SET honeypot_action = 'log' WHERE honeypot_enabled = 1");
     }
 }
 

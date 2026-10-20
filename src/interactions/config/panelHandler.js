@@ -27,6 +27,7 @@ const AutorolePanelManager = require("../../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 const LockdownManager = require("../../managers/LockdownManager");
 const SecurityRepository = require("../../database/repositories/SecurityRepository");
+const SecurityManager = require("../../managers/SecurityManager");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -62,6 +63,31 @@ async function execute(interaction) {
 
     if (id === "config_security:rules") {
         return interaction.update(await ConfigPanelManager.build(interaction, "security_rules"));
+    }
+
+    if (id === "config_security:honeypot") {
+        return interaction.update(await ConfigPanelManager.build(interaction, "honeypot"));
+    }
+
+    if (id === "config_security:notice") {
+        await interaction.deferUpdate();
+        const result = await SecurityManager.ensureHoneypotNotice(interaction.guild);
+        await interaction.editReply(await ConfigPanelManager.build(interaction, "honeypot"));
+        return result.ok
+            ? ui.ok(interaction, "O aviso do Honeypot foi publicado no canal-isca.", "Aviso enviado")
+            : ui.caution(interaction, result.error, "Não foi possível enviar o aviso");
+    }
+
+    if (id === "config_honeypot_action") {
+        const action = interaction.values[0];
+        if (!SecurityRepository.HONEYPOT_ACTIONS.includes(action)) return;
+        await interaction.deferUpdate();
+        await SecurityRepository.update(interaction.guild.id, { honeypot_action: action });
+        const current = await SecurityRepository.get(interaction.guild.id);
+        if (current.honeypot_enabled && current.honeypot_channel_id) {
+            await SecurityManager.ensureHoneypotNotice(interaction.guild, current).catch(() => {});
+        }
+        return interaction.editReply(await ConfigPanelManager.build(interaction, "honeypot"));
     }
 
     if (id === "config_security:back") {
@@ -122,6 +148,17 @@ async function execute(interaction) {
             }
             if (target === "security_context" && !current.contextual_enabled && !process.env.GROQ_API_KEY) {
                 return ui.caution(interaction, "Configure GROQ_API_KEY no ambiente da Nina antes de ativar a análise contextual.", "IA não configurada");
+            }
+            if (target === "security_honeypot") {
+                await interaction.deferUpdate();
+                const enabling = !current.honeypot_enabled;
+                const updated = await SecurityRepository.update(guildId, { honeypot_enabled: enabling ? 1 : 0 });
+                const notice = enabling ? await SecurityManager.ensureHoneypotNotice(interaction.guild, updated) : null;
+                await interaction.editReply(await ConfigPanelManager.build(interaction, "honeypot"));
+                if (notice && !notice.ok) {
+                    return ui.caution(interaction, notice.error, "Honeypot ativado sem aviso");
+                }
+                return;
             }
             await SecurityRepository.update(guildId, { [field]: current[field] ? 0 : 1 });
             return interaction.update(await ConfigPanelManager.build(interaction, "security"));
@@ -381,9 +418,30 @@ async function execute(interaction) {
             }
             const field = target === "security_honeypot" ? "honeypot_channel_id" : "alert_channel_id";
             const patch = { [field]: channel.id };
-            if (target === "security_honeypot") patch.honeypot_enabled = 1;
-            await SecurityRepository.update(interaction.guild.id, patch);
-            return interaction.update(await ConfigPanelManager.build(interaction, "security"));
+            if (target === "security_honeypot") {
+                if (channel.id === (await SecurityRepository.get(interaction.guild.id)).alert_channel_id) {
+                    return ui.caution(interaction, "O canal-isca não pode ser o mesmo canal de alertas.", "Canal inválido");
+                }
+                patch.honeypot_enabled = 1;
+                patch.honeypot_message_id = null;
+                patch.honeypot_notice_channel_id = null;
+            }
+            await interaction.deferUpdate();
+            // Ao trocar o canal-isca, apaga o aviso do canal antigo antes de limpar o ID.
+            const previous = await SecurityRepository.get(interaction.guild.id);
+            if (target === "security_honeypot" && previous.honeypot_message_id && previous.honeypot_channel_id !== channel.id) {
+                const oldChannel = interaction.guild.channels.cache.get(previous.honeypot_notice_channel_id || previous.honeypot_channel_id);
+                const oldMessage = await oldChannel?.messages?.fetch?.(previous.honeypot_message_id).catch(() => null);
+                await oldMessage?.delete?.().catch(() => {});
+            }
+            const updated = await SecurityRepository.update(interaction.guild.id, patch);
+            let notice = null;
+            if (target === "security_honeypot") notice = await SecurityManager.ensureHoneypotNotice(interaction.guild, updated);
+            await interaction.editReply(await ConfigPanelManager.build(interaction, "honeypot"));
+            if (notice && !notice.ok) {
+                return ui.caution(interaction, notice.error, "Canal salvo sem aviso");
+            }
+            return;
         }
 
         if (target === "welcome") {

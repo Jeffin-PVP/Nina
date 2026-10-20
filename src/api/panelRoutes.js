@@ -17,6 +17,8 @@ const ContainerManager = require("../managers/ContainerManager");
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const ServerStatsManager = require("../managers/ServerStatsManager");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
+const SecurityRepository = require("../database/repositories/SecurityRepository");
+const SecurityManager = require("../managers/SecurityManager");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("../managers/TempVoiceManager");
 const LockdownRepository = require("../database/repositories/LockdownRepository");
@@ -1087,6 +1089,172 @@ module.exports = (client) => {
 
         await AntiNukeRepository.update(req.params.guildId, fields);
         res.json({ config: await AntiNukeRepository.get(req.params.guildId) });
+    });
+
+    /*
+    =========================
+        SECURITY CENTER (HONEYPOT + TOPICGUARD)
+    =========================
+    */
+
+    const canalTexto = c => c?.isTextBased?.() && !c.isThread?.() && !c.isVoiceBased?.();
+
+    async function payloadSeguranca(guild) {
+        const [config, rules, events] = await Promise.all([
+            SecurityRepository.get(guild.id),
+            SecurityRepository.listRules(guild.id),
+            SecurityRepository.listEvents(guild.id, 15)
+        ]);
+
+        const channels = guild.channels.cache
+            .filter(canalTexto)
+            .map(c => ({ id: c.id, name: c.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const roles = guild.roles.cache
+            .filter(r => r.id !== guild.id && !r.managed)
+            .map(r => ({ id: r.id, name: r.name, position: r.position }))
+            .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
+
+        let ignoredRoles = [];
+        try { ignoredRoles = JSON.parse(config.ignored_roles || "[]"); } catch { }
+
+        const { honeypot_message_id, honeypot_notice_channel_id, ignored_roles, ...publico } = config;
+
+        return {
+            config: { ...publico, ignored_roles: ignoredRoles, notice_published: !!honeypot_message_id },
+            rules: rules.map(r => ({ id: r.id, channel_id: r.channel_id, topic: r.topic, keywords: r.keywords, enabled: !!r.enabled })),
+            events: events.map(e => ({ id: e.id, type: e.event_type, user_id: e.user_id, channel_id: e.channel_id, reason: e.reason, created_at: e.created_at })),
+            channels,
+            roles,
+            contextAvailable: !!process.env.GROQ_API_KEY,
+            actions: SecurityRepository.HONEYPOT_ACTIONS.map(value => ({ value, label: SecurityManager.HONEYPOT_ACTION_LABELS[value] })),
+            noticePreview: SecurityManager.honeypotNoticeText(config.honeypot_action),
+            issues: config.honeypot_enabled ? SecurityManager.honeypotDiagnostics(guild, config) : []
+        };
+    }
+
+    router.get("/guilds/:guildId/security", async (req, res) => {
+        res.json(await payloadSeguranca(req.painelGuild));
+    });
+
+    router.post("/guilds/:guildId/security", async (req, res) => {
+        const guild = req.painelGuild;
+        const b = req.body || {};
+        const atual = await SecurityRepository.get(guild.id);
+        const campos = {};
+
+        try {
+            for (const chave of ["topic_enabled", "contextual_enabled", "topic_warn_enabled", "topic_timeout_enabled", "behavior_enabled", "honeypot_enabled"]) {
+                if (b[chave] !== undefined) campos[chave] = bool(b[chave]);
+            }
+
+            if (b.topic_timeout_minutes !== undefined) campos.topic_timeout_minutes = inteiro("topic_timeout_minutes", b.topic_timeout_minutes, 1, 60);
+
+            if (b.honeypot_action !== undefined) {
+                if (!SecurityRepository.HONEYPOT_ACTIONS.includes(String(b.honeypot_action))) throw new ErroValidacao('"honeypot_action" inválida.');
+                campos.honeypot_action = String(b.honeypot_action);
+            }
+
+            if (b.honeypot_channel_id !== undefined) {
+                campos.honeypot_channel_id = idOpcional("honeypot_channel_id", b.honeypot_channel_id, id => canalTexto(guild.channels.cache.get(id)));
+            }
+
+            if (b.alert_channel_id !== undefined) {
+                campos.alert_channel_id = idOpcional("alert_channel_id", b.alert_channel_id, id => canalTexto(guild.channels.cache.get(id)));
+            }
+
+            if (b.ignored_roles !== undefined) {
+                const ids = [...new Set(listaCsv(b.ignored_roles))].slice(0, 25);
+                if (ids.some(id => !SNOWFLAKE.test(id) || !guild.roles.cache.has(id))) throw new ErroValidacao('"ignored_roles" contém cargos inexistentes.');
+                campos.ignored_roles = JSON.stringify(ids);
+            }
+
+            const proximo = { ...atual, ...campos };
+
+            if (campos.contextual_enabled && !process.env.GROQ_API_KEY) {
+                throw new ErroValidacao("Configure GROQ_API_KEY no ambiente da Nina antes de ativar a análise contextual.");
+            }
+            if (proximo.honeypot_enabled && !proximo.honeypot_channel_id) {
+                throw new ErroValidacao("Escolha o canal-isca antes de ativar o Honeypot.");
+            }
+            if (proximo.honeypot_channel_id && proximo.honeypot_channel_id === proximo.alert_channel_id) {
+                throw new ErroValidacao("O canal-isca não pode ser o mesmo canal de alertas.");
+            }
+        } catch (error) { return tratarValidacao(res, error); }
+
+        const mudouCanal = campos.honeypot_channel_id !== undefined && campos.honeypot_channel_id !== atual.honeypot_channel_id;
+        const mudouAcao = campos.honeypot_action !== undefined && campos.honeypot_action !== atual.honeypot_action;
+        const ligou = campos.honeypot_enabled === 1 && !atual.honeypot_enabled;
+
+        // Trocou de canal: remove o aviso do canal antigo.
+        if (mudouCanal && atual.honeypot_message_id) {
+            const antigo = guild.channels.cache.get(atual.honeypot_notice_channel_id || atual.honeypot_channel_id);
+            const msg = await antigo?.messages?.fetch?.(atual.honeypot_message_id).catch(() => null);
+            await msg?.delete?.().catch(() => { });
+            campos.honeypot_message_id = null;
+            campos.honeypot_notice_channel_id = null;
+        }
+
+        const salvo = await SecurityRepository.update(guild.id, campos);
+
+        let aviso = null;
+        if (salvo.honeypot_enabled && salvo.honeypot_channel_id && (mudouCanal || mudouAcao || ligou || !salvo.honeypot_message_id)) {
+            aviso = await SecurityManager.ensureHoneypotNotice(guild, salvo);
+        }
+
+        const dados = await payloadSeguranca(guild);
+        res.json({ ...dados, notice: aviso ? { ok: aviso.ok, error: aviso.error || null } : null });
+    });
+
+    router.post("/guilds/:guildId/security/honeypot/notice", async (req, res) => {
+        const guild = req.painelGuild;
+        const config = await SecurityRepository.get(guild.id);
+        if (!config.honeypot_channel_id) return res.status(400).json({ error: "Escolha o canal-isca primeiro." });
+        const resultado = await SecurityManager.ensureHoneypotNotice(guild, config);
+        if (!resultado.ok) return res.status(400).json({ error: resultado.error });
+        res.json(await payloadSeguranca(guild));
+    });
+
+    router.post("/guilds/:guildId/security/rules", async (req, res) => {
+        const guild = req.painelGuild;
+        const b = req.body || {};
+        let regra;
+
+        try {
+            const channelId = String(b.channel_id ?? "");
+            if (!SNOWFLAKE.test(channelId) || !canalTexto(guild.channels.cache.get(channelId))) {
+                throw new ErroValidacao('"channel_id" precisa ser um canal de texto deste servidor.');
+            }
+            const topic = String(b.topic ?? "").trim();
+            if (!topic || topic.length > 80) throw new ErroValidacao('"topic" precisa ter de 1 a 80 caracteres.');
+            const keywords = [...new Set(listaCsv(b.keywords))].slice(0, 30);
+            if (!keywords.length || keywords.some(word => word.length > 80)) {
+                throw new ErroValidacao("Informe ao menos uma palavra/expressão (até 80 caracteres cada).");
+            }
+            regra = { guildId: guild.id, channelId, topic, keywords };
+        } catch (error) { return tratarValidacao(res, error); }
+
+        const existentes = await SecurityRepository.listRules(guild.id);
+        if (existentes.length >= 50) return res.status(400).json({ error: "Limite de 50 regras TopicGuard atingido." });
+
+        await SecurityRepository.addRule(regra);
+        await SecurityRepository.update(guild.id, { topic_enabled: 1 });
+        res.json(await payloadSeguranca(guild));
+    });
+
+    router.post("/guilds/:guildId/security/rules/:id/toggle", async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: "ID inválido." });
+        await SecurityRepository.setRuleEnabled(req.painelGuild.id, id, bool(req.body?.enabled));
+        res.json(await payloadSeguranca(req.painelGuild));
+    });
+
+    router.delete("/guilds/:guildId/security/rules/:id", async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id < 1) return res.status(400).json({ error: "ID inválido." });
+        await SecurityRepository.removeRule(req.painelGuild.id, id);
+        res.json(await payloadSeguranca(req.painelGuild));
     });
 
     /*

@@ -1,4 +1,11 @@
-const { PermissionFlagsBits } = require("discord.js");
+const {
+    PermissionFlagsBits,
+    ContainerBuilder,
+    TextDisplayBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    MessageFlags
+} = require("discord.js");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
 const WarningRepository = require("../database/repositories/WarningRepository");
 const LogManager = require("./LogManager");
@@ -8,6 +15,8 @@ const GuildRepository = require("../database/repositories/GuildRepository");
 const recentMessages = new Map();
 const alertCooldowns = new Map();
 const NOTICE_TTL_MS = 7000;
+const HONEYPOT_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+const honeypotInFlight = new Set();
 const CONTEXT_MODEL = process.env.SECURITY_CONTEXT_MODEL || "llama-3.3-70b-versatile";
 
 const cleanupTimer = setInterval(() => {
@@ -103,7 +112,10 @@ async function sendAlert(guild, config, content) {
 async function checkTopicGuard(message, config) {
     if (!config.topic_enabled) return false;
     const rules = (await SecurityRepository.listRules(message.guild.id))
-        .filter(rule => rule.enabled && rule.channel_id === message.channel.id);
+        .filter(rule => rule.enabled && (
+            rule.channel_id === message.channel.id ||
+            (message.channel.isThread?.() && rule.channel_id === message.channel.parentId)
+        ));
     if (!rules.length) return false;
 
     for (const rule of rules) {
@@ -208,21 +220,190 @@ function checkBehavior(message) {
     return current.length >= 7 || repeated >= 4;
 }
 
+const HONEYPOT_ACTION_LABELS = {
+    ban: "Banimento",
+    kick: "Expulsão",
+    timeout: "Silenciamento (timeout de 24h)",
+    log: "Registro para análise da moderação"
+};
+
+function honeypotNoticeText(action) {
+    const base = "## 🚫 NÃO ENVIE NENHUMA MENSAGEM AQUI\nEste canal serve para detectar contas automatizadas.\n";
+    if (action === "log") {
+        return `${base}Qualquer mensagem enviada aqui será **registrada e enviada para análise da moderação**.`;
+    }
+    return `${base}Qualquer mensagem enviada aqui resulta em uma sanção automática (**${HONEYPOT_ACTION_LABELS[action] || HONEYPOT_ACTION_LABELS.ban}** — ação programada).`;
+}
+
+function buildHoneypotNotice(action) {
+    const container = new ContainerBuilder().setAccentColor(0xed4245);
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(honeypotNoticeText(action)));
+    container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent("-# 🍯 Honeypot • Nina"));
+    return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [container],
+        allowedMentions: { parse: [] }
+    };
+}
+
+/**
+ * Publica (ou republica) o aviso fixo no canal-isca e guarda o ID da mensagem.
+ * Retorna { ok: true, message } ou { ok: false, error }.
+ */
+async function ensureHoneypotNotice(guild, config = null) {
+    const cfg = config || await SecurityRepository.get(guild.id);
+    if (!cfg.honeypot_channel_id) return { ok: false, error: "Nenhum canal-isca configurado." };
+
+    const channel = guild.channels.cache.get(cfg.honeypot_channel_id)
+        || await guild.channels.fetch(cfg.honeypot_channel_id).catch(() => null);
+    if (!channel?.isTextBased?.() || channel.isThread?.()) {
+        return { ok: false, error: "O canal-isca não existe mais ou não é um canal de texto." };
+    }
+
+    const me = guild.members.me || await guild.members.fetchMe().catch(() => null);
+    const perms = me ? channel.permissionsFor(me) : null;
+    if (!perms?.has(PermissionFlagsBits.ViewChannel) || !perms.has(PermissionFlagsBits.SendMessages)) {
+        return { ok: false, error: "A Nina precisa de **Ver Canal** e **Enviar Mensagens** no canal-isca." };
+    }
+
+    // Remove o aviso anterior (se existir) para não duplicar.
+    if (cfg.honeypot_message_id) {
+        const oldChannel = guild.channels.cache.get(cfg.honeypot_notice_channel_id || cfg.honeypot_channel_id);
+        const old = await oldChannel?.messages?.fetch?.(cfg.honeypot_message_id).catch(() => null);
+        await old?.delete?.().catch(() => {});
+    }
+
+    const action = SecurityRepository.HONEYPOT_ACTIONS.includes(cfg.honeypot_action) ? cfg.honeypot_action : "ban";
+    let message;
+    try {
+        message = await channel.send(buildHoneypotNotice(action));
+    } catch (error) {
+        return { ok: false, error: `Não consegui enviar o aviso: ${error.message}` };
+    }
+    await message.pin().catch(() => {});
+    await SecurityRepository.update(guild.id, {
+        honeypot_message_id: message.id,
+        honeypot_notice_channel_id: channel.id
+    });
+    return { ok: true, message };
+}
+
+/** Diagnóstico das permissões necessárias para o honeypot funcionar. */
+function honeypotDiagnostics(guild, config) {
+    const issues = [];
+    const me = guild.members.me;
+    const channel = config.honeypot_channel_id ? guild.channels.cache.get(config.honeypot_channel_id) : null;
+    if (!channel) {
+        issues.push("Canal-isca não definido ou removido.");
+        return issues;
+    }
+    const botPerms = me ? channel.permissionsFor(me) : null;
+    if (!botPerms?.has(PermissionFlagsBits.ViewChannel) || !botPerms.has(PermissionFlagsBits.SendMessages)) {
+        issues.push("A Nina não consegue ver/enviar mensagens no canal-isca.");
+    }
+    if (!botPerms?.has(PermissionFlagsBits.ManageMessages) && config.honeypot_action !== "log") {
+        issues.push("Falta **Gerenciar Mensagens** no canal-isca (para apagar a mensagem).");
+    }
+    const needed = { ban: ["BanMembers", "Banir Membros"], kick: ["KickMembers", "Expulsar Membros"], timeout: ["ModerateMembers", "Silenciar Membros"] }[config.honeypot_action];
+    if (needed && !me?.permissions?.has(PermissionFlagsBits[needed[0]])) {
+        issues.push(`Falta a permissão **${needed[1]}** para a Nina.`);
+    }
+    const everyone = channel.permissionsFor(guild.roles.everyone);
+    if (!everyone?.has(PermissionFlagsBits.ViewChannel) || !everyone.has(PermissionFlagsBits.SendMessages)) {
+        issues.push("@everyone não consegue ver/enviar no canal-isca; contas automatizadas talvez nunca caiam na armadilha.");
+    }
+    if (!config.honeypot_message_id) {
+        issues.push("O aviso ainda não foi publicado no canal. Use **Reenviar aviso**.");
+    }
+    return issues;
+}
+
+async function handleHoneypot(message, config) {
+    const key = `${message.guild.id}:${message.author.id}`;
+    if (honeypotInFlight.has(key)) {
+        await message.delete().catch(() => {});
+        return true;
+    }
+    honeypotInFlight.add(key);
+    const release = setTimeout(() => honeypotInFlight.delete(key), 10000);
+    release.unref?.();
+
+    {
+        const guild = message.guild;
+        const member = message.member;
+        const me = guild.members.me;
+        const action = SecurityRepository.HONEYPOT_ACTIONS.includes(config.honeypot_action) ? config.honeypot_action : "ban";
+        const reason = `[Honeypot] Mensagem enviada no canal-isca #${message.channel.name}`;
+        const evidence = String(message.content || "").slice(0, 200);
+
+        // Mantém a mensagem apenas no modo "log" (a moderação precisa ver o conteúdo).
+        if (action !== "log" && message.channel.permissionsFor(me)?.has(PermissionFlagsBits.ManageMessages)) {
+            await message.delete().catch(() => {});
+        }
+
+        let applied = "none";
+        let failure = null;
+        try {
+            if (action === "ban") {
+                if (!me?.permissions?.has(PermissionFlagsBits.BanMembers)) failure = "Nina sem permissão para banir.";
+                else if (!member.bannable) failure = "Cargo do usuário é igual/superior ao da Nina.";
+                else {
+                    await guild.members.ban(message.author.id, { reason, deleteMessageSeconds: 3600 });
+                    applied = "ban";
+                }
+            } else if (action === "kick") {
+                if (!me?.permissions?.has(PermissionFlagsBits.KickMembers)) failure = "Nina sem permissão para expulsar.";
+                else if (!member.kickable) failure = "Cargo do usuário é igual/superior ao da Nina.";
+                else {
+                    await member.kick(reason);
+                    applied = "kick";
+                }
+            } else if (action === "timeout") {
+                if (!me?.permissions?.has(PermissionFlagsBits.ModerateMembers)) failure = "Nina sem permissão para silenciar.";
+                else if (!member.moderatable) failure = "Cargo do usuário é igual/superior ao da Nina.";
+                else {
+                    await member.timeout(HONEYPOT_TIMEOUT_MS, reason);
+                    applied = "timeout";
+                }
+            }
+        } catch (error) {
+            failure = error.message;
+        }
+
+        await SecurityRepository.logEvent({
+            guildId: guild.id, channelId: message.channel.id, userId: message.author.id,
+            eventType: failure ? "honeypot_action_failed" : "honeypot_triggered",
+            reason: failure ? `Honeypot acionado, mas a ação "${action}" falhou: ${failure}` : `Honeypot acionado: ${HONEYPOT_ACTION_LABELS[action]}.`,
+            details: { action, applied, evidence }
+        }).catch(() => {});
+
+        await LogManager.send({
+            type: LogTypes.AUTOMOD_ACTION,
+            guild,
+            executor: { tag: "🍯 Honeypot", username: "Honeypot" },
+            target: { id: message.author.id, username: message.author.username, displayName: member?.displayName },
+            reason: failure ? `${reason} (ação falhou: ${failure})` : reason,
+            extra: { channelId: message.channel.id, actions: ["delete", applied].filter(item => item !== "none").join(", ") || "none" }
+        }).catch(() => {});
+
+        await sendAlert(guild, config, {
+            key: `honeypot:${message.author.id}`,
+            text: failure
+                ? `🪤 **Honeypot acionado** por <@${message.author.id}> (\`${message.author.id}\`) em <#${message.channel.id}>, mas **a ação "${HONEYPOT_ACTION_LABELS[action]}" falhou**: ${failure}`
+                : `🪤 **Honeypot acionado** por <@${message.author.id}> (\`${message.author.id}\`) em <#${message.channel.id}>. Ação aplicada: **${HONEYPOT_ACTION_LABELS[action]}**.`
+        });
+        return true;
+    }
+}
+
 async function handleMessage(message) {
     if (!message.guild || message.author.bot || !message.member) return false;
     const config = await SecurityRepository.get(message.guild.id);
     if (isExempt(message, config)) return false;
 
-    if (config.honeypot_enabled && config.honeypot_channel_id === message.channel.id &&
-        shouldRecordSignal(`honeypot-event:${message.guild.id}:${message.author.id}`)) {
-        await SecurityRepository.logEvent({
-            guildId: message.guild.id, channelId: message.channel.id, userId: message.author.id,
-            eventType: "honeypot_channel_interaction", reason: "Mensagem enviada no canal-isca. Revisão humana recomendada."
-        }).catch(() => {});
-        await sendAlert(message.guild, config, {
-            key: `honeypot:${message.author.id}`,
-            text: `🪤 **Honeypot acionado** em <#${message.channel.id}>. Usuário: <@${message.author.id}>. O evento é um sinal para revisão, não prova de abuso.`
-        });
+    if (config.honeypot_enabled && config.honeypot_channel_id === message.channel.id) {
+        return handleHoneypot(message, config);
     }
 
     if (config.behavior_enabled && checkBehavior(message) &&
@@ -240,20 +421,41 @@ async function handleMessage(message) {
     return checkTopicGuard(message, config);
 }
 
+/** Edição de mensagem: só o TopicGuard reavalia (evita burlar editando depois). */
+async function handleEdit(message) {
+    let msg = message;
+    if (msg.partial) msg = await msg.fetch().catch(() => null);
+    if (!msg?.guild || !msg.author || msg.author.bot || !msg.member || !msg.content) return false;
+    const config = await SecurityRepository.get(msg.guild.id);
+    if (!config.topic_enabled || isExempt(msg, config)) return false;
+    if (config.honeypot_enabled && config.honeypot_channel_id === msg.channel.id) return false;
+    return checkTopicGuard(msg, config);
+}
+
 async function handleChannelUpdate(oldChannel, newChannel) {
     if (!newChannel.guild) return;
     const config = await SecurityRepository.get(newChannel.guild.id);
     if (!config.honeypot_enabled || config.honeypot_channel_id !== newChannel.id) return;
-    const everyone = newChannel.guild.roles.everyone;
-    const effectivePermissions = newChannel.permissionsFor(everyone);
+    // O canal-isca só funciona se @everyone puder ver e escrever nele.
+    const effectivePermissions = newChannel.permissionsFor(newChannel.guild.roles.everyone);
     const canView = effectivePermissions?.has(PermissionFlagsBits.ViewChannel);
     const canSend = effectivePermissions?.has(PermissionFlagsBits.SendMessages);
-    if (canView || canSend) {
+    if (!canView || !canSend) {
+        if (!shouldRecordSignal(`honeypot-perm:${newChannel.id}`, 10 * 60 * 1000)) return;
         await SecurityRepository.logEvent({
             guildId: newChannel.guild.id, channelId: newChannel.id, eventType: "honeypot_permission_warning",
-            reason: "O canal-isca pode estar visível ou acessível a @everyone; verifique permissões herdadas."
+            reason: "@everyone não consegue ver/enviar no canal-isca; contas automatizadas podem nunca cair na armadilha."
         }).catch(() => {});
     }
 }
 
-module.exports = { handleMessage, handleChannelUpdate };
+module.exports = {
+    handleMessage,
+    handleEdit,
+    handleChannelUpdate,
+    ensureHoneypotNotice,
+    honeypotDiagnostics,
+    buildHoneypotNotice,
+    honeypotNoticeText,
+    HONEYPOT_ACTION_LABELS
+};

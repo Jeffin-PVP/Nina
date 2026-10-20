@@ -221,7 +221,7 @@ module.exports = {
 
             if (interaction.isStringSelectMenu()) {
 
-                if (interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove") {
+                if (interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action") {
                     return configPanel.execute(interaction);
                 }
 
