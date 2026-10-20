@@ -40,6 +40,7 @@ const INTERVALO_ENTRE_SERVIDORES_MS = 2500;
 let client = null;
 const timers = new Map();   // guildId -> timeout (debounce)
 const emAndamento = new Set(); // guildId
+const conflitosPresetAvisados = new Set(); // evita repetir o mesmo aviso em cada sincronização
 
 function ativo() {
     return String(process.env.NATIVE_AUTOMOD || "on").toLowerCase() !== "off";
@@ -176,12 +177,27 @@ async function syncGuild(guild, { alertChannelId } = {}) {
 
         const existentes = await guild.autoModerationRules.fetch();
         const minhas = existentes.filter(r => r.creatorId === guild.client.user.id && r.name.startsWith(PREFIXO));
+        // O Discord permite somente UMA regra KeywordPreset por servidor, mesmo
+        // que ela tenha sido criada por outro bot/administrador. Nunca tentamos
+        // sobrescrever regras que não pertencem à Nina.
+        const presetExistente = existentes.find(r => r.triggerType === Gatilho.KeywordPreset);
 
         let criadas = 0;
 
         for (const def of alvo) {
 
             const atual = minhas.find(r => r.name === def.name);
+
+            if (def.triggerType === Gatilho.KeywordPreset && !atual && presetExistente) {
+                if (!conflitosPresetAvisados.has(guild.id)) {
+                    console.warn(`[NativeAutomod] ${guild.id}: não criei "${def.name}" porque já existe uma regra Keyword Preset no servidor ("${presetExistente.name}"). O Discord permite apenas uma; a regra existente foi preservada.`);
+                    conflitosPresetAvisados.add(guild.id);
+                }
+                continue;
+            }
+            if (def.triggerType === Gatilho.KeywordPreset && !presetExistente) {
+                conflitosPresetAvisados.delete(guild.id);
+            }
 
             try {
 

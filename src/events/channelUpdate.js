@@ -4,6 +4,7 @@ const LogManager = require("../managers/LogManager");
 const LogTypes = require("../managers/LogTypes");
 const fetchExecutor = require("../utils/fetchExecutor");
 const actionSuppression = require("../utils/actionSuppression");
+const SecurityManager = require("../managers/SecurityManager");
 
 module.exports = {
 
@@ -12,6 +13,8 @@ module.exports = {
     async execute(oldChannel, newChannel) {
 
         if (!newChannel.guild) return;
+
+        await SecurityManager.handleChannelUpdate(oldChannel, newChannel).catch(() => {});
 
         // Já logado por lockChannel/unlockChannel/slowmodeChannel
         if (actionSuppression.isSuppressed(`channel:${newChannel.id}`)) return;

@@ -26,6 +26,7 @@ const TempVoiceManager = require("../../managers/TempVoiceManager");
 const AutorolePanelManager = require("../../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 const LockdownManager = require("../../managers/LockdownManager");
+const SecurityRepository = require("../../database/repositories/SecurityRepository");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -57,6 +58,14 @@ async function execute(interaction) {
             try { await interaction.message?.delete(); } catch { }
         }
         return;
+    }
+
+    if (id === "config_security:rules") {
+        return interaction.update(await ConfigPanelManager.build(interaction, "security_rules"));
+    }
+
+    if (id === "config_security:back") {
+        return interaction.update(await ConfigPanelManager.build(interaction, "security"));
     }
 
     if (id === "config_tempvoice:permissions_page") {
@@ -97,6 +106,26 @@ async function execute(interaction) {
     if (id.startsWith("config_toggle:") || id.startsWith("config_lockdown:") || id === "config_autorole:publish") {
         const target = id.split(":")[1];
         const guildId = interaction.guild.id;
+
+        if (target === "topicguard" || target === "security_context" || target === "security_warn" || target === "security_timeout" || target === "security_honeypot" || target === "security_behavior") {
+            const current = await SecurityRepository.get(guildId);
+            const field = {
+                topicguard: "topic_enabled",
+                security_context: "contextual_enabled",
+                security_warn: "topic_warn_enabled",
+                security_timeout: "topic_timeout_enabled",
+                security_honeypot: "honeypot_enabled",
+                security_behavior: "behavior_enabled"
+            }[target];
+            if (target === "security_honeypot" && !current.honeypot_enabled && !current.honeypot_channel_id) {
+                return ui.caution(interaction, "Escolha primeiro o canal-isca no painel Security Center.", "Canal não configurado");
+            }
+            if (target === "security_context" && !current.contextual_enabled && !process.env.GROQ_API_KEY) {
+                return ui.caution(interaction, "Configure GROQ_API_KEY no ambiente da Nina antes de ativar a análise contextual.", "IA não configurada");
+            }
+            await SecurityRepository.update(guildId, { [field]: current[field] ? 0 : 1 });
+            return interaction.update(await ConfigPanelManager.build(interaction, "security"));
+        }
 
         if (target === "economy") {
             const current = await GuildRepository.isEconomyEnabled(guildId);
@@ -346,6 +375,17 @@ async function execute(interaction) {
         const channel = interaction.channels.first();
         if (!channel) return ui.fail(interaction, "Não consegui identificar o canal selecionado.", "Canal inválido");
 
+        if (target === "security_honeypot" || target === "security_alert") {
+            if (!channel.isTextBased?.() || channel.isThread?.()) {
+                return ui.fail(interaction, "Selecione um canal de texto válido, não uma thread.", "Canal inválido");
+            }
+            const field = target === "security_honeypot" ? "honeypot_channel_id" : "alert_channel_id";
+            const patch = { [field]: channel.id };
+            if (target === "security_honeypot") patch.honeypot_enabled = 1;
+            await SecurityRepository.update(interaction.guild.id, patch);
+            return interaction.update(await ConfigPanelManager.build(interaction, "security"));
+        }
+
         if (target === "welcome") {
             await WelcomeRepository.update(interaction.guild.id, { channel_id: channel.id });
             return interaction.update(await ConfigPanelManager.build(interaction, "welcome"));
@@ -451,6 +491,29 @@ async function execute(interaction) {
         const read = id => interaction.fields.getTextInputValue(id).trim().toLowerCase() === "on";
         await TempVoiceManager.configure(interaction.guild, { owner_ban: read("banir"), owner_delete: read("excluir") });
         return ui.respond(interaction, ui.success("As permissões avançadas do dono foram atualizadas.", "TempVoice atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "security_timeout") {
+        const c = await SecurityRepository.get(interaction.guild.id);
+        const modal = new ModalBuilder().setCustomId("config_submit:security_timeout").setTitle("Duração do timeout");
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("minutos").setLabel("Duração em minutos (1 a 60)").setStyle(TextInputStyle.Short).setRequired(true).setValue(String(c.topic_timeout_minutes))));
+        return interaction.showModal(modal);
+    }
+
+    if (type === "security_rule") {
+        const modal = new ModalBuilder().setCustomId("config_submit:security_rule").setTitle("Adicionar regra TopicGuard");
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("canal").setLabel("ID do canal de texto").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(25)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("assunto").setLabel("Nome do assunto proibido").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(80)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("palavras").setLabel("Palavras/expressões separadas por vírgula").setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(900).setPlaceholder("política, eleições, campanha eleitoral"))
+        );
+        return interaction.showModal(modal);
+    }
+
+    if (type === "security_remove_rule") {
+        const modal = new ModalBuilder().setCustomId("config_submit:security_remove_rule").setTitle("Remover regra TopicGuard");
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("id").setLabel("ID da regra (mostrado no painel)").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(8)));
+        return interaction.showModal(modal);
     }
 
     if (type === "automod_spam") {
@@ -568,6 +631,41 @@ async function modal(interaction) {
 
     const type = interaction.customId.split(":")[1];
     const guildId = interaction.guild.id;
+
+    if (type === "security_timeout") {
+        const minutes = Number.parseInt(interaction.fields.getTextInputValue("minutos"), 10);
+        if (!Number.isInteger(minutes) || minutes < 1 || minutes > 60) return ui.caution(interaction, "A duração precisa ser um número entre 1 e 60 minutos.", "Duração inválida");
+        await SecurityRepository.update(guildId, { topic_timeout_minutes: minutes });
+        return ui.respond(interaction, ui.success(`Timeout configurado para ${minutes} minuto(s).`, "Security Center atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "security_rule") {
+        const channelId = interaction.fields.getTextInputValue("canal").trim();
+        const topic = interaction.fields.getTextInputValue("assunto").trim();
+        const rawKeywords = interaction.fields.getTextInputValue("palavras");
+        const channel = interaction.guild.channels.cache.get(channelId);
+        const keywords = [...new Set(rawKeywords.split(",").map(value => value.trim()).filter(Boolean))].slice(0, 30);
+        if (!channel?.isTextBased?.() || channel.isThread?.()) {
+            return ui.caution(interaction, "O ID precisa ser de um canal de texto deste servidor, não de uma thread.", "Canal inválido");
+        }
+        if (!topic || topic.length > 80 || !keywords.length || keywords.some(word => word.length > 80)) {
+            return ui.caution(interaction, "Informe um assunto e ao menos uma palavra/expressão válida (até 80 caracteres cada).", "Regra inválida");
+        }
+        const existing = await SecurityRepository.listRules(guildId);
+        if (existing.length >= 50) return ui.caution(interaction, "Este servidor já possui 50 regras TopicGuard. Remova uma antes de adicionar outra.", "Limite atingido");
+        const id = await SecurityRepository.addRule({ guildId, channelId, topic, keywords });
+        await SecurityRepository.update(guildId, { topic_enabled: 1 });
+        return ui.respond(interaction, ui.success(`Regra **#${id} — ${topic}** criada para <#${channelId}>. O TopicGuard foi ativado.`, "Regra adicionada", interaction), { ephemeral: true });
+    }
+
+    if (type === "security_remove_rule") {
+        const ruleId = Number.parseInt(interaction.fields.getTextInputValue("id"), 10);
+        if (!Number.isInteger(ruleId) || ruleId < 1) return ui.caution(interaction, "Informe um ID de regra válido.", "ID inválido");
+        const existing = (await SecurityRepository.listRules(guildId)).find(rule => rule.id === ruleId);
+        if (!existing) return ui.caution(interaction, "Não encontrei essa regra neste servidor.", "Regra não encontrada");
+        await SecurityRepository.removeRule(guildId, ruleId);
+        return ui.respond(interaction, ui.success(`A regra **#${ruleId} — ${existing.topic}** foi removida.`, "Regra removida", interaction), { ephemeral: true });
+    }
 
     if (type === "automod_spam") {
         const maximo = Number.parseInt(interaction.fields.getTextInputValue("maximo"), 10);

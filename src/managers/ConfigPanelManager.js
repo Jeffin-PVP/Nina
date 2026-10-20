@@ -25,6 +25,7 @@ const AutoroleRepository = require("../database/repositories/AutoroleRepository"
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
+const SecurityRepository = require("../database/repositories/SecurityRepository");
 const LockdownManager = require("./LockdownManager");
 const { CATEGORIES } = require("./LogCategories");
 
@@ -44,6 +45,7 @@ abaixo disso (a maior usa ~30 componentes).
 const CATEGORY_OPTIONS = [
     { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "⚙️" },
     { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "🤖" },
+    { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: "🛡️" },
     { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "👋" },
     { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "🎫" },
     { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "📜" },
@@ -152,7 +154,7 @@ const roleMention = id => id ? `<@&${id}>` : NOT_SET;
 
 async function buildHome(interaction) {
     const guildId = interaction.guild.id;
-    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice] = await Promise.all([
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security] = await Promise.all([
         GuildRepository.getSettings(guildId),
         AutomodRepository.get(guildId),
         WelcomeRepository.get(guildId),
@@ -160,7 +162,8 @@ async function buildHome(interaction) {
         ServerStatsRepository.get(guildId),
         AntiNukeRepository.get(guildId),
         LockdownManager.getConfig(guildId),
-        TempVoiceRepository.get(guildId)
+        TempVoiceRepository.get(guildId),
+        SecurityRepository.get(guildId)
     ]);
 
     const groups = [
@@ -168,7 +171,9 @@ async function buildHome(interaction) {
             ["AutoMod", automod.enabled],
             ["Anti-Nuke", antinuke.enabled],
             ["Lockdown", lockdown.enabled],
-            ["Moderação", settings.moderation_enabled]
+            ["Moderação", settings.moderation_enabled],
+            ["TopicGuard", security.topic_enabled],
+            ["Honeypot", security.honeypot_enabled || security.behavior_enabled]
         ]],
         ["<:ui_users:1560327175826313336> Comunidade", [
             ["Boas-vindas", welcome.enabled],
@@ -187,7 +192,7 @@ async function buildHome(interaction) {
 
     const container = card(ui.COLORS.brand);
 
-    const title = `## ${ico("config")}  Painel da Nina\nConfigure **${interaction.guild.name}** sem decorar comandos.\n-# ${active} de ${all.length} sistemas ativos`;
+    const title = `## <:ui_settings:1560327092078645258>  Painel da Nina\nConfigure **${interaction.guild.name}** sem decorar comandos.\n-# ${active} de ${all.length} sistemas ativos`;
     const icon = interaction.guild.iconURL({ size: 256 });
 
     if (icon) {
@@ -295,6 +300,59 @@ async function buildAutomod(interaction) {
     );
 
     addNav(container);
+    return finish(container);
+}
+
+async function buildSecurity(interaction) {
+    const guildId = interaction.guild.id;
+    const [c, rules] = await Promise.all([
+        SecurityRepository.get(guildId),
+        SecurityRepository.listRules(guildId)
+    ]);
+    const container = card(c.topic_enabled || c.honeypot_enabled || c.behavior_enabled ? ui.COLORS.success : ui.COLORS.neutral);
+    addHeader(container, "<:shield:1561427396719284334>", "Security Center", "TopicGuard e Honeypot. Ações adicionais permanecem configuráveis e conservadoras.");
+
+    addToggle(container, { id: "config_toggle:topicguard", title: "TopicGuard", description: `${rules.length} regra(s) cadastrada(s). Detecta assuntos proibidos por canal.`, enabled: !!c.topic_enabled });
+    addToggle(container, { id: "config_toggle:security_context", title: "Análise contextual por IA", description: "Opcional; só analisa mensagens que correspondem a palavras de regras. Se falhar, não apaga a mensagem.", enabled: !!c.contextual_enabled });
+    addToggle(container, { id: "config_toggle:security_warn", title: "Advertência por violação", description: "Registra uma advertência no sistema de avisos da Nina após uma remoção confirmada.", enabled: !!c.topic_warn_enabled });
+    addToggle(container, { id: "config_toggle:security_timeout", title: "Timeout por violação", description: `Opcional e mais severo; duração atual: ${c.topic_timeout_minutes} minuto(s).`, enabled: !!c.topic_timeout_enabled });
+    addRow(container, actionButton("config_modal:security_timeout", "Duração do timeout", "<:ui_timedout:1560327148315615234>"));
+    addToggle(container, { id: "config_toggle:security_honeypot", title: "Canal-isca", description: c.honeypot_channel_id ? `Canal: <#${c.honeypot_channel_id}>` : "Escolha um canal dedicado para registrar interações suspeitas.", enabled: !!c.honeypot_enabled });
+    addToggle(container, { id: "config_toggle:security_behavior", title: "Sinais comportamentais", description: "Detecta padrões repetitivos e envia alertas para revisão humana; não pune automaticamente.", enabled: !!c.behavior_enabled });
+
+    addSep(container);
+    addText(container, "**Canal-isca**\nSelecione o canal monitorado. Configure as permissões com cuidado: uma interação é apenas um sinal, não prova de abuso.");
+    addRow(container, channelSelect("config_channel:security_honeypot", "Escolher canal-isca", ChannelType.GuildText));
+    addText(container, `**Canal de alertas**\n${mention(c.alert_channel_id)}\nSe não definido, a Nina tentará usar o canal de logs existente.`);
+    addRow(container, channelSelect("config_channel:security_alert", "Escolher canal de alertas", ChannelType.GuildText));
+
+    addSep(container);
+    addText(container, `**Regras TopicGuard**\n${rules.length} regra(s) cadastrada(s). Gerencie as palavras e os canais em uma tela separada para manter este painel dentro do limite de componentes do Discord.`);
+    addRow(container,
+        actionButton("config_security:rules", "Gerenciar regras", "<:ui_content:1560326801673420922>", ButtonStyle.Primary)
+    );
+    addText(container, "-# Por segurança, a Nina ignora administradores/Gerenciar Servidor e não aplica punições extras automaticamente. Requer Gerenciar Servidor para configurar.");
+    addNav(container);
+    return finish(container);
+}
+
+async function buildSecurityRules(interaction) {
+    const rules = await SecurityRepository.listRules(interaction.guild.id);
+    const container = card(rules.length ? ui.COLORS.info : ui.COLORS.neutral);
+    addHeader(container, "<:ui_content:1560326801673420922>", "TopicGuard • Regras", "Palavras-chave monitoradas por canal. Revise cada regra antes de ativar o sistema.");
+
+    if (rules.length) {
+        addText(container, rules.slice(0, 8).map(r => `• **#${r.id} · ${ui.clip(r.topic, 80)}** — <#${r.channel_id}>\n  -# ${r.keywords.join(", ")}`).join("\n"));
+        if (rules.length > 8) addText(container, `-# Exibindo 8 de ${rules.length} regras. As demais continuam salvas.`);
+    } else {
+        addText(container, "Nenhuma regra cadastrada ainda. Adicione uma regra para definir o canal, o assunto e as palavras-chave.");
+    }
+
+    addRow(container,
+        actionButton("config_modal:security_rule", "Adicionar regra", "<:ui_plus:1560327041839009854>", ButtonStyle.Primary),
+        actionButton("config_modal:security_remove_rule", "Remover regra", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger)
+    );
+    addNav(container, [actionButton("config_security:back", "Voltar ao Security Center", "<:shield:1561427396719284334>")]);
     return finish(container);
 }
 
@@ -655,6 +713,8 @@ async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
         case "automod": return buildAutomod(interaction);
+        case "security": return buildSecurity(interaction);
+        case "security_rules": return buildSecurityRules(interaction);
         case "welcome": return buildWelcome(interaction);
         case "tickets": return buildTickets(interaction);
         case "logs": return buildLogs(interaction);

@@ -68,13 +68,25 @@ function buildEmbedApresentacao(guild) {
                 name: "🏗️ Criar Servidor com IA",
                 value: "Use `/criar-servidor` para gerar uma estrutura completa do zero.",
                 inline: true
+            },
+
+            {
+                name: "🔊 Temp-Voice",
+                value: "cria canais de voz temporários automaticamente.",
+                inline: true
+            },
+
+            {
+                name: "🍯 HoneyPot",
+                value: "Sistema de armadilhas para detectar e punir usuários mal-intencionados.",
+                inline: true
             }
 
         )
 
         .addFields({
             name: "⚙️ Primeiros passos",
-            value: "Use `/config status` para ver e ajustar minhas configurações neste servidor."
+            value: "Use `/config` para ver e ajustar minhas configurações neste servidor."
         })
 
         .setThumbnail(guild.client.user.displayAvatarURL())

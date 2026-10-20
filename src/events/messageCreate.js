@@ -4,6 +4,7 @@ const LevelManager = require("../managers/LevelManager");
 const AutomodManager = require("../managers/AutomodManager");
 const NinaEmojiManager = require("../ai/NinaEmojiManager");
 const GlobalBanManager = require("../managers/GlobalBanManager");
+const SecurityManager = require("../managers/SecurityManager");
 
 module.exports = {
 
@@ -17,6 +18,14 @@ module.exports = {
 
         // Usuário banido globalmente não pode conversar com a Nina nem gerar XP.
         if (await GlobalBanManager.isBanned(message.author.id)) return;
+
+        // Security Center: TopicGuard, canal-isca e sinais comportamentais.
+        // Erros de segurança não devem interromper o restante do bot.
+        const tratadaPeloSecurity = await SecurityManager.handleMessage(message).catch(error => {
+            console.error("[Security Center] Erro ao verificar mensagem:", error);
+            return false;
+        });
+        if (tratadaPeloSecurity) return;
 
         // AutoMod: se a mensagem for barrada (spam/emoji/palavrão/menção/convite),
         // não processa XP nem resposta de IA em cima dela

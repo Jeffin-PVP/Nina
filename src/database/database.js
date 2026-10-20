@@ -372,6 +372,41 @@ const statements = [
         channel_id TEXT NOT NULL,
         prev_send TEXT NOT NULL DEFAULT 'neutral',
         PRIMARY KEY (guild_id, channel_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS security_settings (
+        guild_id TEXT NOT NULL PRIMARY KEY,
+        topic_enabled INTEGER NOT NULL DEFAULT 0,
+        contextual_enabled INTEGER NOT NULL DEFAULT 0,
+        topic_warn_enabled INTEGER NOT NULL DEFAULT 0,
+        topic_timeout_enabled INTEGER NOT NULL DEFAULT 0,
+        topic_timeout_minutes INTEGER NOT NULL DEFAULT 5,
+        honeypot_enabled INTEGER NOT NULL DEFAULT 0,
+        honeypot_channel_id TEXT NULL,
+        behavior_enabled INTEGER NOT NULL DEFAULT 0,
+        alert_channel_id TEXT NULL,
+        ignored_roles TEXT NOT NULL DEFAULT '[]'
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS security_topic_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        keywords_json TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS security_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NULL,
+        user_id TEXT NULL,
+        event_type TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        details_json TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`
 ];
 
@@ -383,7 +418,9 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_giveaways_running ON giveaways (guild_id, status, ends_at)`,
     `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`,
     `CREATE INDEX IF NOT EXISTS idx_temp_voice_rooms_guild ON temp_voice_rooms (guild_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_temp_voice_bans_guild ON temp_voice_bans (guild_id)`
+    `CREATE INDEX IF NOT EXISTS idx_temp_voice_bans_guild ON temp_voice_bans (guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_security_topic_rules_guild_channel ON security_topic_rules (guild_id, channel_id, enabled)`,
+    `CREATE INDEX IF NOT EXISTS idx_security_events_guild_created ON security_events (guild_id, created_at)`
 ];
 
 function migrateGuildSettingsSchema() {
@@ -397,6 +434,18 @@ function migrateAutomodRaidLocksSchema() {
     const columns = new Set(db.prepare("PRAGMA table_info(automod_raid_locks)").all().map(row => row.name));
     if (!columns.has("prev_send")) {
         db.exec("ALTER TABLE automod_raid_locks ADD COLUMN prev_send TEXT NOT NULL DEFAULT 'neutral'");
+    }
+}
+
+function migrateSecuritySchema() {
+    const columns = new Set(db.prepare("PRAGMA table_info(security_settings)").all().map(row => row.name));
+    const migrations = [
+        ["topic_warn_enabled", "INTEGER NOT NULL DEFAULT 0"],
+        ["topic_timeout_enabled", "INTEGER NOT NULL DEFAULT 0"],
+        ["topic_timeout_minutes", "INTEGER NOT NULL DEFAULT 5"]
+    ];
+    for (const [name, definition] of migrations) {
+        if (columns.size && !columns.has(name)) db.exec(`ALTER TABLE security_settings ADD COLUMN ${name} ${definition}`);
     }
 }
 
@@ -454,6 +503,7 @@ function initializeDatabase() {
         migrateGuildSettingsSchema();
         migrateTempVoiceSchema();
         migrateAutomodRaidLocksSchema();
+        migrateSecuritySchema();
         db.exec("COMMIT");
         initialized = true;
         console.log(`🗄️ SQLite conectado: ${databasePath}`);
