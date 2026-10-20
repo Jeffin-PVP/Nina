@@ -25,6 +25,8 @@ const AutoroleRepository = require("../database/repositories/AutoroleRepository"
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
+const VoiceRecordingRepository = require("../database/repositories/VoiceRecordingRepository");
+const RecordingApi = require("../services/RecordingService");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
 const SecurityManager = require("./SecurityManager");
 const LockdownManager = require("./LockdownManager");
@@ -54,6 +56,7 @@ const CATEGORY_OPTIONS = [
     { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "<:stats:1562187543653388391>" },
     { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "<:nuclear:1562187533721272451>" },
     { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
+    { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "🎙️" },
     { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" }
 ];
 
@@ -155,7 +158,7 @@ const roleMention = id => id ? `<@&${id}>` : NOT_SET;
 
 async function buildHome(interaction) {
     const guildId = interaction.guild.id;
-    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security] = await Promise.all([
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec] = await Promise.all([
         GuildRepository.getSettings(guildId),
         AutomodRepository.get(guildId),
         WelcomeRepository.get(guildId),
@@ -164,7 +167,8 @@ async function buildHome(interaction) {
         AntiNukeRepository.get(guildId),
         LockdownManager.getConfig(guildId),
         TempVoiceRepository.get(guildId),
-        SecurityRepository.get(guildId)
+        SecurityRepository.get(guildId),
+        VoiceRecordingRepository.get(guildId)
     ]);
 
     const groups = [
@@ -184,7 +188,8 @@ async function buildHome(interaction) {
         ]],
         ["<:ui_wrench:1560327206969024613> Utilidades", [
             ["Stats", stats.enabled],
-            ["TempVoice", tempvoice.enabled]
+            ["TempVoice", tempvoice.enabled],
+            ["Gravação de calls", voicerec.enabled]
         ]]
     ];
 
@@ -623,9 +628,9 @@ async function buildLockdown(interaction) {
 async function buildStats(interaction) {
     const c = await ServerStatsRepository.get(interaction.guild.id);
     const counters = [
-        ["members", "<:membros:1562187531246637107> Membros"], ["bots", "<:bot:1562187511848243271> Bots"], ["online", "<:online:1562187537957519401> Online"],
-        ["offline", "<:offline:1562187536066027680> Offline"], ["voice", "<:voz:1562187549932388383> Em call"], ["channels", "<:ui_textc:1560327137024544808> Canais"],
-        ["categories", "<:pasta:1562187541585600533> Categorias"], ["roles", "<:cargo:1562189000544882808> Cargos"], ["servers", "<:server:1561430145259016262> Servidores"]
+        ["members", "👥 Membros"], ["bots", "🤖 Bots"], ["online", "🟢 Online"],
+        ["offline", "⚫ Offline"], ["voice", "🔊 Em call"], ["channels", "💬 Canais"],
+        ["categories", "📂 Categorias"], ["roles", "🎭 Cargos"], ["servers", "🌐 Servidores"]
     ];
     const container = card(stateColor(c.enabled));
 
@@ -668,6 +673,72 @@ async function buildAntiNuke(interaction) {
 
     addRow(container, actionButton("config_modal:antinuke", "Configurar limites", "<:ui_settings:1560327092078645258>"));
 
+    addNav(container);
+    return finish(container);
+}
+
+async function buildVoiceRec(interaction) {
+    const guild = interaction.guild;
+    const c = await VoiceRecordingRepository.get(guild.id);
+    const apiReady = RecordingApi.isConfigured();
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, "🎙️", "Gravação de calls", "Grave calls, transcreva com IA e controle quem pode gravar. Use /voicepanel dentro de um canal de voz.");
+
+    addToggle(container, {
+        id: "config_voicerec:enabled",
+        title: "Sistema de gravação",
+        description: apiReady ? "Os membros autorizados já podem usar /voicepanel." : "A transcrição ainda não foi configurada no host (TRANSCRIPTION_GROQ_API_KEY).",
+        enabled: !!c.enabled
+    });
+
+    addSep(container);
+
+    const roleList = c.allowed_role_ids.length ? c.allowed_role_ids.map(id => `<@&${id}>`).join(" ") : "*Somente quem tem Gerenciar Servidor*";
+    const allowedChannels = c.allowed_channel_ids.length ? c.allowed_channel_ids.map(id => `<#${id}>`).join(" ") : "*Todos os canais de voz*";
+    const blockedChannels = c.blocked_channel_ids.length ? c.blocked_channel_ids.map(id => `<#${id}>`).join(" ") : "*Nenhum*";
+
+    addText(container, [
+        `**Cargos que podem gravar**\n${roleList}`,
+        `**Somente estes canais**\n${allowedChannels}`,
+        `**Canais bloqueados**\n${blockedChannels}`,
+        `**Duração máxima:** ${c.max_minutes} min`
+    ].join("\n\n"));
+
+    addRow(
+        container,
+        roleSelect("config_role:voicerec", "Cargos que podem gravar")
+            .setDefaultRoles(...c.allowed_role_ids.filter(id => guild.roles.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:voicerec_allowed", "Somente estes canais (vazio = todos)", ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+            .setDefaultChannels(...c.allowed_channel_ids.filter(id => guild.channels.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:voicerec_blocked", "Canais que nunca podem ser gravados", ChannelType.GuildVoice, ChannelType.GuildStageVoice)
+            .setDefaultChannels(...c.blocked_channel_ids.filter(id => guild.channels.cache.has(id)))
+            .setMinValues(0)
+            .setMaxValues(25)
+    );
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_voicerec_max")
+            .setPlaceholder("Duração máxima por gravação")
+            .addOptions(VoiceRecordingRepository.MAX_MINUTES_OPTIONS.map(minutes => ({
+                label: `${minutes} minutos`,
+                value: String(minutes),
+                default: minutes === c.max_minutes
+            })))
+    );
+
+    addText(container, "-# Administradores e quem tem Gerenciar Servidor sempre podem gravar. Os participantes são avisados no chat da call. Canais bloqueados têm prioridade sobre os liberados.");
     addNav(container);
     return finish(container);
 }
@@ -761,6 +832,7 @@ async function build(interaction, category) {
         case "lockdown": return buildLockdown(interaction);
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
+        case "voicerec": return buildVoiceRec(interaction);
         case "tempvoice": return buildTempVoice(interaction);
         case "tempvoice_permissions": return buildTempVoicePermissions(interaction);
         default: return buildHome(interaction);

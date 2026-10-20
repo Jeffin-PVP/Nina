@@ -15,6 +15,7 @@ const CATEGORY_LABELS = {
     Utility: "🔧 Utilidade",
     configuration: "⚙️ Configuração",
     AI: "🤖 Inteligência Artificial",
+    Voz: "🎙️ Voz",
     Geral: "📌 Geral"
 };
 

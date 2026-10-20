@@ -74,6 +74,8 @@
                             alt=""></span> Logs</button>
                 <button class="nav-item" data-section="tempvoice"><span class="nav-icon"><img
                             src="icons/tempvoice.svg?v=5" alt=""></span> TempVoice</button>
+                <button class="nav-item" data-section="gravacoes"><span class="nav-icon"><img
+                            src="icons/tempvoice.svg?v=5" alt=""></span> Gravação de calls</button>
                 <button class="nav-item" data-section="economia"><span class="nav-icon"><img src="icons/economy.svg?v=5"
                             alt=""></span> Economia & XP</button>
                 <button class="nav-item" data-section="sorteios"><span class="nav-icon"><img
@@ -550,8 +552,56 @@
                             <div class="info-card"><span><svg class="ic" aria-hidden="true"><use href="#i-crown"/></svg> Dono</span><b>Transferir</b><small>Transfere a propriedade
                                     para outro membro.</small></div>
                         </div>
-                        <div class="notice"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> Gravação de voz e <svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> transcript ficam reservados para uma próxima etapa
-                            do TempVoice.</div>
+                        <div class="notice"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> A gravação e a <svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> transcrição de calls ficam na seção <b>Gravação de calls</b>.</div>
+                    </div>
+                </section>
+                <section id="secao-gravacoes" class="section hidden">
+                    <div class="section-head">
+                        <div>
+                            <div class="eyebrow">VOZ</div>
+                            <h2>Gravação de calls</h2>
+                            <p>Controle quem pode gravar, quais canais podem ser gravados e gerencie as gravações e transcrições
+                                do servidor. Use <code>/voicepanel</code> dentro de um canal de voz para gravar.</p>
+                        </div>
+                    </div>
+                    <div id="rec-api-warning" class="notice hidden">A transcrição ainda não foi configurada no host da Nina
+                        (variável <code>TRANSCRIPTION_GROQ_API_KEY</code>). Enquanto isso, não é possível ativar a gravação.</div>
+                    <div id="rec-active" class="notice hidden"></div>
+                    <div class="dashboard-grid">
+                        <div class="panel form-panel">
+                            <div class="setting">
+                                <div><b>Gravação de calls ativada</b><small>Quando desativada, o /voicepanel não permite gravar.</small></div>
+                                <label class="switch"><input id="rec-enabled" type="checkbox"><i></i></label>
+                            </div>
+                            <div class="field"><label>Duração máxima por gravação</label><select id="rec-max-minutes"></select></div>
+                            <div class="subhead">
+                                <h3>Cargos que podem gravar</h3>
+                                <p>Administradores e quem tem Gerenciar Servidor sempre podem. Sem cargos marcados, só eles.</p>
+                            </div>
+                            <div id="rec-roles" class="rule-grid"></div>
+                            <div class="form-actions"><button id="btn-rec-save" class="btn primary">Salvar configuração</button><span id="rec-feedback" class="feedback"></span></div>
+                        </div>
+                        <div class="panel form-panel">
+                            <div class="subhead">
+                                <h3>Somente estes canais</h3>
+                                <p>Se marcar algum, só eles poderão ser gravados. Sem nenhum marcado, todos os canais de voz são permitidos.</p>
+                            </div>
+                            <div id="rec-allowed-channels" class="rule-grid"></div>
+                            <div class="subhead">
+                                <h3>Canais bloqueados</h3>
+                                <p>Estes canais nunca podem ser gravados (tem prioridade sobre a lista acima).</p>
+                            </div>
+                            <div id="rec-blocked-channels" class="rule-grid"></div>
+                        </div>
+                    </div>
+                    <div class="panel">
+                        <div class="panel-head">
+                            <div>
+                                <h3>Gravações do servidor</h3>
+                                <p>Somente as gravações deste servidor aparecem aqui. As 100 mais recentes.</p>
+                            </div><button id="btn-rec-refresh" class="btn ghost"><svg class="ic" aria-hidden="true"><use href="#i-refresh"/></svg> Atualizar</button>
+                        </div>
+                        <div id="rec-list" class="list"><div class="loading">Carregando...</div></div>
                     </div>
                 </section>
                 <section id="secao-economia" class="section hidden">
@@ -792,6 +842,7 @@
     <script src="app.js"></script>
     <script src="ui.js"></script>
     <script src="/panel/roles-lockdown.js?v=6"></script>
+    <script src="/panel/recordings.js?v=1"></script>
 </body>
 
 </html>

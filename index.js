@@ -26,6 +26,9 @@ const GlobalBanManager =
 const TempVoiceManager =
     require("./src/managers/TempVoiceManager");
 
+const VoiceRecordingManager =
+    require("./src/managers/VoiceRecordingManager");
+
 const Emojis =
     require("./src/utils/emojis");
 
@@ -271,6 +274,9 @@ client.once(
                 console.error(`❌ Falha na limpeza do TempVoice em ${guild.id}:`, error);
             });
         }
+
+        // Finaliza gravações que ficaram "em andamento" por causa de um reinício.
+        VoiceRecordingManager.recoverInterrupted(client);
 
         Emojis.sync(client);
 

@@ -50,6 +50,9 @@ const tempVoiceModals =
 const tempVoiceUsers =
     require("../interactions/tempVoice/userSelectHandler");
 
+const voiceRecording =
+    require("../interactions/voiceRecording/handler");
+
 const amongUs = require("../managers/AmongUsAnnouncementManager");
 
 module.exports = {
@@ -164,6 +167,10 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("voicerec:")) {
+                    return voiceRecording.execute(interaction);
+                }
+
                 if (interaction.customId.startsWith("tempvoice:")) {
 
                     return tempVoiceButtons.execute(interaction);
@@ -221,7 +228,11 @@ module.exports = {
 
             if (interaction.isStringSelectMenu()) {
 
-                if (interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action") {
+                if (interaction.customId === "voicerec_select:pick") {
+                    return voiceRecording.select(interaction);
+                }
+
+                if (interaction.customId === "config_voicerec_max" || interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action") {
                     return configPanel.execute(interaction);
                 }
 

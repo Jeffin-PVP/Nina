@@ -22,6 +22,10 @@ const SecurityManager = require("../managers/SecurityManager");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("../managers/TempVoiceManager");
 const LockdownRepository = require("../database/repositories/LockdownRepository");
+const VoiceRecordingRepository = require("../database/repositories/VoiceRecordingRepository");
+const VoiceRecordingManager = require("../managers/VoiceRecordingManager");
+const RecordingApi = require("../services/RecordingService");
+const { Readable } = require("node:stream");
 const LockdownManager = require("../managers/LockdownManager");
 const AutorolePanelManager = require("../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../utils/reactionEmoji");
@@ -1051,6 +1055,244 @@ module.exports = (client) => {
         } catch (error) {
             console.error("[Painel] Falha ao desativar TempVoice:", error);
             res.status(500).json({ error: "Não consegui desativar o TempVoice." });
+        }
+    });
+
+    /*
+    =========================
+        GRAVAÇÃO DE CALLS
+    =========================
+    Tudo filtrado por guildId: cada servidor só enxerga as próprias gravações.
+    O painel web já exige Gerenciar Servidor (requireGuildAccess).
+    */
+
+    const UUID = /^[0-9a-f-]{36}$/i;
+
+    async function gravacaoDoServidor(req, res) {
+        const id = String(req.params.id || "");
+
+        if (!UUID.test(id)) {
+            res.status(400).json({ error: "ID de gravação inválido." });
+            return null;
+        }
+
+        const gravacao = await VoiceRecordingRepository.getRecording(req.painelGuild.id, id);
+
+        if (!gravacao) {
+            res.status(404).json({ error: "Gravação não encontrada neste servidor." });
+            return null;
+        }
+
+        return gravacao;
+    }
+
+    function erroGravacao(res, error) {
+        if (error instanceof RecordingApi.RecordingApiError) {
+            if (error.code === "unsupported") return res.status(409).json({ error: "Esta gravação não tem áudio guardado: só a transcrição fica salva." });
+
+            const status = error.code === "not_found" ? 404 : 502;
+            return res.status(status).json({ error: status === 404 ? "A gravação não existe mais no serviço de áudio." : "O serviço de gravação está indisponível agora." });
+        }
+
+        console.error("[Painel] Erro em gravação:", error);
+        return res.status(500).json({ error: "Não consegui concluir essa ação agora." });
+    }
+
+    router.get("/guilds/:guildId/recordings", async (req, res) => {
+        const guild = req.painelGuild;
+        const [config, recordings] = await Promise.all([
+            VoiceRecordingRepository.get(guild.id),
+            VoiceRecordingRepository.list(guild.id, 100)
+        ]);
+
+        const voiceChannels = guild.channels.cache
+            .filter(c => c.type === 2 || c.type === 13)
+            .map(c => ({ id: c.id, name: c.name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+
+        const roles = guild.roles.cache
+            .filter(r => r.id !== guild.id && !r.managed)
+            .map(r => ({ id: r.id, name: r.name, color: r.hexColor, position: r.position }))
+            .sort((a, b) => b.position - a.position || a.name.localeCompare(b.name));
+
+        const ativa = VoiceRecordingManager.getSession(guild.id);
+
+        res.json({
+            config,
+            apiConfigured: RecordingApi.isConfigured(),
+            maxMinutesOptions: VoiceRecordingRepository.MAX_MINUTES_OPTIONS,
+            voiceChannels,
+            roles,
+            active: ativa ? { channelId: ativa.channel.id, channelName: ativa.channel.name, startedAt: ativa.startedAt, startedBy: ativa.startedBy } : null,
+            recordings: recordings.map(r => ({
+                id: r.id,
+                channelId: r.channel_id,
+                channelName: r.channel_name,
+                startedBy: r.started_by,
+                startedByName: r.started_by_name,
+                startedAt: r.started_at,
+                endedAt: r.ended_at,
+                durationMs: r.duration_ms,
+                sizeBytes: r.size_bytes,
+                status: r.status,
+                transcriptStatus: r.transcript_status,
+                hasAudio: RecordingApi.supportsAudio(r.remote_id),
+                participants: r.participants.length
+            }))
+        });
+    });
+
+    router.post("/guilds/:guildId/recordings/config", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+
+        try {
+            const values = {};
+
+            if (body.enabled !== undefined) {
+                values.enabled = bool(body.enabled);
+
+                if (values.enabled && !RecordingApi.isConfigured()) {
+                    throw new ErroValidacao("A transcrição ainda não foi configurada no host (defina TRANSCRIPTION_GROQ_API_KEY).");
+                }
+            }
+
+            if (body.max_minutes !== undefined) {
+                const minutos = inteiro("max_minutes", body.max_minutes, 1, 1000);
+                if (!VoiceRecordingRepository.MAX_MINUTES_OPTIONS.includes(minutos)) {
+                    throw new ErroValidacao(`"max_minutes" precisa ser um de: ${VoiceRecordingRepository.MAX_MINUTES_OPTIONS.join(", ")}.`);
+                }
+                values.max_minutes = minutos;
+            }
+
+            const listaIds = (nome, valor, existe) => {
+                const ids = [...new Set(listaCsv(valor))];
+                if (ids.length > 25 || ids.some(id => !SNOWFLAKE.test(id) || !existe(id))) {
+                    throw new ErroValidacao(`"${nome}" contém itens inválidos para este servidor.`);
+                }
+                return ids;
+            };
+
+            const canalDeVoz = id => [2, 13].includes(guild.channels.cache.get(id)?.type);
+
+            if (body.allowed_role_ids !== undefined) {
+                values.allowed_role_ids = listaIds("allowed_role_ids", body.allowed_role_ids, id => {
+                    const cargo = guild.roles.cache.get(id);
+                    return !!cargo && cargo.id !== guild.id;
+                });
+            }
+
+            if (body.allowed_channel_ids !== undefined) {
+                values.allowed_channel_ids = listaIds("allowed_channel_ids", body.allowed_channel_ids, canalDeVoz);
+            }
+
+            if (body.blocked_channel_ids !== undefined) {
+                values.blocked_channel_ids = listaIds("blocked_channel_ids", body.blocked_channel_ids, canalDeVoz);
+            }
+
+            res.json({ ok: true, config: await VoiceRecordingRepository.update(guild.id, values) });
+        } catch (error) {
+            return tratarValidacao(res, error);
+        }
+    });
+
+    router.post("/guilds/:guildId/recordings/:id/transcribe", async (req, res) => {
+        const gravacao = await gravacaoDoServidor(req, res);
+        if (!gravacao) return;
+
+        try {
+            const atual = await VoiceRecordingManager.refreshRecording(gravacao);
+
+            if (atual.status !== "ready") return res.status(409).json({ error: "O áudio ainda não está pronto." });
+            if (atual.transcript_status === "pending") return res.status(409).json({ error: "A transcrição já está em andamento." });
+            if (atual.transcript_status === "ready") return res.status(409).json({ error: "Esta gravação já foi transcrita." });
+
+            await VoiceRecordingManager.requestTranscription(atual);
+            res.json({ ok: true });
+        } catch (error) {
+            return erroGravacao(res, error);
+        }
+    });
+
+    router.get("/guilds/:guildId/recordings/:id/status", async (req, res) => {
+        const gravacao = await gravacaoDoServidor(req, res);
+        if (!gravacao) return;
+
+        const atual = await VoiceRecordingManager.refreshRecording(gravacao);
+        res.json({ status: atual.status, transcriptStatus: atual.transcript_status, durationMs: atual.duration_ms, sizeBytes: atual.size_bytes });
+    });
+
+    router.get("/guilds/:guildId/recordings/:id/audio", async (req, res) => {
+        const gravacao = await gravacaoDoServidor(req, res);
+        if (!gravacao) return;
+
+        try {
+            const atual = await VoiceRecordingManager.refreshRecording(gravacao);
+            if (!RecordingApi.supportsAudio(atual.remote_id)) return res.status(409).json({ error: "Esta gravação não tem áudio guardado: só a transcrição fica salva." });
+            if (atual.status !== "ready") return res.status(409).json({ error: "O áudio ainda não está pronto." });
+
+            const origem = await RecordingApi.openAudio(atual.remote_id);
+            const tipo = origem.headers.get("content-type") || "audio/ogg";
+
+            res.setHeader("Content-Type", tipo);
+            res.setHeader("Cache-Control", "no-store");
+            res.setHeader("Content-Disposition", `attachment; filename="gravacao-${VoiceRecordingManager.fileStamp(atual)}.${tipo.includes("mpeg") ? "mp3" : tipo.includes("wav") ? "wav" : "ogg"}"`);
+
+            const tamanho = origem.headers.get("content-length");
+            if (tamanho) res.setHeader("Content-Length", tamanho);
+
+            // Repassa em stream: o áudio passa pela memória, nunca pelo disco.
+            Readable.fromWeb(origem.body).on("error", () => res.destroy()).pipe(res);
+        } catch (error) {
+            return erroGravacao(res, error);
+        }
+    });
+
+    router.get("/guilds/:guildId/recordings/:id/transcript", async (req, res) => {
+        const gravacao = await gravacaoDoServidor(req, res);
+        if (!gravacao) return;
+
+        try {
+            const atual = await VoiceRecordingManager.refreshRecording(gravacao);
+            const arquivo = await VoiceRecordingManager.buildTranscriptFile(req.painelGuild, atual);
+
+            if (!arquivo.ready) return res.status(409).json({ error: "A transcrição ainda não está pronta." });
+
+            if (atual.transcript_status !== "ready") {
+                await VoiceRecordingRepository.patch(atual.guild_id, atual.id, { transcript_status: "ready" });
+            }
+
+            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            res.setHeader("Cache-Control", "no-store");
+            res.setHeader("Content-Disposition", `attachment; filename="transcricao-${VoiceRecordingManager.fileStamp(atual)}.txt"`);
+            res.send(arquivo.buffer);
+        } catch (error) {
+            return erroGravacao(res, error);
+        }
+    });
+
+    router.delete("/guilds/:guildId/recordings/:id", async (req, res) => {
+        const gravacao = await gravacaoDoServidor(req, res);
+        if (!gravacao) return;
+
+        if (gravacao.status === "recording") {
+            return res.status(409).json({ error: "Pare a gravação antes de excluí-la." });
+        }
+
+        try {
+            if (gravacao.remote_id) {
+                try {
+                    await RecordingApi.remove(gravacao.remote_id);
+                } catch (error) {
+                    // Já removida no serviço de áudio: segue e apaga o registro local.
+                    if (error.code !== "not_found") throw error;
+                }
+            }
+
+            await VoiceRecordingRepository.remove(req.painelGuild.id, gravacao.id);
+            res.json({ ok: true });
+        } catch (error) {
+            return erroGravacao(res, error);
         }
     });
 

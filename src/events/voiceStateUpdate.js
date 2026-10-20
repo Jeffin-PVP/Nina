@@ -5,11 +5,15 @@ const LogTypes = require("../managers/LogTypes");
 const ServerStatsManager = require("../managers/ServerStatsManager");
 const TempVoiceManager = require("../managers/TempVoiceManager");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
+const VoiceRecordingManager = require("../managers/VoiceRecordingManager");
 
 module.exports = {
     name: Events.VoiceStateUpdate,
 
     async execute(oldState, newState) {
+        // Antes do filtro de bots: a própria Nina ser desconectada também encerra a gravação.
+        VoiceRecordingManager.handleVoiceStateUpdate(oldState, newState);
+
         const member = newState.member ?? oldState.member;
         if (!member || member.user.bot) return;
 

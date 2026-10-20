@@ -23,6 +23,8 @@ const ServerStatsManager = require("../../managers/ServerStatsManager");
 const AntiNukeRepository = require("../../database/repositories/AntiNukeRepository");
 const TempVoiceRepository = require("../../database/repositories/TempVoiceRepository");
 const TempVoiceManager = require("../../managers/TempVoiceManager");
+const VoiceRecordingRepository = require("../../database/repositories/VoiceRecordingRepository");
+const RecordingApi = require("../../services/RecordingService");
 const AutorolePanelManager = require("../../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 const LockdownManager = require("../../managers/LockdownManager");
@@ -290,6 +292,30 @@ async function execute(interaction) {
         }
     }
 
+    if (id === "config_voicerec:enabled") {
+        const current = await VoiceRecordingRepository.get(interaction.guild.id);
+
+        if (!current.enabled && !RecordingApi.isConfigured()) {
+            return ui.caution(interaction, "A transcrição ainda não foi configurada no host (defina TRANSCRIPTION_GROQ_API_KEY).", "Gravação de calls");
+        }
+
+        await VoiceRecordingRepository.update(interaction.guild.id, { enabled: current.enabled ? 0 : 1 });
+        return interaction.update(await ConfigPanelManager.build(interaction, "voicerec"));
+    }
+
+    if (id === "config_voicerec_max") {
+        const minutes = Number(interaction.values[0]);
+        if (!VoiceRecordingRepository.MAX_MINUTES_OPTIONS.includes(minutes)) return;
+        await VoiceRecordingRepository.update(interaction.guild.id, { max_minutes: minutes });
+        return interaction.update(await ConfigPanelManager.build(interaction, "voicerec"));
+    }
+
+    if (id === "config_role:voicerec") {
+        const roles = [...interaction.roles.values()].filter(role => role.id !== interaction.guild.id);
+        await VoiceRecordingRepository.update(interaction.guild.id, { allowed_role_ids: roles.map(role => role.id) });
+        return interaction.update(await ConfigPanelManager.build(interaction, "voicerec"));
+    }
+
     if (id.startsWith("config_tempvoice:")) {
         const target = id.split(":")[1];
         const guildId = interaction.guild.id;
@@ -407,6 +433,13 @@ async function execute(interaction) {
             const field = target === "lockdown_channels" ? "channel_ids" : "category_ids";
             await LockdownManager.configure(interaction.guild.id, { [field]: ids });
             return interaction.update(await ConfigPanelManager.build(interaction, "lockdown"));
+        }
+
+        if (target === "voicerec_allowed" || target === "voicerec_blocked") {
+            const ids = [...interaction.channels.values()].map(channel => channel.id);
+            const field = target === "voicerec_allowed" ? "allowed_channel_ids" : "blocked_channel_ids";
+            await VoiceRecordingRepository.update(interaction.guild.id, { [field]: ids });
+            return interaction.update(await ConfigPanelManager.build(interaction, "voicerec"));
         }
 
         const channel = interaction.channels.first();

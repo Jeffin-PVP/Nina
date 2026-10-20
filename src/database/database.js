@@ -354,6 +354,44 @@ const statements = [
         PRIMARY KEY (channel_id, user_id)
     )`,
 
+    // Gravação de calls: aqui ficam SOMENTE configurações e metadados.
+    // O áudio nunca é gravado em disco nem no banco da Nina (vai direto para a API de IA).
+    `CREATE TABLE IF NOT EXISTS voice_recording_settings (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        allowed_role_ids TEXT NOT NULL DEFAULT '[]',
+        allowed_channel_ids TEXT NOT NULL DEFAULT '[]',
+        blocked_channel_ids TEXT NOT NULL DEFAULT '[]',
+        max_minutes INTEGER NOT NULL DEFAULT 120,
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS voice_recordings (
+        id TEXT PRIMARY KEY,
+        guild_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        channel_name TEXT NOT NULL DEFAULT '',
+        started_by TEXT NOT NULL,
+        started_by_name TEXT NOT NULL DEFAULT '',
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER NULL,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        remote_id TEXT NULL,
+        status TEXT NOT NULL DEFAULT 'recording',
+        transcript_status TEXT NOT NULL DEFAULT 'none',
+        participants TEXT NOT NULL DEFAULT '[]'
+    )`,
+
+    // Texto da transcrição feita direto no Groq (sem API externa). Só texto: o áudio não é guardado.
+    `CREATE TABLE IF NOT EXISTS voice_transcript_segments (
+        recording_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        start_ms INTEGER NOT NULL DEFAULT 0,
+        end_ms INTEGER NOT NULL DEFAULT 0,
+        text TEXT NOT NULL
+    )`,
+
     `CREATE TABLE IF NOT EXISTS antinuke_settings (
         guild_id TEXT NOT NULL,
         enabled INTEGER NOT NULL DEFAULT 0,
@@ -422,6 +460,8 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`,
     `CREATE INDEX IF NOT EXISTS idx_temp_voice_rooms_guild ON temp_voice_rooms (guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_temp_voice_bans_guild ON temp_voice_bans (guild_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_voice_recordings_guild ON voice_recordings (guild_id, started_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_voice_transcript_segments_recording ON voice_transcript_segments (recording_id, start_ms)`,
     `CREATE INDEX IF NOT EXISTS idx_security_topic_rules_guild_channel ON security_topic_rules (guild_id, channel_id, enabled)`,
     `CREATE INDEX IF NOT EXISTS idx_security_events_guild_created ON security_events (guild_id, created_at)`
 ];
