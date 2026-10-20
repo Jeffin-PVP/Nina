@@ -13,7 +13,7 @@ const CATEGORIES = {
 
     moderacao: {
         label: "Moderação",
-        emoji: "🛡️",
+        emoji: "<:escudo:1562187519150395393>",
         defaultEnabled: true,
         types: [
             LogTypes.BAN,
@@ -32,7 +32,7 @@ const CATEGORIES = {
 
     membros: {
         label: "Membros",
-        emoji: "👥",
+        emoji: "<:membros:1562187531246637107>",
         defaultEnabled: true,
         types: [
             LogTypes.MEMBER_JOIN,
@@ -45,7 +45,7 @@ const CATEGORIES = {
 
     mensagens: {
         label: "Mensagens",
-        emoji: "💬",
+        emoji: "<:chat:1562187513949454366>",
         defaultEnabled: true,
         types: [
             LogTypes.MESSAGE_DELETE,
@@ -56,7 +56,7 @@ const CATEGORIES = {
 
     canais: {
         label: "Canais",
-        emoji: "📁",
+        emoji: "<:pasta:1562187541585600533>",
         defaultEnabled: true,
         types: [
             LogTypes.CHANNEL_CREATE,
@@ -67,7 +67,7 @@ const CATEGORIES = {
 
     cargos: {
         label: "Cargos",
-        emoji: "🎭",
+        emoji: "<:cargo:1562189000544882808>",
         defaultEnabled: true,
         types: [
             LogTypes.ROLE_CREATE,
@@ -80,7 +80,7 @@ const CATEGORIES = {
 
     voz: {
         label: "Voz",
-        emoji: "🎙️",
+        emoji: "<:voz:1562187549932388383>",
         defaultEnabled: false,
         types: [
             LogTypes.VOICE_JOIN,
@@ -91,7 +91,7 @@ const CATEGORIES = {
 
     economia: {
         label: "Economia",
-        emoji: "💰",
+        emoji: "<:moneybag:1561484846159757513>",
         defaultEnabled: false,
         types: [
             LogTypes.DAILY,
@@ -110,7 +110,7 @@ const CATEGORIES = {
 
     jogos: {
         label: "Jogos",
-        emoji: "🎮",
+        emoji: "<:ui_xbox:1560327208961318966>",
         defaultEnabled: false,
         types: [
             LogTypes.SLOTS,
@@ -122,7 +122,7 @@ const CATEGORIES = {
 
     tickets: {
         label: "Tickets",
-        emoji: "🎫",
+        emoji: "<:ticket:1562187545914380319>",
         defaultEnabled: true,
         types: [
             LogTypes.TICKET_CREATE,
@@ -134,7 +134,7 @@ const CATEGORIES = {
 
     ia: {
         label: "Inteligência Artificial",
-        emoji: "🤖",
+        emoji: "<:bot:1562187511848243271>",
         defaultEnabled: false,
         types: [
             LogTypes.AI_COMMAND,
@@ -145,7 +145,7 @@ const CATEGORIES = {
 
     sistema: {
         label: "Sistema",
-        emoji: "⚙️",
+        emoji: "<:config:1562187516625555496>",
         defaultEnabled: true,
         types: [
             LogTypes.BOT_START,
@@ -156,7 +156,7 @@ const CATEGORIES = {
 
     sorteios: {
         label: "Sorteios",
-        emoji: "🎉",
+        emoji: "<a:ui_celebrating:1560326769876140158>",
         defaultEnabled: true,
         types: [
             LogTypes.GIVEAWAY_CREATE,
@@ -169,7 +169,7 @@ const CATEGORIES = {
 
     automod: {
         label: "AutoMod",
-        emoji: "🛡️",
+        emoji: "<:escudo:1562187519150395393>",
         defaultEnabled: true,
         types: [
             LogTypes.AUTOMOD_ACTION,
@@ -180,7 +180,7 @@ const CATEGORIES = {
 
     antinuke: {
         label: "Anti-Nuke",
-        emoji: "☢️",
+        emoji: "<:nuclear:1562187533721272451>",
         defaultEnabled: true,
         types: [
             LogTypes.ANTINUKE_TRIGGER

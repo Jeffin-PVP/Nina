@@ -228,7 +228,7 @@ const HONEYPOT_ACTION_LABELS = {
 };
 
 function honeypotNoticeText(action) {
-    const base = "## 🚫 NÃO ENVIE NENHUMA MENSAGEM AQUI\nEste canal serve para detectar contas automatizadas.\n";
+    const base = "## <:atencao:1561916202597621841> NÃO ENVIE NENHUMA MENSAGEM AQUI\nEste canal serve para detectar contas automatizadas.\n";
     if (action === "log") {
         return `${base}Qualquer mensagem enviada aqui será **registrada e enviada para análise da moderação**.`;
     }

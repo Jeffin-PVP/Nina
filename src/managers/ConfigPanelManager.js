@@ -44,17 +44,17 @@ abaixo disso (a maior usa ~30 componentes).
 */
 
 const CATEGORY_OPTIONS = [
-    { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "⚙️" },
-    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "🤖" },
-    { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: "🛡️" },
-    { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "👋" },
-    { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "🎫" },
-    { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "📜" },
-    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "🎭" },
-    { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "📊" },
-    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "☢️" },
-    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "🔊" },
-    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "🔒" }
+    { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "<:config:1562187516625555496>" },
+    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "<:bot:1562187511848243271>" },
+    { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: "<:escudo:1562187519150395393>" },
+    { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "<:aceno:1562187509490778162>" },
+    { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "<:ticket:1562187545914380319>" },
+    { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "<:logs:1562187526272192622>" },
+    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "<:cargo:1562189000544882808>" },
+    { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "<:stats:1562187543653388391>" },
+    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "<:nuclear:1562187533721272451>" },
+    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
+    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" }
 ];
 
 const NOT_SET = "*Não configurado*";
@@ -268,13 +268,13 @@ async function buildAutomod(interaction) {
 
     addSep(container);
     addText(container, `**Regras**\n${dots([
-        ["🚨 Spam", c.spam_enabled],
-        ["😀 Emojis em excesso", c.emoji_enabled],
-        ["🤬 Palavrões", c.swear_enabled],
-        ["📢 Menções em massa", c.mention_enabled],
-        ["🔗 Convites", c.invite_enabled],
-        ["🛑 Anti-Raid", c.raid_enabled],
-        ["🖼️ Anti-Scam (imagens)", c.image_enabled]
+        ["<:chat:1562187513949454366> Spam", c.spam_enabled],
+        ["<:mascaras:1562187528617066569> Emojis em excesso", c.emoji_enabled],
+        ["<:ui_textc:1560327137024544808> Palavrões", c.swear_enabled],
+        ["<:role:1562191435720163379> Menções em massa", c.mention_enabled],
+        ["<:ui_url:1560327173338824856> Convites", c.invite_enabled],
+        ["<:ui_invite:1560326931075833916> Anti-Raid", c.raid_enabled],
+        ["<:ui_thumbnail:1560327143806730240> Anti-Scam (imagens)", c.image_enabled]
     ])}`);
 
     addRow(
@@ -297,7 +297,7 @@ async function buildAutomod(interaction) {
         container,
         actionButton("config_modal:automod_spam", "Spam", "<:ui_content:1560326801673420922>"),
         actionButton("config_modal:automod_raid", "Raid", "<:ui_invite:1560326931075833916>"),
-        actionButton("config_modal:automod_image", "Anti-Scam", "<:ui_window:1560327200039768276>")
+        actionButton("config_modal:automod_image", "Anti-Scam", "<:ui_thumbnail:1560327143806730240>")
     );
 
     addNav(container);
@@ -333,10 +333,10 @@ async function buildSecurity(interaction) {
 }
 
 const HONEYPOT_ACTION_OPTIONS = [
-    { value: "ban", label: "Banimento", description: "Bane quem enviar mensagem no canal-isca", emoji: "🔨" },
-    { value: "kick", label: "Expulsão", description: "Expulsa quem enviar mensagem no canal-isca", emoji: "👢" },
-    { value: "timeout", label: "Timeout de 24h", description: "Silencia por 24 horas", emoji: "⏳" },
-    { value: "log", label: "Somente registrar", description: "Não pune; apenas alerta a moderação", emoji: "📝" }
+    { value: "ban", label: "Banimento", description: "Bane quem enviar mensagem no canal-isca", emoji: "<:ui_hammer:1560326916345700407>" },
+    { value: "kick", label: "Expulsão", description: "Expulsa quem enviar mensagem no canal-isca", emoji: "<:ui_hammer:1560326916345700407>" },
+    { value: "timeout", label: "Timeout de 24h", description: "Silencia por 24 horas", emoji: "<:ui_timedout:1560327148315615234>" },
+    { value: "log", label: "Somente registrar", description: "Não pune; apenas alerta a moderação", emoji: "<:logs:1562187526272192622>" }
 ];
 
 async function buildHoneypot(interaction) {
@@ -353,8 +353,8 @@ async function buildHoneypot(interaction) {
 
     const issues = c.honeypot_enabled ? SecurityManager.honeypotDiagnostics(interaction.guild, c) : [];
     addText(container, issues.length
-        ? `**⚠️ Atenção**\n${issues.map(item => `• ${item}`).join("\n")}`
-        : `**Status**\n${c.honeypot_enabled ? "✅ Tudo certo: o aviso está publicado e as permissões estão corretas." : "Desligado."}`);
+        ? `**<:atencao:1561916202597621841> Atenção**\n${issues.map(item => `• ${item}`).join("\n")}`
+        : `**Status**\n${c.honeypot_enabled ? "<:ui_check:1560326782610047098> Tudo certo: o aviso está publicado e as permissões estão corretas." : "Desligado."}`);
     addSep(container);
 
     addText(container, `**Canal-isca**\n${mention(c.honeypot_channel_id)}\n-# Deve ser visível e liberado para @everyone. Ao escolher, a Nina publica o aviso no canal.`);
@@ -398,7 +398,7 @@ async function buildWelcome(interaction) {
     const c = await WelcomeRepository.get(interaction.guild.id);
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "sparkle", "Boas-vindas", "Cartão e mensagem enviados quando alguém entra no servidor.");
+    addHeader(container, "<:aceno:1562187509490778162>", "Boas-vindas", "Cartão e mensagem enviados quando alguém entra no servidor.");
 
     addToggle(container, { id: "config_toggle:welcome", title: "Sistema de boas-vindas", description: c.channel_id ? `Enviando em <#${c.channel_id}>` : "Escolha um canal abaixo para começar.", enabled: !!c.enabled });
 
@@ -416,7 +416,7 @@ async function buildWelcome(interaction) {
     addRow(
         container,
         actionButton("config_modal:welcome_text", "Textos", "<:ui_content:1560326801673420922>"),
-        actionButton("config_modal:welcome_background", "Fundo", "<:ui_window:1560327200039768276>"),
+        actionButton("config_modal:welcome_background", "Fundo", "<:ui_thumbnail:1560327143806730240>"),
         actionButton("config_clear:welcome_background", "Remover fundo", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger),
         actionButton("config_welcome_test", "Testar", "<:ui_flask:1560326880945512659>")
     );
@@ -495,7 +495,7 @@ async function buildAutorole(interaction) {
 
     addText(container, [
         `<:ui_invite:1560326931075833916> **Entrada:** ${join.length}`,
-        `<:user:1561426447414071406> **Self-roles:** ${self.length}`,
+        `<:cargo:1562189000544882808> **Self-roles:** ${self.length}`,
         `<:ui_buttonclick:1560326757209473076> **Reações:** ${reactions.length}`,
         `<:trophy:1561479467971387422> **Níveis:** ${level.length}`
     ].join("  ·  "));
@@ -653,7 +653,7 @@ async function buildAntiNuke(interaction) {
     const c = await AntiNukeRepository.get(interaction.guild.id);
     const container = card(c.enabled ? ui.COLORS.error : ui.COLORS.neutral);
 
-    addHeader(container, "<:shield:1561427396719284334>", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
+    addHeader(container, "<:nuclear:1562187533721272451>", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
 
     addToggle(container, { id: "config_antinuke:enabled", title: "Proteção Anti-Nuke", description: c.enabled ? "Proteção ativa." : "Proteção desativada.", enabled: !!c.enabled });
 
@@ -661,7 +661,7 @@ async function buildAntiNuke(interaction) {
     addText(container, [
         `<:clock:1561426917717053530> **Janela de detecção:** ${c.window_seconds}s`,
         `<:ui_textc:1560327137024544808> **Canais:** ${c.channel_limit}`,
-        `<:user:1561426447414071406> **Cargos:** ${c.role_limit}`,
+        `<:cargo:1562189000544882808> **Cargos:** ${c.role_limit}`,
         `<:ui_hammer:1560326916345700407> **Bans/Kicks:** ${c.member_limit}`,
         `<:ui_settings:1560327092078645258> **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
     ].join("\n"));
