@@ -12,17 +12,17 @@ const { e, component } = require("../../utils/emojis");
 
 // Ícone de cada categoria (casa pelo nome, ignorando o emoji do rótulo)
 const CATEGORY_ICONS = {
-    "Economia": "coin",
-    "Moderação": "shield",
-    "Jogos": "dice",
-    "Tickets": "ticket",
-    "Sorteios": "gift",
-    "Utilidade": "sparkle",
-    "Configuração": "config",
-    "Inteligência Artificial": "ai",
-    "Boas-vindas": "heart",
-    "Cargos automáticos": "role",
-    "Servidor": "server"
+    "Economia": "<:moneybag:1561484846159757513>",
+    "Moderação": "<:escudo:1562187519150395393>",
+    "Jogos": "<:ui_xbox:1560327208961318966>",
+    "Tickets": "<:ticket:1562187545914380319>",
+    "Sorteios": "<a:ui_celebrating:1560326769876140158>",
+    "Utilidade": "<:ui_wrench:1560327206969024613>",
+    "Configuração": "<:ui_settings:1560327092078645258>",
+    "Inteligência Artificial": "<:ui_bot:1560326748313493546>",
+    "Boas-vindas": "<:aceno:1562187509490778162>",
+    "Cargos automáticos": "<:cargo:1562189000544882808>",
+    "Servidor": "<:server:1561430145259016262>"
 };
 
 const stripEmoji = label => label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
@@ -63,7 +63,7 @@ function overviewEmbed(interaction, groups, total) {
         `${ui.mood("oi")} Oi! Escolha uma categoria no menu abaixo para ver os comandos.\n\n` +
         `${lines.join("\n")}\n\n` +
         `${ui.LINE}\n` +
-        `${e("sparkle")} **${total}** comandos • use \`/ajuda comando:<nome>\` para detalhes`,
+        `<:ui_world:1560327204565422101> **${total}** comandos • use \`/ajuda comando:<nome>\` para detalhes`,
         interaction
     ).setThumbnail(interaction.client.user.displayAvatarURL({ size: 256 }));
 
