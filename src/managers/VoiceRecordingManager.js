@@ -16,7 +16,7 @@ const {
     joinVoiceChannel,
     entersState,
     VoiceConnectionStatus,
-    EndBehavior
+    EndBehaviorType
 } = require("@discordjs/voice");
 
 const VoiceRecordingRepository = require("../database/repositories/VoiceRecordingRepository");
@@ -231,7 +231,7 @@ function subscribeUser(session, userId) {
     snapshotParticipant(session, userId);
 
     const stream = session.connection.receiver.subscribe(userId, {
-        end: { behavior: EndBehavior.AfterSilence, duration: SILENCE_MS }
+        end: { behavior: EndBehaviorType.AfterSilence, duration: SILENCE_MS }
     });
 
     track.stream = stream;
