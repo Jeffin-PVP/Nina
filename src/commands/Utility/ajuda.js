@@ -8,7 +8,8 @@ const {
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
-const { e, component } = require("../../utils/emojis");
+
+/* EMOJIS (locais, sem depender do utils/emojis) */
 
 // Ícone de cada categoria (casa pelo nome, ignorando o emoji do rótulo)
 const CATEGORY_ICONS = {
@@ -22,11 +23,42 @@ const CATEGORY_ICONS = {
     "Inteligência Artificial": "<:ui_bot:1560326748313493546>",
     "Boas-vindas": "<:aceno:1562187509490778162>",
     "Cargos automáticos": "<:cargo:1562189000544882808>",
-    "Servidor": "<:server:1561430145259016262>"
+    "Servidor": "<:server:1561430145259016262>",
+    "Geral": "<:ui_pin:1560327023531003965>",
+    "Voz": "<:voz:1562187549932388383>"
 };
 
+const DEFAULT_ICON = "⭐";
+
+// Ícones fixos usados nos campos/textos
+const ICON = {
+    help: "<:ajuda:1562529221333618809>",
+    world: "<:ui_world:1560327204565422101>",
+    info: "<:info:1561478835877453945>",
+    config: "<:config:1562187516625555496>",
+    star: "<:ui_sparks:1560327106788065320>",
+    log: "<:logs:1562187526272192622>",
+    clock: "<:clock:1561426917717053530>",
+    lock: "<:lock:1561418439879565404>"
+};
+
+const RAW_EMOJI = /^<(a?):(\w+):(\d+)>$/;
+
+/** "<:nome:id>" -> { id, name, animated } (formato do select menu). Unicode passa direto. */
+function toComponentEmoji(icon) {
+
+    const match = RAW_EMOJI.exec(icon);
+
+    return match
+        ? { id: match[3], name: match[2], animated: match[1] === "a" }
+        : icon;
+
+}
+
 const stripEmoji = label => label.replace(/^[^\p{L}\p{N}]+/u, "").trim();
-const iconFor = label => CATEGORY_ICONS[stripEmoji(label)] ?? "star";
+const iconFor = label => CATEGORY_ICONS[stripEmoji(label)] ?? DEFAULT_ICON;
+
+/* AGRUPAMENTO */
 
 function groupByCategory(commands) {
 
@@ -50,10 +82,12 @@ function groupByCategory(commands) {
 
 }
 
+/* EMBEDS */
+
 function overviewEmbed(interaction, groups, total) {
 
     const lines = [...groups.entries()].map(([label, list]) =>
-        `${e(iconFor(label))} **${stripEmoji(label)}** — ${list.length} comando${list.length > 1 ? "s" : ""}`
+        `${iconFor(label)} **${stripEmoji(label)}** — ${list.length} comando${list.length > 1 ? "s" : ""}`
     );
 
     return ui.titled(
@@ -63,24 +97,31 @@ function overviewEmbed(interaction, groups, total) {
         `${ui.mood("oi")} Oi! Escolha uma categoria no menu abaixo para ver os comandos.\n\n` +
         `${lines.join("\n")}\n\n` +
         `${ui.LINE}\n` +
-        `<:ui_world:1560327204565422101> **${total}** comandos • use \`/ajuda comando:<nome>\` para detalhes`,
+        `${ICON.world} **${total}** comandos • use \`/ajuda comando:<nome>\` para detalhes`,
         interaction
-    ).setThumbnail(interaction.client.user.displayAvatarURL({ size: 256 }));
+    )
+        .setTitle(`${ICON.help} Central de ajuda da Nina`)
+        .setThumbnail(interaction.client.user.displayAvatarURL({ size: 256 }));
 
 }
 
 function categoryEmbed(interaction, label, list) {
 
+    const icon = iconFor(label);
+
     let text = list
-        .map(c => `${e(iconFor(label))} **/${c.data.name}**\n┗ ${c.data.description}`)
+        .map(c => `${icon} **/${c.data.name}**\n┗ ${c.data.description}`)
         .join("\n");
 
     if (text.length > 3900) text = `${text.slice(0, 3900)}…`;
 
-    return ui.titled(ui.COLORS.brand, iconFor(label), stripEmoji(label), text, interaction)
-        .addFields({ name: "\u200b", value: `${e("info")} \`/ajuda comando:<nome>\` mostra o uso completo.` });
+    return ui.titled(ui.COLORS.brand, "help", stripEmoji(label), text, interaction)
+        .setTitle(`${icon} ${stripEmoji(label)}`)
+        .addFields({ name: "\u200b", value: `${ICON.info} \`/ajuda comando:<nome>\` mostra o uso completo.` });
 
 }
+
+/* USO DOS COMANDOS */
 
 const argsOf = options => (options ?? [])
     .filter(o => o.type !== 1 && o.type !== 2)
@@ -139,8 +180,6 @@ function usagesOf(command) {
 
 }
 
-const usageOf = command => usagesOf(command).map(u => u.usage).join("\n");
-
 function permissionsOf(command) {
 
     const raw = command.data.default_member_permissions;
@@ -164,16 +203,17 @@ function detailEmbed(interaction, command) {
     const usages = usagesOf(command);
     const hasSubs = usages.some(u => u.description);
 
-    const embed = ui.titled(ui.COLORS.brand, iconFor(command.category ?? ""), `/${command.data.name}`, command.data.description || "Sem descrição.", interaction)
+    const embed = ui.titled(ui.COLORS.brand, "help", `/${command.data.name}`, command.data.description || "Sem descrição.", interaction)
+        .setTitle(`${iconFor(command.category ?? "")} /${command.data.name}`)
         .addFields(
-            { name: `${e("config")} Uso`, value: ui.clip(`\`\`\`${usages.map(u => u.usage).join("\n")}\`\`\``, 1024) },
-            { name: `${e("star")} Categoria`, value: command.category || "📌 Geral", inline: true }
+            { name: `${ICON.config} Uso`, value: ui.clip(`\`\`\`${usages.map(u => u.usage).join("\n")}\`\`\``, 1024) },
+            { name: `${ICON.star} Categoria`, value: command.category || "📌 Geral", inline: true }
         );
 
     if (hasSubs) {
 
         embed.addFields({
-            name: `${e("log")} Subcomandos (${usages.length})`,
+            name: `${ICON.log} Subcomandos (${usages.length})`,
             value: ui.clip(usages.map(u => `**${u.path}**\n┗ ${u.description}`).join("\n"), 1024)
         });
 
@@ -181,7 +221,7 @@ function detailEmbed(interaction, command) {
 
     if (command.cooldown) {
 
-        embed.addFields({ name: `${e("clock")} Cooldown`, value: `${command.cooldown}s`, inline: true });
+        embed.addFields({ name: `${ICON.clock} Cooldown`, value: `${command.cooldown}s`, inline: true });
 
     }
 
@@ -189,13 +229,15 @@ function detailEmbed(interaction, command) {
 
     if (perms) {
 
-        embed.addFields({ name: `${e("lock")} Permissão`, value: perms, inline: true });
+        embed.addFields({ name: `${ICON.lock} Permissão`, value: perms, inline: true });
 
     }
 
     return embed;
 
 }
+
+/* COMANDO */
 
 module.exports = {
 
@@ -249,13 +291,13 @@ module.exports = {
                         label: "Visão geral",
                         value: "__home",
                         description: "Voltar para o início",
-                        emoji: component("help")
+                        emoji: toComponentEmoji(ICON.help)
                     },
                     ...[...groups.entries()].slice(0, 24).map(([label, list]) => ({
                         label: stripEmoji(label).slice(0, 100),
                         value: label,
                         description: `${list.length} comando${list.length > 1 ? "s" : ""}`.slice(0, 100),
-                        emoji: component(iconFor(label))
+                        emoji: toComponentEmoji(iconFor(label))
                     }))
                 ])
         );
