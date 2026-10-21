@@ -56,7 +56,7 @@ const CATEGORY_OPTIONS = [
     { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "<:stats:1562187543653388391>" },
     { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "<:nuclear:1562187533721272451>" },
     { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
-    { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "🎙️" },
+    { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "<:ui_mic:1560326973673316403>" },
     { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" }
 ];
 
@@ -683,7 +683,7 @@ async function buildVoiceRec(interaction) {
     const apiReady = RecordingApi.isConfigured();
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "🎙️", "Gravação de calls", "Grave calls, transcreva com IA e controle quem pode gravar. Use /voicepanel dentro de um canal de voz.");
+    addHeader(container, "<:ui_mic:1560326973673316403>", "Gravação de calls", "Grave calls, transcreva com IA e controle quem pode gravar. Use /voicepanel dentro de um canal de voz.");
 
     addToggle(container, {
         id: "config_voicerec:enabled",
