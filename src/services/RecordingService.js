@@ -2,13 +2,11 @@
 =========================
     SERVIÇO DE GRAVAÇÃO
 =========================
-Escolhe o backend de cada gravação:
+Novas gravações usam exclusivamente o backend local da Groq.
+O áudio não é guardado; apenas os segmentos transcritos são salvos.
 
-  • RECORDING_API_URL + RECORDING_API_KEY definidos → API externa (áudio + transcrição)
-  • senão, com TRANSCRIPTION_GROQ_API_KEY (ou GROQ_API_KEY) → backend local: transcrição direto no Groq, sem áudio
-
-O backend de uma gravação já existente é decidido pelo prefixo do remote_id
-("local:..." = Groq), então mudar o .env não quebra gravações antigas.
+Gravações antigas com IDs sem o prefixo "local:" continuam sendo consultadas
+pela API externa para manter compatibilidade com registros existentes.
 */
 
 const Remote = require("./RecordingApiClient");
@@ -16,18 +14,18 @@ const Local = require("./LocalTranscriptionBackend");
 
 const isLocalId = id => String(id || "").startsWith(Local.ID_PREFIX);
 const forId = id => (isLocalId(id) ? Local : Remote);
-const active = () => (Remote.isConfigured() ? Remote : Local);
+const active = () => Local;
 
 module.exports = {
     RecordingApiError: Remote.RecordingApiError,
 
-    isConfigured: () => Remote.isConfigured() || Local.isConfigured(),
+    isConfigured: () => Local.isConfigured(),
 
     /** Esta gravação (ou o backend atual, sem id) guarda áudio para download? */
-    supportsAudio: id => (id ? !isLocalId(id) : Remote.isConfigured()),
+    supportsAudio: id => (id ? !isLocalId(id) : false),
 
     /** A transcrição é feita durante a gravação, sem botão "Transcrever"? */
-    autoTranscribes: id => (id ? isLocalId(id) : !Remote.isConfigured()),
+    autoTranscribes: id => (id ? isLocalId(id) : true),
 
     createSession: options => active().createSession(options),
     uploadChunk: (id, userId, packets) => forId(id).uploadChunk(id, userId, packets),

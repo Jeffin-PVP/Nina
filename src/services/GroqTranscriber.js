@@ -6,8 +6,7 @@ Envia um trecho de áudio (.ogg) ao Whisper do Groq e devolve os segmentos
 já com o tempo em milissegundos (relativo ao início do trecho).
 
 Variáveis de ambiente:
-  TRANSCRIPTION_GROQ_API_KEY    chave só da transcrição (separada da IA principal)
-  GROQ_API_KEY                  usada como reserva se a de cima não existir
+  TRANSCRIPTION_GROQ_API_KEY    chave exclusiva da transcrição
   GROQ_TRANSCRIPTION_MODEL      opcional (padrão: whisper-large-v3-turbo)
 */
 
@@ -18,7 +17,7 @@ const MAX_ATTEMPTS = 4;
 const HALLUCINATION = /amara\.org|legendas?\s+(pela|por|de)\b|obrigad[oa]\s+por\s+assistir|inscreva-se\s+no\s+canal/i;
 
 function apiKey() {
-    return String(process.env.TRANSCRIPTION_GROQ_API_KEY || process.env.GROQ_API_KEY || "").trim();
+    return String(process.env.TRANSCRIPTION_GROQ_API_KEY || "").trim();
 }
 
 function isConfigured() {
@@ -59,14 +58,21 @@ function keepSegment(segment) {
     return true;
 }
 
-function normalizeSegments(raw) {
-    return (Array.isArray(raw) ? raw : [])
+function normalizeSegments(raw, fallbackText = "") {
+    const normalized = (Array.isArray(raw) ? raw : [])
         .filter(keepSegment)
         .map(segment => ({
             start_ms: Math.max(0, Math.round(Number(segment.start || 0) * 1000)),
             end_ms: Math.max(0, Math.round(Number(segment.end || 0) * 1000)),
             text: String(segment.text).replace(/\s+/g, " ").trim()
         }));
+
+    // Algumas respostas podem trazer o texto completo sem segmentos utilizáveis.
+    // Não descarte uma transcrição válida só porque `segments` veio vazio.
+    const text = String(fallbackText || "").replace(/\s+/g, " ").trim();
+    if (normalized.length || !text || HALLUCINATION.test(text)) return normalized;
+
+    return [{ start_ms: 0, end_ms: 0, text }];
 }
 
 function sleep(ms) {
@@ -115,7 +121,11 @@ async function transcribe(buffer, { language = "pt" } = {}) {
                 temperature: 0
             });
 
-            return normalizeSegments(result?.segments);
+            const segments = normalizeSegments(result?.segments, result?.text);
+            if (!segments.length) {
+                console.warn(`[Transcrição Groq] A API retornou texto vazio ou apenas segmentos filtrados (modelo: ${model}, bytes: ${buffer?.length || 0}).`);
+            }
+            return segments;
         } catch (error) {
             lastError = error;
             if (attempt === MAX_ATTEMPTS || !shouldRetry(error)) break;

@@ -130,7 +130,7 @@ function opusTags() {
  * Empacota pacotes Opus (Buffer[]) num arquivo .ogg.
  * Pacotes inválidos (vazios) são ignorados.
  */
-function mux(packets, { channels = 2 } = {}) {
+function mux(packets, { channels = 1 } = {}) {
     const serial = crypto.randomInt(1, 0x7fffffff);
     const valid = packets.filter(packet => opusPacketSamples(packet) > 0);
 

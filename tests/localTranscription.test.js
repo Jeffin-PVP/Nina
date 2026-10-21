@@ -166,7 +166,7 @@ test("backend local: não guarda áudio e remove o texto ao excluir", async () =
     assert.equal(store.rows.length, 0);
 });
 
-test("a transcrição usa a chave própria e cai na principal só como reserva", () => {
+test("a transcrição usa exclusivamente TRANSCRIPTION_GROQ_API_KEY", () => {
     const saved = { ...process.env };
 
     try {
@@ -179,7 +179,7 @@ test("a transcrição usa a chave própria e cai na principal só como reserva",
 
         delete process.env.TRANSCRIPTION_GROQ_API_KEY;
         process.env.GROQ_API_KEY = "principal";
-        assert.equal(GroqTranscriber.isConfigured(), true);
+        assert.equal(GroqTranscriber.isConfigured(), false);
     } finally {
         for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
         Object.assign(process.env, saved);
@@ -192,7 +192,9 @@ test("o serviço usa o Groq sem RECORDING_API_URL e respeita o prefixo das grava
     try {
         delete process.env.RECORDING_API_URL;
         delete process.env.RECORDING_API_KEY;
-        process.env.GROQ_API_KEY = "teste";
+        process.env.TRANSCRIPTION_GROQ_API_KEY = "teste";
+        process.env.RECORDING_API_URL = "https://ia.exemplo.com";
+        process.env.RECORDING_API_KEY = "k";
 
         assert.equal(RecordingService.isConfigured(), true);
         assert.equal(RecordingService.supportsAudio(), false);
@@ -204,13 +206,14 @@ test("o serviço usa o Groq sem RECORDING_API_URL e respeita o prefixo das grava
         assert.equal(RecordingService.supportsAudio(id), false);
         assert.equal(RecordingService.supportsAudio("abc123"), true); // id da API externa
 
+        delete process.env.TRANSCRIPTION_GROQ_API_KEY;
         delete process.env.GROQ_API_KEY;
         assert.equal(RecordingService.isConfigured(), false);
 
-        process.env.RECORDING_API_URL = "https://ia.exemplo.com";
-        process.env.RECORDING_API_KEY = "k";
-        assert.equal(RecordingService.supportsAudio(), true);
-        assert.equal(RecordingService.autoTranscribes(), false);
+        // Mesmo com a API externa configurada, novas gravações devem usar Groq.
+        process.env.TRANSCRIPTION_GROQ_API_KEY = "teste";
+        assert.equal(RecordingService.supportsAudio(), false);
+        assert.equal(RecordingService.autoTranscribes(), true);
     } finally {
         for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key];
         Object.assign(process.env, saved);
