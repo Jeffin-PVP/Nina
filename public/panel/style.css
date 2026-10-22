@@ -1277,3 +1277,19 @@ button:active { transform: translateY(1px); }
 .analytics-bars, .analytics-growth { max-height: 360px; overflow-y: auto; padding-right: 6px; }
 .analytics-legend { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
 .analytics-growth-row { grid-template-columns: 52px minmax(0, 1fr) 90px; }
+
+/* Nina Analytics V2 — SVG charts */
+.analytics-svg-wrap { width: 100%; min-width: 0; overflow: hidden; }
+.analytics-svg-chart { display: block; width: 100%; height: auto; min-height: 190px; overflow: visible; }
+.analytics-gridline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 5; opacity: .8; }
+.analytics-axis-label { fill: var(--muted); font-size: 11px; }
+.analytics-area { fill: url(#analyticsAreaGradient); fill: rgba(139, 92, 246, .12); }
+.analytics-line { fill: none; stroke: #9b8cff; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.analytics-point { fill: #c4b5fd; stroke: var(--panel); stroke-width: 2; cursor: help; }
+.analytics-join-bar { fill: #4ade80; }
+.analytics-leave-bar { fill: #fb7185; }
+.analytics-legend { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
+.analytics-legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.analytics-legend-dot.joins-dot { background: #4ade80; }
+.analytics-legend-dot.leaves-dot { background: #fb7185; }
+@media (max-width: 600px) { .analytics-svg-chart { min-height: 160px; } }
