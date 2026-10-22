@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><defs><mask id="h" maskUnits="userSpaceOnUse" x="0" y="0" width="160" height="160"><rect width="160" height="160" fill="#fff"/>
- <path d="M80 92l15 9v18l-15 9-15-9v-18z" fill="#000" stroke="#000" stroke-width="4" stroke-linejoin="round"/></mask></defs><g mask="url(#h)"><path d="M44 66h72c16 0 26 12 24 28l-4 22c-3 20-16 28-34 28H58c-18 0-31-8-34-28l-4-22c-2-16 8-28 24-28z" fill="#FBFBFB"/></g>
-<rect x="36" y="44" width="88" height="22" rx="11" fill="#FBFBFB"/>
-<path d="M44 44c0-16 10-28 26-28h20c16 0 26 12 26 28z" fill="#FAA61A"/>
-<rect x="50" y="40" width="15" height="46" rx="7.5" fill="#FAA61A"/><rect x="94" y="40" width="15" height="34" rx="7.5" fill="#FAA61A"/></svg>
