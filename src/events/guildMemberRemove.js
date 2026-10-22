@@ -5,12 +5,19 @@ const LogTypes = require("../managers/LogTypes");
 const AntiNukeManager = require("../managers/AntiNukeManager");
 
 const ServerStatsManager = require("../managers/ServerStatsManager");
+const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 
 module.exports = {
 
     name: Events.GuildMemberRemove,
 
     async execute(member) {
+
+        if (!member.user?.bot) {
+            await AnalyticsRepository.recordMember(member.guild.id, "leaves").catch(error => {
+                console.error("[Analytics] Falha ao registrar saída:", error);
+            });
+        }
 
         await AntiNukeManager.detectKick(member.guild, member.id, member).catch(() => {});
 

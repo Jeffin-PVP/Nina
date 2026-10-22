@@ -29,6 +29,7 @@ const { Readable } = require("node:stream");
 const LockdownManager = require("../managers/LockdownManager");
 const AutorolePanelManager = require("../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../utils/reactionEmoji");
+const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 
 /*
 =========================
@@ -329,6 +330,23 @@ module.exports = (client) => {
             roles
         });
 
+    });
+
+    // Analytics agregado por servidor. O middleware requireGuildAccess já validou a sessão e o acesso.
+    router.get("/guilds/:guildId/analytics", async (req, res) => {
+        try {
+            const requestedDays = Number.parseInt(req.query.days, 10) || 7;
+            const days = [7, 14, 30, 90].includes(requestedDays) ? requestedDays : 7;
+            const analytics = await AnalyticsRepository.getAnalytics(
+                req.painelGuild.id,
+                days,
+                req.painelGuild
+            );
+            res.json(analytics);
+        } catch (error) {
+            console.error("[Painel Analytics] Falha ao consultar dados:", error);
+            res.status(500).json({ error: "Não foi possível carregar o Analytics deste servidor." });
+        }
     });
 
     /*

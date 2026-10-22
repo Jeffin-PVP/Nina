@@ -238,6 +238,43 @@ const statements = [
         PRIMARY KEY (date)
     )`,
 
+    // Analytics por servidor: apenas agregados, sem armazenar conteúdo de mensagens.
+    `CREATE TABLE IF NOT EXISTS analytics_daily (
+        guild_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        messages INTEGER NOT NULL DEFAULT 0,
+        joins INTEGER NOT NULL DEFAULT 0,
+        leaves INTEGER NOT NULL DEFAULT 0,
+        voice_seconds INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, date)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS analytics_channel_daily (
+        guild_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        channel_name TEXT NOT NULL DEFAULT '',
+        messages INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, date, channel_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS analytics_user_daily (
+        guild_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        messages INTEGER NOT NULL DEFAULT 0,
+        voice_seconds INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, date, user_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS analytics_voice_sessions (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        started_at INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, user_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS broadcasts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NULL,
@@ -463,7 +500,11 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_voice_recordings_guild ON voice_recordings (guild_id, started_at DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_voice_transcript_segments_recording ON voice_transcript_segments (recording_id, start_ms)`,
     `CREATE INDEX IF NOT EXISTS idx_security_topic_rules_guild_channel ON security_topic_rules (guild_id, channel_id, enabled)`,
-    `CREATE INDEX IF NOT EXISTS idx_security_events_guild_created ON security_events (guild_id, created_at)`
+    `CREATE INDEX IF NOT EXISTS idx_security_events_guild_created ON security_events (guild_id, created_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_daily_date ON analytics_daily (guild_id, date)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_channel_date ON analytics_channel_daily (guild_id, date)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_user_daily (guild_id, date)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_voice_started ON analytics_voice_sessions (started_at)`
 ];
 
 function migrateGuildSettingsSchema() {

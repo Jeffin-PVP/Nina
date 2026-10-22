@@ -17,6 +17,9 @@ const PresenceManager =
 const StatsHistoryManager =
     require("./src/managers/StatsHistoryManager");
 
+const AnalyticsRepository =
+    require("./src/database/repositories/AnalyticsRepository");
+
 const ServerStatsManager =
     require("./src/managers/ServerStatsManager");
 
@@ -261,6 +264,10 @@ client.once(
         PresenceManager.start(client);
 
         StatsHistoryManager.start(client);
+
+        AnalyticsRepository.syncActiveVoiceSessions(client).catch(error => {
+            console.error("[Analytics] Falha ao sincronizar sessões de voz existentes:", error);
+        });
 
         ServerStatsManager.start(client);
 

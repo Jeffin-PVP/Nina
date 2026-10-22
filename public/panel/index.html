@@ -85,6 +85,8 @@
                             alt=""></span> Embeds</button>
                 <button class="nav-item" data-section="containers"><span class="nav-icon"><img
                             src="icons/container.svg?v=5" alt=""></span> Containers</button>
+                <button class="nav-item" data-section="analytics"><span class="nav-icon"><img src="icons/stats.svg?v=6"
+                            alt=""></span> Analytics</button>
                 <button class="nav-item" data-section="stats"><span class="nav-icon"><img src="icons/stats.svg?v=5"
                             alt=""></span> Stats</button>
                 <button class="nav-item" data-section="comandos"><span class="nav-icon"><img src="icons/bot.svg?v=5"
@@ -795,6 +797,47 @@
                             precisa de <b>Ver registro de auditoria</b>, <b>Gerenciar cargos</b> e, quando aplicável,
                             <b>Banir membros</b>.</div>
                     </div>
+                </section>
+                <section id="secao-analytics" class="section hidden">
+                    <div class="section-head analytics-head">
+                        <div>
+                            <div class="eyebrow">DADOS DA COMUNIDADE</div>
+                            <h2>Analytics</h2>
+                            <p>Acompanhe crescimento, mensagens, membros ativos e uso de voz.</p>
+                        </div>
+                        <div class="analytics-toolbar">
+                            <select id="analytics-period" aria-label="Período do Analytics">
+                                <option value="7">Últimos 7 dias</option>
+                                <option value="14">Últimos 14 dias</option>
+                                <option value="30">Últimos 30 dias</option>
+                                <option value="90">Últimos 90 dias</option>
+                            </select>
+                            <button id="btn-analytics-refresh" class="btn secondary">Atualizar</button>
+                        </div>
+                    </div>
+                    <div class="stats-grid mini" id="analytics-values"></div>
+                    <div class="analytics-chart-grid">
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Mensagens por dia</h3><p>Mensagens válidas observadas pela Nina.</p></div></div>
+                            <div id="analytics-messages-chart" class="analytics-bars"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Movimentação de membros</h3><p>Entradas e saídas registradas no período.</p></div></div>
+                            <div id="analytics-growth-chart" class="analytics-growth"></div>
+                        </div>
+                    </div>
+                    <div class="analytics-chart-grid">
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Canais mais ativos</h3><p>Ranking por quantidade de mensagens.</p></div></div>
+                            <div id="analytics-top-channels" class="analytics-ranking"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Membros mais ativos</h3><p>Somente contagens; o conteúdo das mensagens não é salvo.</p></div></div>
+                            <div id="analytics-top-members" class="analytics-ranking"></div>
+                        </div>
+                    </div>
+                    <div class="notice">Os dados começam a ser coletados quando esta versão da Nina entra em funcionamento. O histórico anterior à instalação não pode ser reconstruído automaticamente.</div>
+                    <div id="analytics-feedback" class="feedback"></div>
                 </section>
                 <section id="secao-stats" class="section hidden">
                     <div class="section-head">

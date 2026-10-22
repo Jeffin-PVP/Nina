@@ -9,12 +9,19 @@ const AutomodManager = require("../managers/AutomodManager");
 const AntiNukeManager = require("../managers/AntiNukeManager");
 
 const ServerStatsManager = require("../managers/ServerStatsManager");
+const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 
 module.exports = {
 
     name: Events.GuildMemberAdd,
 
     async execute(member) {
+
+        if (!member.user.bot) {
+            await AnalyticsRepository.recordMember(member.guild.id, "joins").catch(error => {
+                console.error("[Analytics] Falha ao registrar entrada:", error);
+            });
+        }
 
         await AntiNukeManager.detectBotAdd(member.guild, member).catch(() => {});
 

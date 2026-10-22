@@ -6,6 +6,7 @@ const ServerStatsManager = require("../managers/ServerStatsManager");
 const TempVoiceManager = require("../managers/TempVoiceManager");
 const TempVoiceRepository = require("../database/repositories/TempVoiceRepository");
 const VoiceRecordingManager = require("../managers/VoiceRecordingManager");
+const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 
 module.exports = {
     name: Events.VoiceStateUpdate,
@@ -16,6 +17,18 @@ module.exports = {
 
         const member = newState.member ?? oldState.member;
         if (!member || member.user.bot) return;
+
+        // Analytics de voz: fecha a sessão anterior ao sair/trocar e abre a nova.
+        if (oldState.channelId && oldState.channelId !== newState.channelId) {
+            await AnalyticsRepository.closeVoiceSession(oldState.guild.id, member.id).catch(error => {
+                console.error("[Analytics] Falha ao fechar sessão de voz:", error);
+            });
+        }
+        if (newState.channelId && oldState.channelId !== newState.channelId) {
+            await AnalyticsRepository.openVoiceSession(newState.guild.id, member.id, newState.channelId).catch(error => {
+                console.error("[Analytics] Falha ao abrir sessão de voz:", error);
+            });
+        }
 
         // Entrou no canal de criação: cria/reaproveita a sala pessoal.
         if (newState.channelId) {
