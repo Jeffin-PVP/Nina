@@ -55,7 +55,7 @@ module.exports = {
 
         return ui.respond(interaction, ui.panel({
             color: config.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "calendar",
+            emoji: "<:ui_date:1560326819477979251>",
             title: "Relatório semanal",
             description: config.enabled ? "Ativo." : "Desativado. Use `/relatorio config`.",
             fields: config.channel_id ? [

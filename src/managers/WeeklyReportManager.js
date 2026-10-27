@@ -31,16 +31,16 @@ async function buildReport(guild) {
 
     const embed = new EmbedBuilder()
         .setColor(0xf569ff)
-        .setTitle(`📊 Relatório semanal · ${guild.name}`)
+        .setTitle(`<:stats:1562187543653388391> Relatório semanal · ${guild.name}`)
         .setDescription(`Período: **${data.period.start}** até **${data.period.end}** (comparado à semana anterior).`)
         .setThumbnail(guild.iconURL({ size: 128 }))
         .addFields(
-            { name: "👥 Membros", value: `**${n(s.currentMembers)}** atuais\n+${n(s.joins)} / -${n(s.leaves)} (saldo **${s.netGrowth >= 0 ? "+" : ""}${n(s.netGrowth)}**)`, inline: true },
-            { name: "💬 Mensagens", value: `**${n(s.messages)}**${arrow(data.changes.messages)}\nMédia de ${n(s.avgMessagesPerDay)}/dia`, inline: true },
-            { name: "🟢 Membros ativos", value: `**${n(s.activeMembers)}**${arrow(data.changes.activeMembers)}\nEngajamento ${s.engagementRate}%`, inline: true },
-            { name: "🎙️ Tempo em voz", value: `**${dur(s.voiceMinutes)}**${arrow(data.changes.voiceMinutes)}`, inline: true },
-            { name: "🛡️ Moderação", value: `${n(warns?.c)} advertência(s)`, inline: true },
-            { name: "🎫 Tickets", value: `${n(opened?.c)} aberto(s) · ${n(closed?.c)} fechado(s)`, inline: true }
+            { name: "<:ui_users:1560327175826313336> Membros", value: `**${n(s.currentMembers)}** atuais\n+${n(s.joins)} / -${n(s.leaves)} (saldo **${s.netGrowth >= 0 ? "+" : ""}${n(s.netGrowth)}**)`, inline: true },
+            { name: "<:chat:1562187513949454366> Mensagens", value: `**${n(s.messages)}**${arrow(data.changes.messages)}\nMédia de ${n(s.avgMessagesPerDay)}/dia`, inline: true },
+            { name: "<:ui_green:1560326914483159081> Membros ativos", value: `**${n(s.activeMembers)}**${arrow(data.changes.activeMembers)}\nEngajamento ${s.engagementRate}%`, inline: true },
+            { name: "<:ui_mic:1560326973673316403> Tempo em voz", value: `**${dur(s.voiceMinutes)}**${arrow(data.changes.voiceMinutes)}`, inline: true },
+            { name: "<:shield:1561427396719284334> Moderação", value: `${n(warns?.c)} advertência(s)`, inline: true },
+            { name: "<:ticket:1562187545914380319> Tickets", value: `${n(opened?.c)} aberto(s) · ${n(closed?.c)} fechado(s)`, inline: true }
         )
         .setTimestamp();
 

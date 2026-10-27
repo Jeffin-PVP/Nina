@@ -30,6 +30,11 @@ const LockdownManager = require("../managers/LockdownManager");
 const AutorolePanelManager = require("../managers/AutorolePanelManager");
 const { normalizeReactionEmoji } = require("../utils/reactionEmoji");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
+const ServerToolsRepository = require("../database/repositories/ServerToolsRepository");
+const VerificationManager = require("../managers/VerificationManager");
+const AccountFilterManager = require("../managers/AccountFilterManager");
+const WeeklyReportManager = require("../managers/WeeklyReportManager");
+const BackupManager = require("../managers/BackupManager");
 
 /*
 =========================
@@ -250,6 +255,54 @@ function validarEmbedPainel(body) {
     const data = EmbedUtils.sanitize(body || {});
     if (!EmbedUtils.hasContent(data)) throw new ErroValidacao("A embed precisa ter pelo menos título, descrição, imagem, thumbnail, autor, rodapé ou um campo.");
     return data;
+}
+
+async function exigirAdministrador(req, res) {
+
+    try {
+        const membro = await req.painelGuild.members.fetch(req.painelSessao.user.id);
+        if (membro.permissions.has(PermissionFlagsBits.Administrator)) return true;
+    } catch (error) {
+        console.error("[Painel] Falha ao verificar permissões do usuário:", error);
+    }
+
+    res.status(403).json({ error: "Só quem tem Administrador pode gerenciar backups." });
+    return false;
+
+}
+
+// Mensagens do VerificationManager usam menções do Discord; no painel web mostramos o nome do cargo.
+function mensagemLegivel(guild, texto) {
+    return String(texto)
+        .replace(/<@&(\d+)>/g, (_, id) => `@${guild.roles.cache.get(id)?.name || id}`)
+        .replace(/\*\*/g, "");
+}
+
+function podeEnviarEmbed(canal, guild) {
+    const perms = canal.permissionsFor(guild.members.me);
+    return !!(perms?.has(PermissionFlagsBits.ViewChannel) && perms.has(PermissionFlagsBits.SendMessages) && perms.has(PermissionFlagsBits.EmbedLinks));
+}
+
+const seguro = (rotulo, fn) => async (req, res) => {
+    try {
+        return await fn(req, res);
+    } catch (error) {
+        if (error instanceof ErroValidacao) return res.status(400).json({ error: error.message });
+        console.error(`[Panel:${rotulo}:${req.params.guildId}]`, error);
+        return res.status(500).json({ error: "Erro interno ao processar a solicitação." });
+    }
+};
+
+const ultimasRestauracoes = new Map(); // guildId -> { backupId, name, startedAt, finishedAt, stats, error }
+
+function configVerificacao(c) {
+    return { enabled: !!c.enabled, mode: c.mode, roleId: c.role_id, unverifiedRoleId: c.unverified_role_id, channelId: c.channel_id, panelSent: !!c.message_id };
+}
+function configContasNovas(c) {
+    return { enabled: !!c.enabled, minAgeDays: Number(c.min_age_days), action: c.action, alertChannelId: c.alert_channel_id };
+}
+function configRelatorio(c) {
+    return { enabled: !!c.enabled, channelId: c.channel_id, day: Number(c.day), lastSent: c.last_sent };
 }
 
 module.exports = (client) => {
@@ -1582,6 +1635,239 @@ module.exports = (client) => {
         res.json({ ok: true });
 
     });
+
+
+    /*
+    =========================
+        VERIFICAÇÃO DE ENTRADA
+    =========================
+    */
+
+    router.get("/guilds/:guildId/verificacao", seguro("Verificação", async (req, res) => {
+        const config = await ServerToolsRepository.getConfig(VerificationManager.TABLE, req.params.guildId);
+        res.json(configVerificacao(config));
+    }));
+
+    router.post("/guilds/:guildId/verificacao", seguro("Verificação", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+        const table = VerificationManager.TABLE;
+        const current = await ServerToolsRepository.getConfig(table, guild.id);
+        const fields = {};
+
+        if (body.enabled !== undefined) fields.enabled = bool(body.enabled);
+        if (body.mode !== undefined) {
+            if (!["button", "captcha"].includes(body.mode)) throw new ErroValidacao('"mode" precisa ser "button" ou "captcha".');
+            fields.mode = body.mode;
+        }
+        const cargoExiste = id => id !== guild.id && guild.roles.cache.has(id);
+        if (body.roleId !== undefined) fields.role_id = idOpcional("roleId", body.roleId, cargoExiste);
+        if (body.unverifiedRoleId !== undefined) fields.unverified_role_id = idOpcional("unverifiedRoleId", body.unverifiedRoleId, cargoExiste);
+        if (body.channelId !== undefined) fields.channel_id = idOpcional("channelId", body.channelId, id => !!obterCanalTexto(guild, id));
+
+        const roleId = fields.role_id !== undefined ? fields.role_id : current.role_id;
+        const unverifiedId = fields.unverified_role_id !== undefined ? fields.unverified_role_id : current.unverified_role_id;
+        const enabling = fields.enabled === 1 && !current.enabled;
+
+        if (roleId && unverifiedId && roleId === unverifiedId) throw new ErroValidacao("Os dois cargos precisam ser diferentes.");
+        if (fields.enabled === 1 && !roleId) throw new ErroValidacao("Escolha o cargo de verificado antes de ativar.");
+
+        const paraChecar = new Set([fields.role_id, fields.unverified_role_id, enabling ? roleId : null].filter(Boolean));
+        for (const id of paraChecar) {
+            const problema = VerificationManager.checkRoleUsable(guild, guild.roles.cache.get(id));
+            if (problema) throw new ErroValidacao(mensagemLegivel(guild, problema));
+        }
+
+        if (fields.channel_id) {
+            const canal = obterCanalTexto(guild, fields.channel_id);
+            if (!podeEnviarEmbed(canal, guild)) throw new ErroValidacao(`Em #${canal.name} a Nina precisa de: ver o canal, enviar mensagens e incorporar links.`);
+        }
+
+        // Troca de canal: apaga o painel antigo para não sobrar um botão órfão.
+        if (fields.channel_id !== undefined && fields.channel_id !== current.channel_id) {
+            if (current.message_id && current.channel_id) {
+                const antigo = guild.channels.cache.get(current.channel_id);
+                const msg = await antigo?.messages?.fetch?.(current.message_id).catch(() => null);
+                await msg?.delete?.().catch(() => null);
+            }
+            fields.message_id = null;
+        }
+
+        await ServerToolsRepository.setConfig(table, guild.id, fields);
+        res.json(configVerificacao(await ServerToolsRepository.getConfig(table, guild.id)));
+    }));
+
+    router.post("/guilds/:guildId/verificacao/painel", seguro("Verificação", async (req, res) => {
+        const guild = req.painelGuild;
+        const table = VerificationManager.TABLE;
+        const config = await ServerToolsRepository.getConfig(table, guild.id);
+        const canal = obterCanalTexto(guild, config.channel_id);
+
+        if (!config.role_id) throw new ErroValidacao("Escolha o cargo de verificado antes de enviar o painel.");
+        if (!canal) throw new ErroValidacao("Escolha o canal do painel antes de enviar.");
+        if (!podeEnviarEmbed(canal, guild)) throw new ErroValidacao(`Em #${canal.name} a Nina precisa de: ver o canal, enviar mensagens e incorporar links.`);
+        const problema = VerificationManager.checkRoleUsable(guild, guild.roles.cache.get(config.role_id));
+        if (problema) throw new ErroValidacao(mensagemLegivel(guild, problema));
+
+        // O painel só funciona com a verificação ativa: enviar já ativa o sistema.
+        if (!config.enabled) await ServerToolsRepository.setConfig(table, guild.id, { enabled: 1 });
+        await VerificationManager.sendPanel(guild, await ServerToolsRepository.getConfig(table, guild.id), canal);
+        res.json(configVerificacao(await ServerToolsRepository.getConfig(table, guild.id)));
+    }));
+
+    /*
+    =========================
+        CONTAS NOVAS
+    =========================
+    */
+
+    router.get("/guilds/:guildId/contasnovas", seguro("ContasNovas", async (req, res) => {
+        const config = await ServerToolsRepository.getConfig(AccountFilterManager.TABLE, req.params.guildId);
+        res.json({ ...configContasNovas(config), actions: AccountFilterManager.ACTIONS });
+    }));
+
+    router.post("/guilds/:guildId/contasnovas", seguro("ContasNovas", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+        const table = AccountFilterManager.TABLE;
+        const current = await ServerToolsRepository.getConfig(table, guild.id);
+        const fields = {};
+
+        if (body.enabled !== undefined) fields.enabled = bool(body.enabled);
+        if (body.minAgeDays !== undefined) fields.min_age_days = inteiro("minAgeDays", body.minAgeDays, 1, 90);
+        if (body.action !== undefined) {
+            if (!Object.hasOwn(AccountFilterManager.ACTIONS, body.action)) throw new ErroValidacao('"action" inválida.');
+            fields.action = body.action;
+        }
+        if (body.alertChannelId !== undefined) fields.alert_channel_id = idOpcional("alertChannelId", body.alertChannelId, id => !!obterCanalTexto(guild, id));
+
+        const acao = fields.action || current.action;
+        const me = guild.members.me;
+        if (acao === "timeout" && !me.permissions.has(PermissionFlagsBits.ModerateMembers)) throw new ErroValidacao("Para aplicar castigo a Nina precisa da permissão Castigar Membros.");
+        if (acao === "kick" && !me.permissions.has(PermissionFlagsBits.KickMembers)) throw new ErroValidacao("Para expulsar a Nina precisa da permissão Expulsar Membros.");
+
+        if (fields.alert_channel_id) {
+            const canal = obterCanalTexto(guild, fields.alert_channel_id);
+            if (!podeEnviarEmbed(canal, guild)) throw new ErroValidacao(`Em #${canal.name} a Nina precisa de: ver o canal, enviar mensagens e incorporar links.`);
+        }
+
+        await ServerToolsRepository.setConfig(table, guild.id, fields);
+        res.json({ ...configContasNovas(await ServerToolsRepository.getConfig(table, guild.id)), actions: AccountFilterManager.ACTIONS });
+    }));
+
+    /*
+    =========================
+        RELATÓRIO SEMANAL
+    =========================
+    */
+
+    router.get("/guilds/:guildId/relatorio", seguro("Relatório", async (req, res) => {
+        const config = await ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, req.params.guildId);
+        res.json({ ...configRelatorio(config), days: WeeklyReportManager.DAYS });
+    }));
+
+    router.post("/guilds/:guildId/relatorio", seguro("Relatório", async (req, res) => {
+        const guild = req.painelGuild;
+        const body = req.body || {};
+        const table = WeeklyReportManager.TABLE;
+        const current = await ServerToolsRepository.getConfig(table, guild.id);
+        const fields = {};
+
+        if (body.enabled !== undefined) fields.enabled = bool(body.enabled);
+        if (body.day !== undefined) fields.day = inteiro("day", body.day, 0, 6);
+        if (body.channelId !== undefined) fields.channel_id = idOpcional("channelId", body.channelId, id => !!obterCanalTexto(guild, id));
+
+        const canalId = fields.channel_id !== undefined ? fields.channel_id : current.channel_id;
+        if (fields.enabled === 1 && !canalId) throw new ErroValidacao("Escolha o canal do relatório antes de ativar.");
+        if (fields.channel_id) {
+            const canal = obterCanalTexto(guild, fields.channel_id);
+            if (!podeEnviarEmbed(canal, guild)) throw new ErroValidacao(`Em #${canal.name} a Nina precisa de: ver o canal, enviar mensagens e incorporar links.`);
+        }
+        // Sem canal não há como enviar: desativa junto.
+        if (fields.channel_id === null) fields.enabled = 0;
+
+        await ServerToolsRepository.setConfig(table, guild.id, fields);
+        res.json({ ...configRelatorio(await ServerToolsRepository.getConfig(table, guild.id)), days: WeeklyReportManager.DAYS });
+    }));
+
+    router.post("/guilds/:guildId/relatorio/enviar", seguro("Relatório", async (req, res) => {
+        const guild = req.painelGuild;
+        const config = await ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guild.id);
+        if (!config.channel_id) throw new ErroValidacao("Escolha o canal do relatório antes de enviar.");
+        try {
+            await WeeklyReportManager.sendReport(guild, config.channel_id);
+        } catch {
+            return res.status(400).json({ error: "Não consegui enviar. Verifique se o canal ainda existe e se a Nina tem permissão." });
+        }
+        res.json({ ok: true });
+    }));
+
+    /*
+    =========================
+        BACKUP (somente Administrador)
+    =========================
+    */
+
+    router.get("/guilds/:guildId/backups", seguro("Backup", async (req, res) => {
+        if (!(await exigirAdministrador(req, res))) return;
+        const backups = await ServerToolsRepository.listBackups(req.params.guildId);
+        res.json({
+            backups: backups.map(b => ({ id: b.id, name: b.name, createdBy: b.created_by, createdAt: b.created_at, size: b.size })),
+            max: ServerToolsRepository.MAX_BACKUPS_PER_GUILD,
+            restoring: BackupManager.isRestoring(req.params.guildId),
+            lastRestore: ultimasRestauracoes.get(req.params.guildId) || null
+        });
+    }));
+
+    router.post("/guilds/:guildId/backups", seguro("Backup", async (req, res) => {
+        if (!(await exigirAdministrador(req, res))) return;
+        const guild = req.painelGuild;
+        if (BackupManager.isRestoring(guild.id)) return res.status(409).json({ error: "Há uma restauração em andamento. Aguarde terminar." });
+
+        const nome = texto("name", req.body?.name ?? "", 60, { vazio: true })
+            || `Backup ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+        const data = BackupManager.snapshot(guild);
+        if (JSON.stringify(data).length > 4 * 1024 * 1024) throw new ErroValidacao("A estrutura é grande demais para um backup.");
+
+        const id = await ServerToolsRepository.createBackup(guild.id, nome, data, req.painelSessao.user.id);
+        res.json({ id, name: nome, summary: BackupManager.summarize(data) });
+    }));
+
+    router.delete("/guilds/:guildId/backups/:id", seguro("Backup", async (req, res) => {
+        if (!(await exigirAdministrador(req, res))) return;
+        const id = inteiro("id", req.params.id, 1, 2147483647);
+        const backup = await ServerToolsRepository.getBackup(req.params.guildId, id);
+        if (!backup) return res.status(404).json({ error: "Backup não encontrado neste servidor." });
+        await ServerToolsRepository.deleteBackup(req.params.guildId, id);
+        res.json({ ok: true });
+    }));
+
+    router.post("/guilds/:guildId/backups/:id/restore", seguro("Backup", async (req, res) => {
+        if (!(await exigirAdministrador(req, res))) return;
+        const guild = req.painelGuild;
+        const id = inteiro("id", req.params.id, 1, 2147483647);
+        const backup = await ServerToolsRepository.getBackup(guild.id, id);
+        if (!backup) return res.status(404).json({ error: "Backup não encontrado neste servidor." });
+
+        const me = guild.members.me;
+        if (!me.permissions.has(PermissionFlagsBits.ManageChannels) || !me.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            throw new ErroValidacao("A Nina precisa das permissões Gerenciar Canais e Gerenciar Cargos.");
+        }
+        if (BackupManager.isRestoring(guild.id)) return res.status(409).json({ error: "Já há uma restauração em andamento." });
+
+        // A restauração pode levar minutos (limites de taxa do Discord): roda em segundo plano.
+        const registro = { backupId: id, name: backup.name, startedAt: Date.now(), finishedAt: null, stats: null, error: null };
+        ultimasRestauracoes.set(guild.id, registro);
+        BackupManager.restore(guild, backup.data)
+            .then(stats => { registro.stats = stats; })
+            .catch(error => {
+                console.error(`[Panel:Backup:${guild.id}] Falha na restauração:`, error);
+                registro.error = error.message || "Erro inesperado.";
+            })
+            .finally(() => { registro.finishedAt = Date.now(); });
+
+        res.status(202).json({ started: true, name: backup.name });
+    }));
 
     return router;
 

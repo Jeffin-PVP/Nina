@@ -30,6 +30,7 @@ const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 const LockdownManager = require("../../managers/LockdownManager");
 const SecurityRepository = require("../../database/repositories/SecurityRepository");
 const SecurityManager = require("../../managers/SecurityManager");
+const serverTools = require("./serverToolsHandler");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -48,6 +49,9 @@ async function execute(interaction) {
     if (!ConfigPanelManager.permissionOk(interaction)) return denied(interaction);
 
     const id = interaction.customId;
+
+    // Verificação, contas novas, backup e relatório semanal.
+    if (serverTools.owns(id)) return serverTools.execute(interaction);
 
     if (id === "config_home" || id === "config_refresh") {
         return interaction.update(await ConfigPanelManager.buildHome(interaction));

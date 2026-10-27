@@ -45,7 +45,7 @@ module.exports = {
             if (!list.length) return ui.nothing(interaction, "Nenhum backup salvo. Use `/backup criar`.", "Sem backups");
             const lines = list.map(b => `**#${b.id}** · ${b.name}\n┗ <t:${Math.floor(new Date(b.created_at + "Z").getTime() / 1000)}:f> · por <@${b.created_by}> · ${(b.size / 1024).toFixed(0)} KB`);
             return interaction.reply({
-                embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`💾 Backups (${list.length})`).setDescription(lines.join("\n").slice(0, 4000))],
+                embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`<:OtherSave:1564767705561567372> Backups (${list.length})`).setDescription(lines.join("\n").slice(0, 4000))],
                 ephemeral: true, allowedMentions: { parse: [] }
             });
         }

@@ -47,7 +47,7 @@ function panelPayload(guild, config) {
     const captcha = config.mode === "captcha";
     const embed = ui.panel({
         color: ui.COLORS.info,
-        emoji: "shield",
+        emoji: "<:escudo:1562187519150395393>",
         title: "Verificação",
         description: captcha
             ? "Para liberar o acesso ao servidor, clique no botão e responda uma pergunta rápida."
@@ -55,7 +55,7 @@ function panelPayload(guild, config) {
         thumbnail: guild.iconURL({ size: 256 })
     });
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("verify:start").setLabel("Verificar").setEmoji("✅").setStyle(ButtonStyle.Success)
+        new ButtonBuilder().setCustomId("verify:start").setLabel("Verificar").setEmoji("<:ui_check:1560326782610047098>").setStyle(ButtonStyle.Success)
     );
     return { embeds: [embed], components: [row] };
 }

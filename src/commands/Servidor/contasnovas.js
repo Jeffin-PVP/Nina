@@ -60,13 +60,13 @@ module.exports = {
         const c = await Repo.getConfig(TABLE, guild.id);
         return ui.respond(interaction, ui.panel({
             color: c.enabled ? ui.COLORS.success : ui.COLORS.neutral,
-            emoji: "shield",
+            emoji: "",
             title: "Filtro de contas novas",
             description: c.enabled ? "Ativo." : "Desativado. Use `/contasnovas config`.",
             fields: [
-                ui.field("clock", "Idade mínima", `${c.min_age_days} dia(s)`),
-                ui.field("shield", "Ação", ACTIONS[c.action] || c.action),
-                ui.field("channel", "Alertas", c.alert_channel_id ? `<#${c.alert_channel_id}>` : "*nenhum*")
+                ui.field("<:clock:1561426917717053530>", "Idade mínima", `${c.min_age_days} dia(s)`),
+                ui.field("<:shield:1561427396719284334>", "Ação", ACTIONS[c.action] || c.action),
+                ui.field("<:ui_textc:1560327137024544808>", "Alertas", c.alert_channel_id ? `<#${c.alert_channel_id}>` : "*nenhum*")
             ],
             source: interaction
         }), { ephemeral: true });

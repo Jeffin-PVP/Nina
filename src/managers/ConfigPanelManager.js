@@ -31,6 +31,11 @@ const RecordingApi = require("../services/RecordingService");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
 const SecurityManager = require("./SecurityManager");
 const LockdownManager = require("./LockdownManager");
+const ServerToolsRepository = require("../database/repositories/ServerToolsRepository");
+const VerificationManager = require("./VerificationManager");
+const AccountFilterManager = require("./AccountFilterManager");
+const WeeklyReportManager = require("./WeeklyReportManager");
+const BackupManager = require("./BackupManager");
 const { CATEGORIES } = require("./LogCategories");
 
 /*
@@ -58,8 +63,16 @@ const CATEGORY_OPTIONS = [
     { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "<:nuclear:1562187533721272451>" },
     { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
     { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "<:ui_mic:1560326973673316403>" },
-    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" }
+    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" },
+    { value: "verification", label: "Verificação de entrada", description: "Libera o servidor só após o membro confirmar", emoji: "✅" },
+    { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: "🆕" },
+    { value: "backup", label: "Backup", description: "Cargos, canais e permissões do servidor", emoji: "💾" },
+    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: "📊" }
 ];
+
+// Opções dos menus das ferramentas (também usadas pelo handler para validar a escolha).
+const FILTER_DAY_OPTIONS = [1, 3, 7, 14, 30, 60, 90];
+const VERIFICATION_MODES = { button: "Botão (um clique)", captcha: "Pergunta (captcha simples)" };
 
 const NOT_SET = "*Não configurado*";
 
@@ -159,7 +172,7 @@ const roleMention = id => id ? `<@&${id}>` : NOT_SET;
 
 async function buildHome(interaction) {
     const guildId = interaction.guild.id;
-    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec] = await Promise.all([
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec, verification, accountFilter, weeklyReport, backups] = await Promise.all([
         GuildRepository.getSettings(guildId),
         AutomodRepository.get(guildId),
         WelcomeRepository.get(guildId),
@@ -169,7 +182,11 @@ async function buildHome(interaction) {
         LockdownManager.getConfig(guildId),
         TempVoiceRepository.get(guildId),
         SecurityRepository.get(guildId),
-        VoiceRecordingRepository.get(guildId)
+        VoiceRecordingRepository.get(guildId),
+        ServerToolsRepository.getConfig(VerificationManager.TABLE, guildId),
+        ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guildId),
+        ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guildId),
+        ServerToolsRepository.listBackups(guildId)
     ]);
 
     const groups = [
@@ -177,6 +194,8 @@ async function buildHome(interaction) {
             ["AutoMod", automod.enabled],
             ["Anti-Nuke", antinuke.enabled],
             ["Lockdown", lockdown.enabled],
+            ["Verificação", verification.enabled && verification.role_id],
+            ["Contas novas", accountFilter.enabled],
             ["Moderação", settings.moderation_enabled],
             ["TopicGuard", security.topic_enabled],
             ["Honeypot", security.honeypot_enabled || security.behavior_enabled]
@@ -190,7 +209,9 @@ async function buildHome(interaction) {
         ["<:ui_wrench:1560327206969024613> Utilidades", [
             ["Stats", stats.enabled],
             ["TempVoice", tempvoice.enabled],
-            ["Gravação de calls", voicerec.enabled]
+            ["Gravação de calls", voicerec.enabled],
+            ["Relatório semanal", weeklyReport.enabled && weeklyReport.channel_id],
+            ["Backup", backups.length > 0]
         ]]
     ];
 
@@ -835,6 +856,209 @@ async function buildTempVoicePermissions(interaction) {
     return finish(container);
 }
 
+/*
+=========================
+    FERRAMENTAS DO SERVIDOR
+    (verificação, contas novas, backup e relatório semanal)
+=========================
+*/
+
+const channelDefaults = (guild, id) => id && guild.channels.cache.has(id) ? [id] : [];
+const roleDefaults = (guild, id) => id && guild.roles.cache.has(id) ? [id] : [];
+
+async function buildVerification(interaction) {
+    const guild = interaction.guild;
+    const config = await ServerToolsRepository.getConfig(VerificationManager.TABLE, guild.id);
+    const active = !!(config.enabled && config.role_id);
+    const container = card(stateColor(active));
+
+    addHeader(container, "✅", "Verificação de entrada", "O membro só libera o acesso ao servidor depois de confirmar.");
+
+    addText(container, `${ui.dot(active)} **${active ? "Verificação ativa" : "Verificação desativada"}**\n-# ${config.role_id ? "Cargo de verificado definido." : "Escolha o cargo de verificado para poder ativar."}`);
+
+    addRow(
+        container,
+        toggleButton("config_verif:enabled", active, "Sistema"),
+        actionButton("config_verif:panel", "Enviar painel", "📨", ButtonStyle.Primary).setDisabled(!config.role_id || !config.channel_id)
+    );
+
+    addSep(container);
+    addText(container, [
+        `**Modo**\n${VERIFICATION_MODES[config.mode] || VERIFICATION_MODES.button}`,
+        `**Cargo de verificado**\n${roleMention(config.role_id)}`,
+        `**Cargo de não verificado**\n${config.unverified_role_id ? roleMention(config.unverified_role_id) : "*Não usado*"}`,
+        `**Canal do painel**\n${mention(config.channel_id)}${config.message_id ? "" : config.channel_id ? " · *painel ainda não enviado*" : ""}`
+    ].join("\n\n"));
+    addText(container, "-# Para ter efeito, esconda os canais do @everyone e libere-os só para o cargo de verificado (ou deixe visível apenas o canal do painel).");
+
+    addSep(container);
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_sel:verif_mode")
+            .setPlaceholder("Modo de verificação")
+            .addOptions(Object.entries(VERIFICATION_MODES).map(([value, label]) => ({ value, label, default: config.mode === value })))
+    );
+    addRow(
+        container,
+        roleSelect("config_role:verif_role", "Cargo entregue a quem se verificar")
+            .setDefaultRoles(...roleDefaults(guild, config.role_id))
+            .setMinValues(1).setMaxValues(1)
+    );
+    addRow(
+        container,
+        roleSelect("config_role:verif_unverified", "Cargo de não verificado (opcional)")
+            .setDefaultRoles(...roleDefaults(guild, config.unverified_role_id))
+            .setMinValues(0).setMaxValues(1)
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:verif_channel", "Canal do painel de verificação", ChannelType.GuildText)
+            .setDefaultChannels(...channelDefaults(guild, config.channel_id))
+            .setMinValues(1).setMaxValues(1)
+    );
+
+    addNav(container);
+    return finish(container);
+}
+
+async function buildAccountFilter(interaction) {
+    const guild = interaction.guild;
+    const config = await ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guild.id);
+    const container = card(stateColor(config.enabled));
+    const days = Number(config.min_age_days) || 7;
+
+    addHeader(container, "🆕", "Contas novas", "Trata contas recém-criadas que tentam entrar no servidor.");
+
+    addText(container, `${ui.dot(config.enabled)} **${config.enabled ? "Filtro ativo" : "Filtro desativado"}**\n-# Contas com menos de ${days} dia(s) → ${AccountFilterManager.ACTIONS[config.action] || config.action}`);
+
+    addRow(container, toggleButton("config_filter:enabled", config.enabled, "Sistema"));
+
+    addSep(container);
+    addText(container, [
+        `**Idade mínima**\n${days} dia(s)`,
+        `**Ação**\n${AccountFilterManager.ACTIONS[config.action] || config.action}`,
+        `**Canal de alertas**\n${mention(config.alert_channel_id)}`
+    ].join("\n\n"));
+
+    const me = guild.members.me;
+    if (config.action === "timeout" && !me?.permissions.has("ModerateMembers")) {
+        addText(container, "⚠️ Eu preciso da permissão **Castigar Membros** para aplicar essa ação; por enquanto só alerto.");
+    } else if (config.action === "kick" && !me?.permissions.has("KickMembers")) {
+        addText(container, "⚠️ Eu preciso da permissão **Expulsar Membros** para aplicar essa ação; por enquanto só alerto.");
+    }
+
+    addSep(container);
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_sel:filter_days")
+            .setPlaceholder("Idade mínima da conta")
+            .addOptions(FILTER_DAY_OPTIONS.map(d => ({ value: String(d), label: `${d} dia${d > 1 ? "s" : ""}`, default: d === days })))
+    );
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_sel:filter_action")
+            .setPlaceholder("O que fazer com contas abaixo do mínimo")
+            .addOptions(Object.entries(AccountFilterManager.ACTIONS).map(([value, label]) => ({ value, label: label.slice(0, 100), default: config.action === value })))
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:filter_alert", "Canal dos alertas (recomendado)", ChannelType.GuildText)
+            .setDefaultChannels(...channelDefaults(guild, config.alert_channel_id))
+            .setMinValues(0).setMaxValues(1)
+    );
+
+    addNav(container);
+    return finish(container);
+}
+
+async function buildBackup(interaction) {
+    const guild = interaction.guild;
+    const backups = await ServerToolsRepository.listBackups(guild.id);
+    const restoring = BackupManager.isRestoring(guild.id);
+    const container = card(restoring ? ui.COLORS.warn : ui.COLORS.info);
+
+    addHeader(container, "💾", "Backup do servidor", "Guarda cargos, categorias, canais e permissões. Mensagens, membros e configurações da Nina não entram.");
+
+    addText(container, restoring
+        ? "♻️ **Restauração em andamento…**"
+        : `**${backups.length}** de ${ServerToolsRepository.MAX_BACKUPS_PER_GUILD} backups salvos\n-# Os mais antigos são removidos automaticamente.`);
+
+    addRow(
+        container,
+        actionButton("config_backup:create", "Criar backup agora", "💾", ButtonStyle.Success).setDisabled(restoring)
+    );
+
+    addSep(container);
+    const when = b => `<t:${Math.floor(new Date(b.created_at + "Z").getTime() / 1000)}:d>`;
+    addText(container, backups.length
+        ? backups.map(b => `**#${b.id}** · ${ui.clip(b.name, 40)} · ${when(b)} · ${(b.size / 1024).toFixed(0)} KB`).join("\n")
+        : "*Nenhum backup salvo ainda.*");
+    addText(container, "-# Criar, restaurar e excluir exigem a permissão Administrador. A restauração só recria o que está faltando (por nome): nada é apagado nem alterado.");
+
+    if (backups.length) {
+        addSep(container);
+        addRow(
+            container,
+            new StringSelectMenuBuilder()
+                .setCustomId("config_sel:backup_pick")
+                .setPlaceholder("Escolha um backup para restaurar ou excluir…")
+                .addOptions(backups.slice(0, 25).map(b => ({
+                    value: String(b.id),
+                    label: ui.clip(`#${b.id} · ${b.name}`, 100),
+                    description: new Date(b.created_at + "Z").toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }).slice(0, 100)
+                })))
+        );
+    }
+
+    addNav(container);
+    return finish(container);
+}
+
+async function buildWeeklyReport(interaction) {
+    const guild = interaction.guild;
+    const config = await ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guild.id);
+    const active = !!(config.enabled && config.channel_id);
+    const container = card(stateColor(active));
+
+    addHeader(container, "📊", "Relatório semanal", "Resumo automático de atividade e moderação enviado à equipe.");
+
+    addText(container, `${ui.dot(active)} **${active ? "Relatório ativo" : "Relatório desativado"}**\n-# ${config.channel_id ? "Enviado às 9h (horário de Brasília)." : "Escolha o canal da equipe para poder ativar."}`);
+
+    addRow(
+        container,
+        toggleButton("config_report:enabled", active, "Sistema"),
+        actionButton("config_report:send", "Enviar agora", "📨", ButtonStyle.Primary).setDisabled(!config.channel_id)
+    );
+
+    addSep(container);
+    addText(container, [
+        `**Canal**\n${mention(config.channel_id)}`,
+        `**Dia do envio**\n${WeeklyReportManager.DAYS[config.day] || WeeklyReportManager.DAYS[1]}, 9h (Brasília)`,
+        `**Último envio**\n${config.last_sent || "*Nunca*"}`
+    ].join("\n\n"));
+
+    addSep(container);
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_sel:report_day")
+            .setPlaceholder("Dia da semana do envio")
+            .addOptions(WeeklyReportManager.DAYS.map((label, value) => ({ value: String(value), label, default: Number(config.day) === value })))
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:report_channel", "Canal onde o relatório será enviado", ChannelType.GuildText)
+            .setDefaultChannels(...channelDefaults(guild, config.channel_id))
+            .setMinValues(1).setMaxValues(1)
+    );
+
+    addNav(container);
+    return finish(container);
+}
+
 async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
@@ -847,6 +1071,10 @@ async function build(interaction, category) {
         case "logs": return buildLogs(interaction);
         case "autorole": return buildAutorole(interaction);
         case "lockdown": return buildLockdown(interaction);
+        case "verification": return buildVerification(interaction);
+        case "accountfilter": return buildAccountFilter(interaction);
+        case "backup": return buildBackup(interaction);
+        case "weeklyreport": return buildWeeklyReport(interaction);
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
         case "voicerec": return buildVoiceRec(interaction);
@@ -876,6 +1104,8 @@ async function show(interaction, category = null, mode = "reply") {
 
 module.exports = {
     CATEGORY_OPTIONS,
+    FILTER_DAY_OPTIONS,
+    VERIFICATION_MODES,
     permissionOk,
     build,
     buildHome,
