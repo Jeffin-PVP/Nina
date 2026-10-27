@@ -64,10 +64,10 @@ const CATEGORY_OPTIONS = [
     { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
     { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "<:ui_mic:1560326973673316403>" },
     { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" },
-    { value: "verification", label: "Verificação de entrada", description: "Libera o servidor só após o membro confirmar", emoji: "✅" },
-    { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: "🆕" },
-    { value: "backup", label: "Backup", description: "Cargos, canais e permissões do servidor", emoji: "💾" },
-    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: "📊" }
+    { value: "verification", label: "Verificação de entrada", description: "Libera o servidor só após o membro confirmar", emoji: "<:ui_check:1560326782610047098>" },
+    { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: "<:clock:1561426917717053530>" },
+    { value: "backup", label: "Backup", description: "Cargos, canais e permissões do servidor", emoji: "<:OtherSave:1564767705561567372>" },
+    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: "<:stats:1562187543653388391>" }
 ];
 
 // Opções dos menus das ferramentas (também usadas pelo handler para validar a escolha).
