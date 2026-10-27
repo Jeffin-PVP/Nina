@@ -6,6 +6,7 @@ const NinaEmojiManager = require("../ai/NinaEmojiManager");
 const GlobalBanManager = require("../managers/GlobalBanManager");
 const SecurityManager = require("../managers/SecurityManager");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
+const AfkManager = require("../managers/AfkManager");
 
 module.exports = {
 
@@ -46,6 +47,9 @@ module.exports = {
             channelName: message.channel?.name || "Canal removido",
             userId: message.author.id
         }).catch(error => console.error("[Analytics] Falha ao registrar mensagem:", error));
+
+        // AFK: tira o AFK de quem voltou e avisa quando alguém menciona um usuário ausente.
+        await AfkManager.handleMessage(message).catch(error => console.error("[AFK] Falha:", error));
 
         // Concede XP (com cooldown) independente de mencionar o bot ou não
         await LevelManager.handleMessage(message);

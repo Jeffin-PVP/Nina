@@ -54,6 +54,8 @@ const voiceRecording =
     require("../interactions/voiceRecording/handler");
 
 const amongUs = require("../managers/AmongUsAnnouncementManager");
+const VerificationManager = require("../managers/VerificationManager");
+const backupButtons = require("../interactions/backup/buttonHandler");
 
 module.exports = {
 
@@ -117,6 +119,9 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("verify:")) {
+                    return VerificationManager.handleModal(interaction);
+                }
                 if (interaction.customId.startsWith("amongus_modal:")) {
                     return amongUs.handleModal(interaction);
                 }
@@ -167,6 +172,12 @@ module.exports = {
 
                 }
 
+                if (interaction.customId.startsWith("verify:")) {
+                    return VerificationManager.handleButton(interaction);
+                }
+                if (interaction.customId.startsWith("backup:")) {
+                    return backupButtons.execute(interaction);
+                }
                 if (interaction.customId.startsWith("voicerec:")) {
                     return voiceRecording.execute(interaction);
                 }

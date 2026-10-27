@@ -292,6 +292,53 @@ const statements = [
         PRIMARY KEY (guild_id, date, channel_id)
     )`,
 
+    // Ferramentas do servidor: verificação, filtro de contas novas, relatório semanal, AFK e backups.
+    `CREATE TABLE IF NOT EXISTS verification_config (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        mode TEXT NOT NULL DEFAULT 'button',
+        role_id TEXT NULL,
+        unverified_role_id TEXT NULL,
+        channel_id TEXT NULL,
+        message_id TEXT NULL,
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS account_filter_config (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        min_age_days INTEGER NOT NULL DEFAULT 7,
+        action TEXT NOT NULL DEFAULT 'alert',
+        alert_channel_id TEXT NULL,
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS weekly_report_config (
+        guild_id TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        channel_id TEXT NULL,
+        day INTEGER NOT NULL DEFAULT 1,
+        last_sent TEXT NULL,
+        PRIMARY KEY (guild_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS afk_users (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        reason TEXT NOT NULL DEFAULT '',
+        since INTEGER NOT NULL,
+        PRIMARY KEY (guild_id, user_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS guild_backups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        data TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
     `CREATE TABLE IF NOT EXISTS broadcasts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NULL,
@@ -522,6 +569,7 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_analytics_channel_date ON analytics_channel_daily (guild_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_user_daily (guild_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_voice_started ON analytics_voice_sessions (started_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_guild_backups_guild ON guild_backups (guild_id)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_hourly_date ON analytics_hourly (guild_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_voicech_date ON analytics_voice_channel_daily (guild_id, date)`
 ];

@@ -10,6 +10,8 @@ const AntiNukeManager = require("../managers/AntiNukeManager");
 
 const ServerStatsManager = require("../managers/ServerStatsManager");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
+const AccountFilterManager = require("../managers/AccountFilterManager");
+const VerificationManager = require("../managers/VerificationManager");
 
 module.exports = {
 
@@ -22,6 +24,13 @@ module.exports = {
                 console.error("[Analytics] Falha ao registrar entrada:", error);
             });
         }
+
+        // Filtro de contas novas: se o membro foi expulso, encerra o fluxo de entrada.
+        const removido = await AccountFilterManager.handle(member).catch(error => {
+            console.error("[Contas novas] Falha:", error);
+            return false;
+        });
+        if (removido) return;
 
         await AntiNukeManager.detectBotAdd(member.guild, member).catch(() => {});
 
@@ -44,6 +53,9 @@ module.exports = {
             });
 
         }
+
+        // Verificação: cargo "não verificado" na entrada, quando configurado.
+        await VerificationManager.handleJoin(member).catch(error => console.error("[Verificação] Falha:", error));
 
         // Auto-role de entrada
         if (!member.user.bot) {

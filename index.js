@@ -274,6 +274,8 @@ client.once(
             AnalyticsRepository.prune().catch(error => console.error("[Analytics] Falha ao limpar dados antigos:", error));
         }, 24 * 60 * 60 * 1000).unref?.();
 
+        require("./src/managers/WeeklyReportManager").start(client);
+
         ServerStatsManager.start(client);
 
         GlobalBanManager.start().catch(error => {
