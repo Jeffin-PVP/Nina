@@ -104,6 +104,12 @@ async function execute(interaction) {
         return interaction.update(await ConfigPanelManager.build(interaction, "tempvoice"));
     }
 
+    if (id === "config_ticket_mode") {
+        const mode = interaction.values[0] === "channel" ? "channel" : "thread";
+        await TicketRepository.setConfig(interaction.guild.id, { mode });
+        return interaction.update(await ConfigPanelManager.build(interaction, "tickets"));
+    }
+
     if (id === "config_category") {
         const category = interaction.values[0];
         return interaction.update(await ConfigPanelManager.build(interaction, category));
@@ -480,6 +486,11 @@ async function execute(interaction) {
         if (target === "welcome") {
             await WelcomeRepository.update(interaction.guild.id, { channel_id: channel.id });
             return interaction.update(await ConfigPanelManager.build(interaction, "welcome"));
+        }
+
+        if (target === "tickets_category") {
+            await TicketRepository.setConfig(interaction.guild.id, { category_id: channel.id });
+            return interaction.update(await ConfigPanelManager.build(interaction, "tickets"));
         }
 
         if (target === "tickets") {

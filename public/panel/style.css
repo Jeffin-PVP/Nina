@@ -1305,3 +1305,5 @@ button:active { transform: translateY(1px); }
 .analytics-insight.info { border-left-color: #9b8cff; }
 .analytics-hour-bar { fill: #9b8cff; opacity: .85; }
 .analytics-hour-bar.peak { fill: #f569ff; opacity: 1; }
+
+small.muted { display: block; color: var(--muted); margin-top: 6px; font-size: 12px; }

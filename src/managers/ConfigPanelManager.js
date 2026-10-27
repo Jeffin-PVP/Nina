@@ -21,6 +21,7 @@ const GuildRepository = require("../database/repositories/GuildRepository");
 const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const TicketRepository = require("../database/repositories/TicketRepository");
+const TicketManager = require("./TicketManager");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
@@ -182,7 +183,7 @@ async function buildHome(interaction) {
         ]],
         ["<:ui_users:1560327175826313336> Comunidade", [
             ["Boas-vindas", welcome.enabled],
-            ["Tickets", tickets.enabled && !!tickets.parent_channel_id],
+            ["Tickets", TicketRepository.isConfigured(tickets)],
             ["Logs", !!settings.log_channel],
             ["Economia", settings.economy_enabled]
         ]],
@@ -432,17 +433,33 @@ async function buildWelcome(interaction) {
 
 async function buildTickets(interaction) {
     const c = await TicketRepository.getConfig(interaction.guild.id);
-    const active = c.enabled && !!c.parent_channel_id;
+    const mode = TicketManager.normalizeMode(c.mode);
+    const active = TicketRepository.isConfigured(c);
     const container = card(stateColor(active));
 
     addHeader(container, "ticket", "Tickets", "Atendimento e suporte do servidor.");
 
-    addToggle(container, { id: "config_toggle:tickets", title: "Sistema de tickets", description: active ? "Funcionando." : "Defina o canal dos tickets para ativar de fato.", enabled: !!c.enabled });
+    addToggle(container, { id: "config_toggle:tickets", title: "Sistema de tickets", description: active ? "Funcionando." : (mode === "channel" ? "Defina a categoria dos tickets para ativar de fato." : "Defina o canal dos tickets para ativar de fato."), enabled: !!c.enabled });
 
     addSep(container);
-    addText(container, `**<:ui_textc:1560327137024544808> Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+    addText(container, `**Modo de criação**\n${TicketManager.modeLabel(mode)} — ${mode === "channel" ? "cada ticket vira um canal privado dentro de uma categoria." : "cada ticket vira um tópico privado dentro do canal escolhido."}`);
+    addRow(container, new StringSelectMenuBuilder()
+        .setCustomId("config_ticket_mode")
+        .setPlaceholder("Escolher modo de criação")
+        .addOptions([
+            { label: "Tópico privado", value: "thread", description: "Modo padrão: tópicos dentro de um canal.", default: mode === "thread" },
+            { label: "Canal privado", value: "channel", description: "Um canal de texto por ticket, em uma categoria.", default: mode === "channel" }
+        ]));
 
-    addRow(container, channelSelect("config_channel:tickets", "Escolher canal dos tickets", ChannelType.GuildText));
+    addSep(container);
+    if (mode === "channel") {
+        const category = TicketManager.resolveCategory(interaction.guild, c);
+        addText(container, `**<:ui_textc:1560327137024544808> Categoria dos tickets**\n${category ? `**${category.name}**` : "*não definida*"}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+        addRow(container, channelSelect("config_channel:tickets_category", "Escolher categoria dos tickets", ChannelType.GuildCategory));
+    } else {
+        addText(container, `**<:ui_textc:1560327137024544808> Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+        addRow(container, channelSelect("config_channel:tickets", "Escolher canal dos tickets", ChannelType.GuildText));
+    }
     addRow(container, roleSelect("config_role:tickets", "Escolher cargo de suporte"));
 
     addNav(container);

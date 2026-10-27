@@ -84,12 +84,23 @@ class TicketRepository {
 
     }
 
+    static normalizeMode(mode) {
+        return mode === "channel" ? "channel" : "thread";
+    }
+
+    // Tópico exige o canal pai; canal exige uma categoria (ou, como alternativa, o canal pai para herdar a categoria).
+    static isConfigured(config) {
+        if (!config || !config.enabled) return false;
+        return this.normalizeMode(config.mode) === "channel"
+            ? !!(config.category_id || config.parent_channel_id)
+            : !!config.parent_channel_id;
+    }
+
     static async isEnabled(guildId) {
 
         const config = await this.getConfig(guildId);
 
-        return Boolean(config.enabled) &&
-            !!config.parent_channel_id;
+        return this.isConfigured(config);
 
     }
 

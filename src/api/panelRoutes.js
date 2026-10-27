@@ -196,6 +196,15 @@ function sanitizarTickets(body, guild) {
 
     if (b.enabled !== undefined) campos.enabled = bool(b.enabled);
 
+    if (b.mode !== undefined) {
+        if (!["thread", "channel"].includes(b.mode)) throw new ErroValidacao("Modo de ticket inválido.");
+        campos.mode = b.mode;
+    }
+
+    if (b.category_id !== undefined) {
+        campos.category_id = idOpcional("category_id", b.category_id, id => guild.channels.cache.get(id)?.type === ChannelType.GuildCategory);
+    }
+
     for (const chave of ["parent_channel_id", "panel_channel_id"]) {
         if (b[chave] !== undefined) campos[chave] = idOpcional(chave, b[chave], id => guild.channels.cache.has(id));
     }

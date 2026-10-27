@@ -561,6 +561,17 @@ function migrateSecuritySchema() {
     }
 }
 
+function migrateTicketSchema() {
+    const columns = new Set(db.prepare("PRAGMA table_info(ticket_config)").all().map(row => row.name));
+    const migrations = [
+        ["mode", "TEXT NOT NULL DEFAULT 'thread'"],
+        ["category_id", "TEXT NULL"]
+    ];
+    for (const [name, definition] of migrations) {
+        if (!columns.has(name)) db.exec(`ALTER TABLE ticket_config ADD COLUMN ${name} ${definition}`);
+    }
+}
+
 function migrateTempVoiceSchema() {
     const columns = new Set(db.prepare("PRAGMA table_info(temp_voice_settings)").all().map(row => row.name));
     const migrations = [
@@ -614,6 +625,7 @@ function initializeDatabase() {
         for (const statement of indexes) db.exec(statement);
         migrateGuildSettingsSchema();
         migrateTempVoiceSchema();
+        migrateTicketSchema();
         migrateAutomodRaidLocksSchema();
         migrateSecuritySchema();
         db.exec("COMMIT");
