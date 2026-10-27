@@ -872,14 +872,14 @@ async function buildVerification(interaction) {
     const active = !!(config.enabled && config.role_id);
     const container = card(stateColor(active));
 
-    addHeader(container, "✅", "Verificação de entrada", "O membro só libera o acesso ao servidor depois de confirmar.");
+    addHeader(container, "<:ui_checkbook:1560326784845746276>", "Verificação de entrada", "O membro só libera o acesso ao servidor depois de confirmar.");
 
     addText(container, `${ui.dot(active)} **${active ? "Verificação ativa" : "Verificação desativada"}**\n-# ${config.role_id ? "Cargo de verificado definido." : "Escolha o cargo de verificado para poder ativar."}`);
 
     addRow(
         container,
         toggleButton("config_verif:enabled", active, "Sistema"),
-        actionButton("config_verif:panel", "Enviar painel", "📨", ButtonStyle.Primary).setDisabled(!config.role_id || !config.channel_id)
+        actionButton("config_verif:panel", "Enviar painel", "<:ui_send:1560327089993810011>", ButtonStyle.Primary).setDisabled(!config.role_id || !config.channel_id)
     );
 
     addSep(container);
@@ -928,7 +928,7 @@ async function buildAccountFilter(interaction) {
     const container = card(stateColor(config.enabled));
     const days = Number(config.min_age_days) || 7;
 
-    addHeader(container, "🆕", "Contas novas", "Trata contas recém-criadas que tentam entrar no servidor.");
+    addHeader(container, "<:clock:1561426917717053530>", "Contas novas", "Trata contas recém-criadas que tentam entrar no servidor.");
 
     addText(container, `${ui.dot(config.enabled)} **${config.enabled ? "Filtro ativo" : "Filtro desativado"}**\n-# Contas com menos de ${days} dia(s) → ${AccountFilterManager.ACTIONS[config.action] || config.action}`);
 
@@ -943,9 +943,9 @@ async function buildAccountFilter(interaction) {
 
     const me = guild.members.me;
     if (config.action === "timeout" && !me?.permissions.has("ModerateMembers")) {
-        addText(container, "⚠️ Eu preciso da permissão **Castigar Membros** para aplicar essa ação; por enquanto só alerto.");
+        addText(container, "<:atencao:1561916202597621841> Eu preciso da permissão **Castigar Membros** para aplicar essa ação; por enquanto só alerto.");
     } else if (config.action === "kick" && !me?.permissions.has("KickMembers")) {
-        addText(container, "⚠️ Eu preciso da permissão **Expulsar Membros** para aplicar essa ação; por enquanto só alerto.");
+        addText(container, "<:atencao:1561916202597621841> Eu preciso da permissão **Expulsar Membros** para aplicar essa ação; por enquanto só alerto.");
     }
 
     addSep(container);
@@ -980,15 +980,15 @@ async function buildBackup(interaction) {
     const restoring = BackupManager.isRestoring(guild.id);
     const container = card(restoring ? ui.COLORS.warn : ui.COLORS.info);
 
-    addHeader(container, "💾", "Backup do servidor", "Guarda cargos, categorias, canais e permissões. Mensagens, membros e configurações da Nina não entram.");
+    addHeader(container, "<:OtherSave:1564767705561567372>", "Backup do servidor", "Guarda cargos, categorias, canais e permissões. Mensagens, membros e configurações da Nina não entram.");
 
     addText(container, restoring
-        ? "♻️ **Restauração em andamento…**"
+        ? "<a:ui_torefresh:1560327155819225178> **Restauração em andamento…**"
         : `**${backups.length}** de ${ServerToolsRepository.MAX_BACKUPS_PER_GUILD} backups salvos\n-# Os mais antigos são removidos automaticamente.`);
 
     addRow(
         container,
-        actionButton("config_backup:create", "Criar backup agora", "💾", ButtonStyle.Success).setDisabled(restoring)
+        actionButton("config_backup:create", "Criar backup agora", "<:OtherSave:1564767705561567372>", ButtonStyle.Success).setDisabled(restoring)
     );
 
     addSep(container);
@@ -1023,14 +1023,14 @@ async function buildWeeklyReport(interaction) {
     const active = !!(config.enabled && config.channel_id);
     const container = card(stateColor(active));
 
-    addHeader(container, "📊", "Relatório semanal", "Resumo automático de atividade e moderação enviado à equipe.");
+    addHeader(container, "<:stats:1562187543653388391>", "Relatório semanal", "Resumo automático de atividade e moderação enviado à equipe.");
 
     addText(container, `${ui.dot(active)} **${active ? "Relatório ativo" : "Relatório desativado"}**\n-# ${config.channel_id ? "Enviado às 9h (horário de Brasília)." : "Escolha o canal da equipe para poder ativar."}`);
 
     addRow(
         container,
         toggleButton("config_report:enabled", active, "Sistema"),
-        actionButton("config_report:send", "Enviar agora", "📨", ButtonStyle.Primary).setDisabled(!config.channel_id)
+        actionButton("config_report:send", "Enviar agora", "<:ui_send:1560327089993810011>", ButtonStyle.Primary).setDisabled(!config.channel_id)
     );
 
     addSep(container);
