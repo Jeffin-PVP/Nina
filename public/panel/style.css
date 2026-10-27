@@ -1293,3 +1293,15 @@ button:active { transform: translateY(1px); }
 .analytics-legend-dot.joins-dot { background: #4ade80; }
 .analytics-legend-dot.leaves-dot { background: #fb7185; }
 @media (max-width: 600px) { .analytics-svg-chart { min-height: 160px; } }
+
+/* Analytics: deltas, insights, horários */
+.stat-delta { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 99px; background: var(--panel3); color: var(--muted); vertical-align: middle; }
+.stat-delta.up { color: #4ade80; background: rgba(74, 222, 128, .12); }
+.stat-delta.down { color: #fb7185; background: rgba(251, 113, 133, .12); }
+.analytics-insights { display: flex; flex-direction: column; gap: 8px; }
+.analytics-insight { padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--line); background: var(--panel2); font-size: 14px; }
+.analytics-insight.good { border-left-color: #4ade80; }
+.analytics-insight.warn { border-left-color: #fbbf24; }
+.analytics-insight.info { border-left-color: #9b8cff; }
+.analytics-hour-bar { fill: #9b8cff; opacity: .85; }
+.analytics-hour-bar.peak { fill: #f569ff; opacity: 1; }

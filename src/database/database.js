@@ -275,6 +275,23 @@ const statements = [
         PRIMARY KEY (guild_id, user_id)
     )`,
 
+    `CREATE TABLE IF NOT EXISTS analytics_hourly (
+        guild_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        hour INTEGER NOT NULL,
+        messages INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, date, hour)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS analytics_voice_channel_daily (
+        guild_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        channel_name TEXT NOT NULL DEFAULT '',
+        voice_seconds INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, date, channel_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS broadcasts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NULL,
@@ -504,7 +521,9 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_analytics_daily_date ON analytics_daily (guild_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_channel_date ON analytics_channel_daily (guild_id, date)`,
     `CREATE INDEX IF NOT EXISTS idx_analytics_user_date ON analytics_user_daily (guild_id, date)`,
-    `CREATE INDEX IF NOT EXISTS idx_analytics_voice_started ON analytics_voice_sessions (started_at)`
+    `CREATE INDEX IF NOT EXISTS idx_analytics_voice_started ON analytics_voice_sessions (started_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_hourly_date ON analytics_hourly (guild_id, date)`,
+    `CREATE INDEX IF NOT EXISTS idx_analytics_voicech_date ON analytics_voice_channel_daily (guild_id, date)`
 ];
 
 function migrateGuildSettingsSchema() {

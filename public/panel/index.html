@@ -812,10 +812,15 @@
                                 <option value="30">Últimos 30 dias</option>
                                 <option value="90">Últimos 90 dias</option>
                             </select>
+                            <button id="btn-analytics-export" class="btn secondary">Exportar CSV</button>
                             <button id="btn-analytics-refresh" class="btn secondary">Atualizar</button>
                         </div>
                     </div>
                     <div class="stats-grid mini" id="analytics-values"></div>
+                    <div class="panel" style="margin:16px 0">
+                        <div class="panel-head"><div><h3>Insights automáticos</h3><p>Leitura rápida dos dados comparados ao período anterior.</p></div></div>
+                        <div id="analytics-insights" class="analytics-insights"></div>
+                    </div>
                     <div class="analytics-chart-grid">
                         <div class="panel">
                             <div class="panel-head"><div><h3>Mensagens por dia</h3><p>Mensagens válidas observadas pela Nina.</p></div></div>
@@ -834,6 +839,26 @@
                         <div class="panel">
                             <div class="panel-head"><div><h3>Membros mais ativos</h3><p>Somente contagens; o conteúdo das mensagens não é salvo.</p></div></div>
                             <div id="analytics-top-members" class="analytics-ranking"></div>
+                        </div>
+                    </div>
+                    <div class="analytics-chart-grid">
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Horários de pico</h3><p>Mensagens por hora do dia (Brasília).</p></div></div>
+                            <div id="analytics-hours-chart"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Dias da semana</h3><p>Média de mensagens por dia.</p></div></div>
+                            <div id="analytics-weekdays" class="analytics-ranking"></div>
+                        </div>
+                    </div>
+                    <div class="analytics-chart-grid">
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Canais de voz</h3><p>Tempo total em call por canal.</p></div></div>
+                            <div id="analytics-top-voice-channels" class="analytics-ranking"></div>
+                        </div>
+                        <div class="panel">
+                            <div class="panel-head"><div><h3>Mais tempo em voz</h3><p>Membros com mais horas em call.</p></div></div>
+                            <div id="analytics-top-voice-members" class="analytics-ranking"></div>
                         </div>
                     </div>
                     <div class="notice">Os dados começam a ser coletados quando esta versão da Nina entra em funcionamento. O histórico anterior à instalação não pode ser reconstruído automaticamente.</div>

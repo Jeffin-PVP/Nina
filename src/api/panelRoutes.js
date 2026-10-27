@@ -333,6 +333,20 @@ module.exports = (client) => {
     });
 
     // Analytics agregado por servidor. O middleware requireGuildAccess já validou a sessão e o acesso.
+    router.get("/guilds/:guildId/analytics/export", async (req, res) => {
+        try {
+            const requestedDays = Number.parseInt(req.query.days, 10) || 30;
+            const days = [7, 14, 30, 90].includes(requestedDays) ? requestedDays : 30;
+            const csv = await AnalyticsRepository.exportCsv(req.painelGuild.id, days);
+            res.setHeader("Content-Type", "text/csv; charset=utf-8");
+            res.setHeader("Content-Disposition", `attachment; filename="analytics-${days}d.csv"`);
+            res.send("\uFEFF" + csv);
+        } catch (error) {
+            console.error("[Painel Analytics] Falha ao exportar:", error);
+            res.status(500).json({ error: "Não foi possível exportar o Analytics." });
+        }
+    });
+
     router.get("/guilds/:guildId/analytics", async (req, res) => {
         try {
             const requestedDays = Number.parseInt(req.query.days, 10) || 7;

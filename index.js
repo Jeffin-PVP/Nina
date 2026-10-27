@@ -269,6 +269,11 @@ client.once(
             console.error("[Analytics] Falha ao sincronizar sessões de voz existentes:", error);
         });
 
+        AnalyticsRepository.prune().catch(error => console.error("[Analytics] Falha ao limpar dados antigos:", error));
+        setInterval(() => {
+            AnalyticsRepository.prune().catch(error => console.error("[Analytics] Falha ao limpar dados antigos:", error));
+        }, 24 * 60 * 60 * 1000).unref?.();
+
         ServerStatsManager.start(client);
 
         GlobalBanManager.start().catch(error => {

@@ -20,7 +20,7 @@ module.exports = {
 
         // Analytics de voz: fecha a sessão anterior ao sair/trocar e abre a nova.
         if (oldState.channelId && oldState.channelId !== newState.channelId) {
-            await AnalyticsRepository.closeVoiceSession(oldState.guild.id, member.id).catch(error => {
+            await AnalyticsRepository.closeVoiceSession(oldState.guild.id, member.id, oldState.channel?.name).catch(error => {
                 console.error("[Analytics] Falha ao fechar sessão de voz:", error);
             });
         }
