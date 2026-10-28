@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const TempVoiceRepository = require("../../database/repositories/TempVoiceRepository");
 const ui = require("../../utils/ui");
 const TempVoiceManager = require("../../managers/TempVoiceManager");
@@ -38,7 +39,7 @@ async function execute(interaction) {
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,
-            emoji: "👥",
+            emoji: E("membros"),
             title: "Limite atualizado",
             description: value === 0
                 ? "A sala agora está sem limite."

@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -31,11 +32,6 @@ const RecordingApi = require("../services/RecordingService");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
 const SecurityManager = require("./SecurityManager");
 const LockdownManager = require("./LockdownManager");
-const ServerToolsRepository = require("../database/repositories/ServerToolsRepository");
-const VerificationManager = require("./VerificationManager");
-const AccountFilterManager = require("./AccountFilterManager");
-const WeeklyReportManager = require("./WeeklyReportManager");
-const BackupManager = require("./BackupManager");
 const { CATEGORIES } = require("./LogCategories");
 
 /*
@@ -52,27 +48,19 @@ abaixo disso (a maior usa ~30 componentes).
 */
 
 const CATEGORY_OPTIONS = [
-    { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: "<:config:1562187516625555496>" },
-    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: "<:ui_bot:1560326748313493546>" },
-    { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: "<:escudo:1562187519150395393>" },
-    { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: "<:aceno:1562187509490778162>" },
-    { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: "<:ticket:1562187545914380319>" },
-    { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: "<:logs:1562187526272192622>" },
-    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: "<:cargo:1562189000544882808>" },
-    { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: "<:stats:1562187543653388391>" },
-    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: "<:nuclear:1562187533721272451>" },
-    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: "<:voz:1562187549932388383>" },
-    { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: "<:ui_mic:1560326973673316403>" },
-    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: "<:lock:1561418439879565404>" },
-    { value: "verification", label: "Verificação de entrada", description: "Libera o servidor só após o membro confirmar", emoji: "<:ui_check:1560326782610047098>" },
-    { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: "<:clock:1561426917717053530>" },
-    { value: "backup", label: "Backup", description: "Cargos, canais e permissões do servidor", emoji: "<:OtherSave:1564767705561567372>" },
-    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: "<:stats:1562187543653388391>" }
+    { value: "general", label: "Geral", description: "Economia, moderação e níveis", emoji: E("config") },
+    { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: E("ui_bot") },
+    { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: E("escudo") },
+    { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: E("aceno") },
+    { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: E("ticket") },
+    { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: E("logs") },
+    { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: E("cargo") },
+    { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: E("stats") },
+    { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: E("nuclear") },
+    { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: E("voz") },
+    { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: E("ui_mic") },
+    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: E("lock") }
 ];
-
-// Opções dos menus das ferramentas (também usadas pelo handler para validar a escolha).
-const FILTER_DAY_OPTIONS = [1, 3, 7, 14, 30, 60, 90];
-const VERIFICATION_MODES = { button: "Botão (um clique)", captcha: "Pergunta (captcha simples)" };
 
 const NOT_SET = "*Não configurado*";
 
@@ -113,7 +101,7 @@ function toggleButton(id, enabled, label = "") {
     return new ButtonBuilder()
         .setCustomId(id)
         .setLabel(label ? `${label}: ${enabled ? "ON" : "OFF"}` : (enabled ? "ON" : "OFF"))
-        .setEmoji(enabled ? "<:botao_on:1557820524305064056>" : "<:botao_off:1557820521088024696>")
+        .setEmoji(enabled ? E("botao_on") : E("botao_off"))
         .setStyle(enabled ? ButtonStyle.Success : ButtonStyle.Danger);
 }
 
@@ -131,8 +119,8 @@ function addToggle(container, { id, title, description, enabled }) {
 function navButtons(extra = []) {
     return [
         ...extra,
-        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji("<:ui_arrowl:1560326702721146890>").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("<:ui_cancel:1560326759059030188>️").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji(E("ui_arrowl")).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Danger)
     ];
 }
 
@@ -172,7 +160,7 @@ const roleMention = id => id ? `<@&${id}>` : NOT_SET;
 
 async function buildHome(interaction) {
     const guildId = interaction.guild.id;
-    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec, verification, accountFilter, weeklyReport, backups] = await Promise.all([
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec] = await Promise.all([
         GuildRepository.getSettings(guildId),
         AutomodRepository.get(guildId),
         WelcomeRepository.get(guildId),
@@ -182,36 +170,28 @@ async function buildHome(interaction) {
         LockdownManager.getConfig(guildId),
         TempVoiceRepository.get(guildId),
         SecurityRepository.get(guildId),
-        VoiceRecordingRepository.get(guildId),
-        ServerToolsRepository.getConfig(VerificationManager.TABLE, guildId),
-        ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guildId),
-        ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guildId),
-        ServerToolsRepository.listBackups(guildId)
+        VoiceRecordingRepository.get(guildId)
     ]);
 
     const groups = [
-        ["<:shield:1561427396719284334> Proteção", [
+        [`${E("shield")} Proteção`, [
             ["AutoMod", automod.enabled],
             ["Anti-Nuke", antinuke.enabled],
             ["Lockdown", lockdown.enabled],
-            ["Verificação", verification.enabled && verification.role_id],
-            ["Contas novas", accountFilter.enabled],
             ["Moderação", settings.moderation_enabled],
             ["TopicGuard", security.topic_enabled],
             ["Honeypot", security.honeypot_enabled || security.behavior_enabled]
         ]],
-        ["<:ui_users:1560327175826313336> Comunidade", [
+        [`${E("ui_users")} Comunidade`, [
             ["Boas-vindas", welcome.enabled],
             ["Tickets", TicketRepository.isConfigured(tickets)],
             ["Logs", !!settings.log_channel],
             ["Economia", settings.economy_enabled]
         ]],
-        ["<:ui_wrench:1560327206969024613> Utilidades", [
+        [`${E("ui_wrench")} Utilidades`, [
             ["Stats", stats.enabled],
             ["TempVoice", tempvoice.enabled],
-            ["Gravação de calls", voicerec.enabled],
-            ["Relatório semanal", weeklyReport.enabled && weeklyReport.channel_id],
-            ["Backup", backups.length > 0]
+            ["Gravação de calls", voicerec.enabled]
         ]]
     ];
 
@@ -220,7 +200,7 @@ async function buildHome(interaction) {
 
     const container = card(ui.COLORS.brand);
 
-    const title = `## <:ui_settings:1560327092078645258>  Painel da Nina\nConfigure **${interaction.guild.name}** sem decorar comandos.\n-# ${active} de ${all.length} sistemas ativos`;
+    const title = `## ${E("ui_settings")}  Painel da Nina\nConfigure **${interaction.guild.name}** sem decorar comandos.\n-# ${active} de ${all.length} sistemas ativos`;
     const icon = interaction.guild.iconURL({ size: 256 });
 
     if (icon) {
@@ -259,8 +239,8 @@ async function buildHome(interaction) {
     addSep(container);
     addRow(
         container,
-        new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji("<a:ui_torefresh:1560327155819225178>").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji("<:ui_cancel:1560326759059030188>️").setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji(E("ui_torefresh")).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Danger)
     );
 
     addText(container, "-# Requer a permissão Gerenciar Servidor · Os comandos antigos continuam disponíveis.");
@@ -272,14 +252,14 @@ async function buildGeneral(interaction) {
     const s = await GuildRepository.getSettings(interaction.guild.id);
     const container = card(ui.COLORS.info);
 
-    addHeader(container, "<:ui_settings:1560327092078645258>", "Configuração geral", "Ative ou desative os principais sistemas do servidor.");
+    addHeader(container, E("ui_settings"), "Configuração geral", "Ative ou desative os principais sistemas do servidor.");
 
-    addToggle(container, { id: "config_toggle:economy", title: `<:moneybag:1561484846159757513> Economia`, description: "Moedas, trabalho, loja e jogos de aposta.", enabled: !!s.economy_enabled });
-    addToggle(container, { id: "config_toggle:moderation", title: `<:shield:1561427396719284334> Moderação`, description: "Comandos de ban, kick, timeout e avisos.", enabled: !!s.moderation_enabled });
-    addToggle(container, { id: "config_toggle:levelup", title: `<:ui_up:1560327169148846100> Avisos de level-up`, description: "Mensagem quando um membro sobe de nível.", enabled: !!s.levelup_enabled });
+    addToggle(container, { id: "config_toggle:economy", title: `${E("moneybag")} Economia`, description: "Moedas, trabalho, loja e jogos de aposta.", enabled: !!s.economy_enabled });
+    addToggle(container, { id: "config_toggle:moderation", title: `${E("shield")} Moderação`, description: "Comandos de ban, kick, timeout e avisos.", enabled: !!s.moderation_enabled });
+    addToggle(container, { id: "config_toggle:levelup", title: `${E("ui_up")} Avisos de level-up`, description: "Mensagem quando um membro sobe de nível.", enabled: !!s.levelup_enabled });
 
     addSep(container);
-    addText(container, `**<:ui_logs:1560326969311232011> Canal de logs**\n${mention(s.log_channel)}`);
+    addText(container, `**${E("ui_logs")} Canal de logs**\n${mention(s.log_channel)}`);
 
     addNav(container);
     return finish(container);
@@ -289,19 +269,19 @@ async function buildAutomod(interaction) {
     const c = await AutomodRepository.get(interaction.guild.id);
     const container = card(c.enabled ? ui.COLORS.success : ui.COLORS.neutral);
 
-    addHeader(container, "<:shield:1561427396719284334>", "AutoMod", "Proteção automática contra spam, convites, menções, raid e outros abusos.");
+    addHeader(container, E("shield"), "AutoMod", "Proteção automática contra spam, convites, menções, raid e outros abusos.");
 
     addToggle(container, { id: "config_toggle:automod", title: "Sistema AutoMod", description: `Punição padrão: mute de ${c.mute_duration_minutes} minuto(s).`, enabled: !!c.enabled });
 
     addSep(container);
     addText(container, `**Regras**\n${dots([
-        ["<:chat:1562187513949454366> Spam", c.spam_enabled],
-        ["<:mascaras:1562187528617066569> Emojis em excesso", c.emoji_enabled],
-        ["<:ui_textc:1560327137024544808> Palavrões", c.swear_enabled],
-        ["<:role:1562191435720163379> Menções em massa", c.mention_enabled],
-        ["<:ui_url:1560327173338824856> Convites", c.invite_enabled],
-        ["<:ui_invite:1560326931075833916> Anti-Raid", c.raid_enabled],
-        ["<:ui_thumbnail:1560327143806730240> Anti-Scam (imagens)", c.image_enabled]
+        [`${E("chat")} Spam`, c.spam_enabled],
+        [`${E("mascaras")} Emojis em excesso`, c.emoji_enabled],
+        [`${E("ui_textc")} Palavrões`, c.swear_enabled],
+        [`${E("role")} Menções em massa`, c.mention_enabled],
+        [`${E("ui_url")} Convites`, c.invite_enabled],
+        [`${E("ui_invite")} Anti-Raid`, c.raid_enabled],
+        [`${E("ui_thumbnail")} Anti-Scam (imagens)`, c.image_enabled]
     ])}`);
 
     addRow(
@@ -322,9 +302,9 @@ async function buildAutomod(interaction) {
     addText(container, "**Limites e ajustes**");
     addRow(
         container,
-        actionButton("config_modal:automod_spam", "Spam", "<:ui_content:1560326801673420922>"),
-        actionButton("config_modal:automod_raid", "Raid", "<:ui_invite:1560326931075833916>"),
-        actionButton("config_modal:automod_image", "Anti-Scam", "<:ui_thumbnail:1560327143806730240>")
+        actionButton("config_modal:automod_spam", "Spam", E("ui_content")),
+        actionButton("config_modal:automod_raid", "Raid", E("ui_invite")),
+        actionButton("config_modal:automod_image", "Anti-Scam", E("ui_thumbnail"))
     );
 
     addNav(container);
@@ -338,21 +318,21 @@ async function buildSecurity(interaction) {
         SecurityRepository.listRules(guildId)
     ]);
     const container = card(c.topic_enabled || c.honeypot_enabled || c.behavior_enabled ? ui.COLORS.success : ui.COLORS.neutral);
-    addHeader(container, "<:shield:1561427396719284334>", "Security Center", "TopicGuard, Honeypot e sinais comportamentais.");
+    addHeader(container, E("shield"), "Security Center", "TopicGuard, Honeypot e sinais comportamentais.");
 
     addToggle(container, { id: "config_toggle:topicguard", title: "TopicGuard", description: `${rules.length} regra(s) cadastrada(s). Detecta assuntos proibidos por canal.`, enabled: !!c.topic_enabled });
     addToggle(container, { id: "config_toggle:security_context", title: "Análise contextual por IA", description: "Opcional; só analisa mensagens que correspondem a palavras de regras. Se falhar, não apaga a mensagem.", enabled: !!c.contextual_enabled });
     addToggle(container, { id: "config_toggle:security_warn", title: "Advertência por violação", description: "Registra uma advertência no sistema de avisos da Nina após uma remoção confirmada.", enabled: !!c.topic_warn_enabled });
     addToggle(container, { id: "config_toggle:security_timeout", title: "Timeout por violação", description: `Opcional e mais severo; duração atual: ${c.topic_timeout_minutes} minuto(s).`, enabled: !!c.topic_timeout_enabled });
-    addRow(container, actionButton("config_modal:security_timeout", "Duração do timeout", "<:ui_timedout:1560327148315615234>"));
+    addRow(container, actionButton("config_modal:security_timeout", "Duração do timeout", E("ui_timedout")));
     addToggle(container, { id: "config_toggle:security_behavior", title: "Sinais comportamentais", description: "Detecta padrões repetitivos e envia alertas para revisão humana; não pune automaticamente.", enabled: !!c.behavior_enabled });
 
     addSep(container);
     addText(container, `**Regras TopicGuard**\n${rules.length} regra(s) cadastrada(s). Gerencie as palavras e os canais em uma tela separada para manter este painel dentro do limite de componentes do Discord.`);
     addText(container, `**Honeypot** ${ui.dot(!!c.honeypot_enabled)}\n${c.honeypot_enabled && c.honeypot_channel_id ? `Canal-isca: <#${c.honeypot_channel_id}> • Ação: **${SecurityManager.HONEYPOT_ACTION_LABELS[c.honeypot_action] || "Banimento"}**` : "Canal-isca que pune automaticamente quem enviar mensagem nele."}`);
     addRow(container,
-        actionButton("config_security:rules", "Gerenciar regras", "<:ui_content:1560326801673420922>", ButtonStyle.Primary),
-        actionButton("config_security:honeypot", "Configurar Honeypot", "<:shield:1561427396719284334>", ButtonStyle.Primary)
+        actionButton("config_security:rules", "Gerenciar regras", E("ui_content"), ButtonStyle.Primary),
+        actionButton("config_security:honeypot", "Configurar Honeypot", E("shield"), ButtonStyle.Primary)
     );
     addText(container, "-# A Nina ignora administradores e quem tem Gerenciar Servidor. Requer Gerenciar Servidor para configurar.");
     addNav(container);
@@ -360,16 +340,16 @@ async function buildSecurity(interaction) {
 }
 
 const HONEYPOT_ACTION_OPTIONS = [
-    { value: "ban", label: "Banimento", description: "Bane quem enviar mensagem no canal-isca", emoji: "<:ui_hammer:1560326916345700407>" },
-    { value: "kick", label: "Expulsão", description: "Expulsa quem enviar mensagem no canal-isca", emoji: "<:ui_hammer:1560326916345700407>" },
-    { value: "timeout", label: "Timeout de 24h", description: "Silencia por 24 horas", emoji: "<:ui_timedout:1560327148315615234>" },
-    { value: "log", label: "Somente registrar", description: "Não pune; apenas alerta a moderação", emoji: "<:logs:1562187526272192622>" }
+    { value: "ban", label: "Banimento", description: "Bane quem enviar mensagem no canal-isca", emoji: E("ui_hammer") },
+    { value: "kick", label: "Expulsão", description: "Expulsa quem enviar mensagem no canal-isca", emoji: E("ui_hammer") },
+    { value: "timeout", label: "Timeout de 24h", description: "Silencia por 24 horas", emoji: E("ui_timedout") },
+    { value: "log", label: "Somente registrar", description: "Não pune; apenas alerta a moderação", emoji: E("logs") }
 ];
 
 async function buildHoneypot(interaction) {
     const c = await SecurityRepository.get(interaction.guild.id);
     const container = card(c.honeypot_enabled ? ui.COLORS.success : ui.COLORS.neutral);
-    addHeader(container, "<:shield:1561427396719284334>", "Honeypot", "Canal-isca para detectar contas automatizadas. Quem enviar mensagem nele sofre a ação programada.");
+    addHeader(container, E("shield"), "Honeypot", "Canal-isca para detectar contas automatizadas. Quem enviar mensagem nele sofre a ação programada.");
 
     addToggle(container, {
         id: "config_toggle:security_honeypot",
@@ -380,8 +360,8 @@ async function buildHoneypot(interaction) {
 
     const issues = c.honeypot_enabled ? SecurityManager.honeypotDiagnostics(interaction.guild, c) : [];
     addText(container, issues.length
-        ? `**<:atencao:1561916202597621841> Atenção**\n${issues.map(item => `• ${item}`).join("\n")}`
-        : `**Status**\n${c.honeypot_enabled ? "<:ui_check:1560326782610047098> Tudo certo: o aviso está publicado e as permissões estão corretas." : "Desligado."}`);
+        ? `**${E("atencao")} Atenção**\n${issues.map(item => `• ${item}`).join("\n")}`
+        : `**Status**\n${c.honeypot_enabled ? `${E("ui_check")} Tudo certo: o aviso está publicado e as permissões estão corretas.` : "Desligado."}`);
     addSep(container);
 
     addText(container, `**Canal-isca**\n${mention(c.honeypot_channel_id)}\n-# Deve ser visível e liberado para @everyone. Ao escolher, a Nina publica o aviso no canal.`);
@@ -396,15 +376,15 @@ async function buildHoneypot(interaction) {
     addText(container, `**Canal de alertas**\n${mention(c.alert_channel_id)}\n-# Se não definido, usa o canal de logs.`);
     addRow(container, channelSelect("config_channel:security_alert", "Escolher canal de alertas", ChannelType.GuildText));
 
-    addRow(container, actionButton("config_security:notice", "Reenviar aviso", "<:ui_send:1560327089993810011>", ButtonStyle.Primary));
-    addNav(container, [actionButton("config_security:back", "Security Center", "<:shield:1561427396719284334>")]);
+    addRow(container, actionButton("config_security:notice", "Reenviar aviso", E("ui_send"), ButtonStyle.Primary));
+    addNav(container, [actionButton("config_security:back", "Security Center", E("shield"))]);
     return finish(container);
 }
 
 async function buildSecurityRules(interaction) {
     const rules = await SecurityRepository.listRules(interaction.guild.id);
     const container = card(rules.length ? ui.COLORS.info : ui.COLORS.neutral);
-    addHeader(container, "<:ui_content:1560326801673420922>", "TopicGuard • Regras", "Palavras-chave monitoradas por canal. Revise cada regra antes de ativar o sistema.");
+    addHeader(container, E("ui_content"), "TopicGuard • Regras", "Palavras-chave monitoradas por canal. Revise cada regra antes de ativar o sistema.");
 
     if (rules.length) {
         addText(container, rules.slice(0, 8).map(r => `• **#${r.id} · ${ui.clip(r.topic, 80)}** — <#${r.channel_id}>\n  -# ${r.keywords.join(", ")}`).join("\n"));
@@ -414,10 +394,10 @@ async function buildSecurityRules(interaction) {
     }
 
     addRow(container,
-        actionButton("config_modal:security_rule", "Adicionar regra", "<:ui_plus:1560327041839009854>", ButtonStyle.Primary),
-        actionButton("config_modal:security_remove_rule", "Remover regra", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger)
+        actionButton("config_modal:security_rule", "Adicionar regra", E("ui_plus"), ButtonStyle.Primary),
+        actionButton("config_modal:security_remove_rule", "Remover regra", E("ui_trashcan"), ButtonStyle.Danger)
     );
-    addNav(container, [actionButton("config_security:back", "Voltar ao Security Center", "<:shield:1561427396719284334>")]);
+    addNav(container, [actionButton("config_security:back", "Voltar ao Security Center", E("shield"))]);
     return finish(container);
 }
 
@@ -425,7 +405,7 @@ async function buildWelcome(interaction) {
     const c = await WelcomeRepository.get(interaction.guild.id);
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "<:aceno:1562187509490778162>", "Boas-vindas", "Cartão e mensagem enviados quando alguém entra no servidor.");
+    addHeader(container, E("aceno"), "Boas-vindas", "Cartão e mensagem enviados quando alguém entra no servidor.");
 
     addToggle(container, { id: "config_toggle:welcome", title: "Sistema de boas-vindas", description: c.channel_id ? `Enviando em <#${c.channel_id}>` : "Escolha um canal abaixo para começar.", enabled: !!c.enabled });
 
@@ -442,10 +422,10 @@ async function buildWelcome(interaction) {
 
     addRow(
         container,
-        actionButton("config_modal:welcome_text", "Textos", "<:ui_content:1560326801673420922>"),
-        actionButton("config_modal:welcome_background", "Fundo", "<:ui_thumbnail:1560327143806730240>"),
-        actionButton("config_clear:welcome_background", "Remover fundo", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger),
-        actionButton("config_welcome_test", "Testar", "<:ui_flask:1560326880945512659>")
+        actionButton("config_modal:welcome_text", "Textos", E("ui_content")),
+        actionButton("config_modal:welcome_background", "Fundo", E("ui_thumbnail")),
+        actionButton("config_clear:welcome_background", "Remover fundo", E("ui_trashcan"), ButtonStyle.Danger),
+        actionButton("config_welcome_test", "Testar", E("ui_flask"))
     );
 
     addNav(container);
@@ -475,10 +455,10 @@ async function buildTickets(interaction) {
     addSep(container);
     if (mode === "channel") {
         const category = TicketManager.resolveCategory(interaction.guild, c);
-        addText(container, `**<:ui_textc:1560327137024544808> Categoria dos tickets**\n${category ? `**${category.name}**` : "*não definida*"}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+        addText(container, `**${E("ui_textc")} Categoria dos tickets**\n${category ? `**${category.name}**` : "*não definida*"}\n\n**${E("user")} Cargo de suporte**\n${roleMention(c.support_role_id)}`);
         addRow(container, channelSelect("config_channel:tickets_category", "Escolher categoria dos tickets", ChannelType.GuildCategory));
     } else {
-        addText(container, `**<:ui_textc:1560327137024544808> Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**<:user:1561426447414071406> Cargo de suporte**\n${roleMention(c.support_role_id)}`);
+        addText(container, `**${E("ui_textc")} Canal dos tickets**\n${mention(c.parent_channel_id)}\n\n**${E("user")} Cargo de suporte**\n${roleMention(c.support_role_id)}`);
         addRow(container, channelSelect("config_channel:tickets", "Escolher canal dos tickets", ChannelType.GuildText));
     }
     addRow(container, roleSelect("config_role:tickets", "Escolher cargo de suporte"));
@@ -496,9 +476,9 @@ async function buildLogs(interaction) {
     ]);
     const container = card(s.log_channel ? ui.COLORS.success : ui.COLORS.neutral);
 
-    addHeader(container, "<:ui_logs:1560326969311232011>", "Logs", "Escolha o canal e quais eventos a Nina deve registrar.");
+    addHeader(container, E("ui_logs"), "Logs", "Escolha o canal e quais eventos a Nina deve registrar.");
 
-    addText(container, `**<:ui_textc:1560327137024544808> Canal de logs**\n${mention(s.log_channel)}`);
+    addText(container, `**${E("ui_textc")} Canal de logs**\n${mention(s.log_channel)}`);
     addRow(container, channelSelect("config_channel:logs", "Escolher canal de logs", ChannelType.GuildText));
 
     addSep(container);
@@ -518,7 +498,7 @@ async function buildLogs(interaction) {
     );
 
     addSep(container);
-    addToggle(container, { id: "config_logs:stats", title: `<:ui_chart:1560326780693250089> Logs dos Stats`, description: "Registra a atualização dos canais de contadores.", enabled: statsLogsEnabled });
+    addToggle(container, { id: "config_logs:stats", title: `${E("ui_chart")} Logs dos Stats`, description: "Registra a atualização dos canais de contadores.", enabled: statsLogsEnabled });
 
     addNav(container);
     return finish(container);
@@ -534,13 +514,13 @@ async function buildAutorole(interaction) {
     ]);
     const container = card(ui.COLORS.info);
 
-    addHeader(container, "<:user:1561426447414071406>", "Autoroles", "Cargos automáticos, por botão, por reação e por nível.");
+    addHeader(container, E("user"), "Autoroles", "Cargos automáticos, por botão, por reação e por nível.");
 
     addText(container, [
-        `<:ui_invite:1560326931075833916> **Entrada:** ${join.length}`,
-        `<:cargo:1562189000544882808> **Self-roles:** ${self.length}`,
-        `<:ui_buttonclick:1560326757209473076> **Reações:** ${reactions.length}`,
-        `<:trophy:1561479467971387422> **Níveis:** ${level.length}`
+        `${E("ui_invite")} **Entrada:** ${join.length}`,
+        `${E("cargo")} **Self-roles:** ${self.length}`,
+        `${E("ui_buttonclick")} **Reações:** ${reactions.length}`,
+        `${E("trophy")} **Níveis:** ${level.length}`
     ].join("  ·  "));
 
     if (self.length) {
@@ -559,15 +539,15 @@ async function buildAutorole(interaction) {
 
     addRow(
         container,
-        actionButton("config_modal:autorole_selfrole", "Self-role", "<:user:1561426447414071406>"),
-        actionButton("config_modal:autorole_level", "Por nível", "<:trophy:1561479467971387422>"),
-        actionButton("config_modal:autorole_reaction", "Por reação", "<:ui_buttonclick:1560326757209473076>")
+        actionButton("config_modal:autorole_selfrole", "Self-role", E("user")),
+        actionButton("config_modal:autorole_level", "Por nível", E("trophy")),
+        actionButton("config_modal:autorole_reaction", "Por reação", E("ui_buttonclick"))
     );
     addRow(
         container,
-        actionButton("config_autorole:publish", "Publicar painel aqui", "<:ui_send:1560327089993810011>", ButtonStyle.Primary),
-        actionButton("config_modal:autorole_reaction_remove", "Remover reação", "<:ui_trashcan:1560327162979029023>", ButtonStyle.Danger),
-        actionButton("config_modal:autorole_note", "Ajuda", "<:info:1561478835877453945>")
+        actionButton("config_autorole:publish", "Publicar painel aqui", E("ui_send"), ButtonStyle.Primary),
+        actionButton("config_modal:autorole_reaction_remove", "Remover reação", E("ui_trashcan"), ButtonStyle.Danger),
+        actionButton("config_modal:autorole_note", "Ajuda", E("info"))
     );
 
     if (self.length) {
@@ -606,25 +586,25 @@ async function buildLockdown(interaction) {
     addHeader(
         container,
         config.active ? "lock" : "unlock",
-        "<:lock:1561418439879565404>",
+        E("lock"),
         "Tranque canais e categorias rapidamente. Administradores continuam com acesso pelo bypass do Discord."
     );
 
-    addText(container, `${config.active ? "<:botao_off:1557820521088024696> **LOCKDOWN ATIVO**" : "<:botao_on:1557820524305064056> **Lockdown inativo**"}\n-# Sistema ${config.enabled ? "ativado" : "desativado"}`);
+    addText(container, `${config.active ? `${E("botao_off")} **LOCKDOWN ATIVO**` : `${E("botao_on")} **Lockdown inativo**`}\n-# Sistema ${config.enabled ? "ativado" : "desativado"}`);
 
     addRow(
         container,
         toggleButton("config_lockdown:enabled", config.enabled, "Sistema"),
-        actionButton("config_lockdown:lock", "Trancar", "<:lock:1561418439879565404>", ButtonStyle.Danger).setDisabled(!config.enabled || config.active),
-        actionButton("config_lockdown:unlock", "Destrancar", "<:unlock:1561421260372582490>", ButtonStyle.Success).setDisabled(!config.active)
+        actionButton("config_lockdown:lock", "Trancar", E("lock"), ButtonStyle.Danger).setDisabled(!config.enabled || config.active),
+        actionButton("config_lockdown:unlock", "Destrancar", E("unlock"), ButtonStyle.Success).setDisabled(!config.active)
     );
 
     addSep(container);
     addText(container, [
-        `**<:ui_textc:1560327137024544808> Canais**\n${list(config.channel_ids)}`,
-        `**<:ui_dir:1560326823894712370> Categorias**\n${list(config.category_ids)}`,
-        `**<:ui_check:1560326782610047098> Acesso permitido**\n${roleList(config.allowed_role_ids)}`,
-        `**<:ui_dnd:1560326836230295663> Acesso negado**\n${roleList(config.denied_role_ids)}`
+        `**${E("ui_textc")} Canais**\n${list(config.channel_ids)}`,
+        `**${E("ui_dir")} Categorias**\n${list(config.category_ids)}`,
+        `**${E("ui_check")} Acesso permitido**\n${roleList(config.allowed_role_ids)}`,
+        `**${E("ui_dnd")} Acesso negado**\n${roleList(config.denied_role_ids)}`
     ].join("\n\n"));
     addText(container, "-# Não use o mesmo cargo nas duas listas. Se um membro tiver cargos das duas listas, o Discord prioriza a permissão permitida.");
 
@@ -688,7 +668,7 @@ async function buildStats(interaction) {
         );
     }
 
-    addNav(container, [actionButton("config_stats:update", "Atualizar agora", "<a:ui_torefresh:1560327155819225178>")]);
+    addNav(container, [actionButton("config_stats:update", "Atualizar agora", E("ui_torefresh"))]);
     return finish(container);
 }
 
@@ -696,20 +676,20 @@ async function buildAntiNuke(interaction) {
     const c = await AntiNukeRepository.get(interaction.guild.id);
     const container = card(c.enabled ? ui.COLORS.error : ui.COLORS.neutral);
 
-    addHeader(container, "<:nuclear:1562187533721272451>", "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
+    addHeader(container, E("nuclear"), "Anti-Nuke", "Detecta e bloqueia ações destrutivas em massa.");
 
     addToggle(container, { id: "config_antinuke:enabled", title: "Proteção Anti-Nuke", description: c.enabled ? "Proteção ativa." : "Proteção desativada.", enabled: !!c.enabled });
 
     addSep(container);
     addText(container, [
-        `<:clock:1561426917717053530> **Janela de detecção:** ${c.window_seconds}s`,
-        `<:ui_textc:1560327137024544808> **Canais:** ${c.channel_limit}`,
-        `<:cargo:1562189000544882808> **Cargos:** ${c.role_limit}`,
-        `<:ui_hammer:1560326916345700407> **Bans/Kicks:** ${c.member_limit}`,
-        `<:ui_settings:1560327092078645258> **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
+        `${E("clock")} **Janela de detecção:** ${c.window_seconds}s`,
+        `${E("ui_textc")} **Canais:** ${c.channel_limit}`,
+        `${E("cargo")} **Cargos:** ${c.role_limit}`,
+        `${E("ui_hammer")} **Bans/Kicks:** ${c.member_limit}`,
+        `${E("ui_settings")} **Ação:** ${c.action === "ban" ? "Banir + remover cargos" : "Remover cargos"}`
     ].join("\n"));
 
-    addRow(container, actionButton("config_modal:antinuke", "Configurar limites", "<:ui_settings:1560327092078645258>"));
+    addRow(container, actionButton("config_modal:antinuke", "Configurar limites", E("ui_settings")));
 
     addNav(container);
     return finish(container);
@@ -721,7 +701,7 @@ async function buildVoiceRec(interaction) {
     const apiReady = RecordingApi.isConfigured();
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "<:ui_mic:1560326973673316403>", "Gravação de calls", "Grave calls, transcreva com IA e controle quem pode gravar. Use /voicepanel dentro de um canal de voz.");
+    addHeader(container, E("ui_mic"), "Gravação de calls", "Grave calls, transcreva com IA e controle quem pode gravar. Use /voicepanel dentro de um canal de voz.");
 
     addToggle(container, {
         id: "config_voicerec:enabled",
@@ -793,7 +773,7 @@ async function buildTempVoice(interaction) {
 
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "<:ui_voicec:1560327180486058107>", "TempVoice", "Salas de voz temporárias criadas e removidas automaticamente.");
+    addHeader(container, E("ui_voicec"), "TempVoice", "Salas de voz temporárias criadas e removidas automaticamente.");
 
     addToggle(container, { id: "config_tempvoice:enabled", title: "Sistema TempVoice", description: `${rooms.length} sala(s) ativa(s) agora.`, enabled: !!c.enabled });
 
@@ -810,13 +790,13 @@ async function buildTempVoice(interaction) {
 
     addRow(
         container,
-        actionButton("config_tempvoice:autocreate", "Criar estrutura", "<:ui_wrench:1560327206969024613>", ButtonStyle.Primary),
-        actionButton("config_tempvoice:name", "Nome", "<:ui_title:1560327153088860200>"),
-        actionButton("config_tempvoice:limit", "Limite", "<:ui_users:1560327175826313336>"),
+        actionButton("config_tempvoice:autocreate", "Criar estrutura", E("ui_wrench"), ButtonStyle.Primary),
+        actionButton("config_tempvoice:name", "Nome", E("ui_title")),
+        actionButton("config_tempvoice:limit", "Limite", E("ui_users")),
         toggleButton("config_tempvoice:autolock", !!c.auto_lock, "Auto-lock")
     );
 
-    addNav(container, [actionButton("config_tempvoice:permissions_page", "Permissões", "<:shield:1561427396719284334>")]);
+    addNav(container, [actionButton("config_tempvoice:permissions_page", "Permissões", E("shield"))]);
     return finish(container);
 }
 
@@ -825,7 +805,7 @@ async function buildTempVoicePermissions(interaction) {
     const managerRole = c.manager_role_id ? interaction.guild.roles.cache.get(c.manager_role_id) : null;
     const container = card(stateColor(c.enabled));
 
-    addHeader(container, "<:shield:1561427396719284334>", "TempVoice • Permissões", "Quem administra as salas e o que o dono da sala pode fazer.");
+    addHeader(container, E("shield"), "TempVoice • Permissões", "Quem administra as salas e o que o dono da sala pode fazer.");
 
     addToggle(container, { id: "config_tempvoice:admin", title: "Admins/Moderação gerenciam salas", description: managerRole ? `Cargo de gerenciamento: <@&${managerRole.id}>` : "Nenhum cargo de gerenciamento definido.", enabled: !!c.admin_manage });
 
@@ -843,219 +823,16 @@ async function buildTempVoicePermissions(interaction) {
     addRow(container, roleSelect("config_tempvoice:role", "Cargo que pode gerenciar salas"));
     addRow(
         container,
-        actionButton("config_tempvoice:permissions", "Permissões do dono", "<:lock:1561418439879565404>"),
-        actionButton("config_tempvoice:permissions2", "Mais permissões", "<:ui_wrench:1560327206969024613>")
+        actionButton("config_tempvoice:permissions", "Permissões do dono", E("lock")),
+        actionButton("config_tempvoice:permissions2", "Mais permissões", E("ui_wrench"))
     );
 
     addSep(container);
     addRow(
         container,
-        actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", "<:ui_arrowl:1560326702721146890>"),
-        actionButton("config_close", "Fechar", "<:ui_cancel:1560326759059030188>️", ButtonStyle.Danger)
+        actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", E("ui_arrowl")),
+        actionButton("config_close", "Fechar", `${E("ui_cancel")}️`, ButtonStyle.Danger)
     );
-    return finish(container);
-}
-
-/*
-=========================
-    FERRAMENTAS DO SERVIDOR
-    (verificação, contas novas, backup e relatório semanal)
-=========================
-*/
-
-const channelDefaults = (guild, id) => id && guild.channels.cache.has(id) ? [id] : [];
-const roleDefaults = (guild, id) => id && guild.roles.cache.has(id) ? [id] : [];
-
-async function buildVerification(interaction) {
-    const guild = interaction.guild;
-    const config = await ServerToolsRepository.getConfig(VerificationManager.TABLE, guild.id);
-    const active = !!(config.enabled && config.role_id);
-    const container = card(stateColor(active));
-
-    addHeader(container, "<:ui_checkbook:1560326784845746276>", "Verificação de entrada", "O membro só libera o acesso ao servidor depois de confirmar.");
-
-    addText(container, `${ui.dot(active)} **${active ? "Verificação ativa" : "Verificação desativada"}**\n-# ${config.role_id ? "Cargo de verificado definido." : "Escolha o cargo de verificado para poder ativar."}`);
-
-    addRow(
-        container,
-        toggleButton("config_verif:enabled", active, "Sistema"),
-        actionButton("config_verif:panel", "Enviar painel", "<:ui_send:1560327089993810011>", ButtonStyle.Primary).setDisabled(!config.role_id || !config.channel_id)
-    );
-
-    addSep(container);
-    addText(container, [
-        `**Modo**\n${VERIFICATION_MODES[config.mode] || VERIFICATION_MODES.button}`,
-        `**Cargo de verificado**\n${roleMention(config.role_id)}`,
-        `**Cargo de não verificado**\n${config.unverified_role_id ? roleMention(config.unverified_role_id) : "*Não usado*"}`,
-        `**Canal do painel**\n${mention(config.channel_id)}${config.message_id ? "" : config.channel_id ? " · *painel ainda não enviado*" : ""}`
-    ].join("\n\n"));
-    addText(container, "-# Para ter efeito, esconda os canais do @everyone e libere-os só para o cargo de verificado (ou deixe visível apenas o canal do painel).");
-
-    addSep(container);
-    addRow(
-        container,
-        new StringSelectMenuBuilder()
-            .setCustomId("config_sel:verif_mode")
-            .setPlaceholder("Modo de verificação")
-            .addOptions(Object.entries(VERIFICATION_MODES).map(([value, label]) => ({ value, label, default: config.mode === value })))
-    );
-    addRow(
-        container,
-        roleSelect("config_role:verif_role", "Cargo entregue a quem se verificar")
-            .setDefaultRoles(...roleDefaults(guild, config.role_id))
-            .setMinValues(1).setMaxValues(1)
-    );
-    addRow(
-        container,
-        roleSelect("config_role:verif_unverified", "Cargo de não verificado (opcional)")
-            .setDefaultRoles(...roleDefaults(guild, config.unverified_role_id))
-            .setMinValues(0).setMaxValues(1)
-    );
-    addRow(
-        container,
-        channelSelect("config_channel:verif_channel", "Canal do painel de verificação", ChannelType.GuildText)
-            .setDefaultChannels(...channelDefaults(guild, config.channel_id))
-            .setMinValues(1).setMaxValues(1)
-    );
-
-    addNav(container);
-    return finish(container);
-}
-
-async function buildAccountFilter(interaction) {
-    const guild = interaction.guild;
-    const config = await ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guild.id);
-    const container = card(stateColor(config.enabled));
-    const days = Number(config.min_age_days) || 7;
-
-    addHeader(container, "<:clock:1561426917717053530>", "Contas novas", "Trata contas recém-criadas que tentam entrar no servidor.");
-
-    addText(container, `${ui.dot(config.enabled)} **${config.enabled ? "Filtro ativo" : "Filtro desativado"}**\n-# Contas com menos de ${days} dia(s) → ${AccountFilterManager.ACTIONS[config.action] || config.action}`);
-
-    addRow(container, toggleButton("config_filter:enabled", config.enabled, "Sistema"));
-
-    addSep(container);
-    addText(container, [
-        `**Idade mínima**\n${days} dia(s)`,
-        `**Ação**\n${AccountFilterManager.ACTIONS[config.action] || config.action}`,
-        `**Canal de alertas**\n${mention(config.alert_channel_id)}`
-    ].join("\n\n"));
-
-    const me = guild.members.me;
-    if (config.action === "timeout" && !me?.permissions.has("ModerateMembers")) {
-        addText(container, "<:atencao:1561916202597621841> Eu preciso da permissão **Castigar Membros** para aplicar essa ação; por enquanto só alerto.");
-    } else if (config.action === "kick" && !me?.permissions.has("KickMembers")) {
-        addText(container, "<:atencao:1561916202597621841> Eu preciso da permissão **Expulsar Membros** para aplicar essa ação; por enquanto só alerto.");
-    }
-
-    addSep(container);
-    addRow(
-        container,
-        new StringSelectMenuBuilder()
-            .setCustomId("config_sel:filter_days")
-            .setPlaceholder("Idade mínima da conta")
-            .addOptions(FILTER_DAY_OPTIONS.map(d => ({ value: String(d), label: `${d} dia${d > 1 ? "s" : ""}`, default: d === days })))
-    );
-    addRow(
-        container,
-        new StringSelectMenuBuilder()
-            .setCustomId("config_sel:filter_action")
-            .setPlaceholder("O que fazer com contas abaixo do mínimo")
-            .addOptions(Object.entries(AccountFilterManager.ACTIONS).map(([value, label]) => ({ value, label: label.slice(0, 100), default: config.action === value })))
-    );
-    addRow(
-        container,
-        channelSelect("config_channel:filter_alert", "Canal dos alertas (recomendado)", ChannelType.GuildText)
-            .setDefaultChannels(...channelDefaults(guild, config.alert_channel_id))
-            .setMinValues(0).setMaxValues(1)
-    );
-
-    addNav(container);
-    return finish(container);
-}
-
-async function buildBackup(interaction) {
-    const guild = interaction.guild;
-    const backups = await ServerToolsRepository.listBackups(guild.id);
-    const restoring = BackupManager.isRestoring(guild.id);
-    const container = card(restoring ? ui.COLORS.warn : ui.COLORS.info);
-
-    addHeader(container, "<:OtherSave:1564767705561567372>", "Backup do servidor", "Guarda cargos, categorias, canais e permissões. Mensagens, membros e configurações da Nina não entram.");
-
-    addText(container, restoring
-        ? "<a:ui_torefresh:1560327155819225178> **Restauração em andamento…**"
-        : `**${backups.length}** de ${ServerToolsRepository.MAX_BACKUPS_PER_GUILD} backups salvos\n-# Os mais antigos são removidos automaticamente.`);
-
-    addRow(
-        container,
-        actionButton("config_backup:create", "Criar backup agora", "<:OtherSave:1564767705561567372>", ButtonStyle.Success).setDisabled(restoring)
-    );
-
-    addSep(container);
-    const when = b => `<t:${Math.floor(new Date(b.created_at + "Z").getTime() / 1000)}:d>`;
-    addText(container, backups.length
-        ? backups.map(b => `**#${b.id}** · ${ui.clip(b.name, 40)} · ${when(b)} · ${(b.size / 1024).toFixed(0)} KB`).join("\n")
-        : "*Nenhum backup salvo ainda.*");
-    addText(container, "-# Criar, restaurar e excluir exigem a permissão Administrador. A restauração só recria o que está faltando (por nome): nada é apagado nem alterado.");
-
-    if (backups.length) {
-        addSep(container);
-        addRow(
-            container,
-            new StringSelectMenuBuilder()
-                .setCustomId("config_sel:backup_pick")
-                .setPlaceholder("Escolha um backup para restaurar ou excluir…")
-                .addOptions(backups.slice(0, 25).map(b => ({
-                    value: String(b.id),
-                    label: ui.clip(`#${b.id} · ${b.name}`, 100),
-                    description: new Date(b.created_at + "Z").toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }).slice(0, 100)
-                })))
-        );
-    }
-
-    addNav(container);
-    return finish(container);
-}
-
-async function buildWeeklyReport(interaction) {
-    const guild = interaction.guild;
-    const config = await ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guild.id);
-    const active = !!(config.enabled && config.channel_id);
-    const container = card(stateColor(active));
-
-    addHeader(container, "<:stats:1562187543653388391>", "Relatório semanal", "Resumo automático de atividade e moderação enviado à equipe.");
-
-    addText(container, `${ui.dot(active)} **${active ? "Relatório ativo" : "Relatório desativado"}**\n-# ${config.channel_id ? "Enviado às 9h (horário de Brasília)." : "Escolha o canal da equipe para poder ativar."}`);
-
-    addRow(
-        container,
-        toggleButton("config_report:enabled", active, "Sistema"),
-        actionButton("config_report:send", "Enviar agora", "<:ui_send:1560327089993810011>", ButtonStyle.Primary).setDisabled(!config.channel_id)
-    );
-
-    addSep(container);
-    addText(container, [
-        `**Canal**\n${mention(config.channel_id)}`,
-        `**Dia do envio**\n${WeeklyReportManager.DAYS[config.day] || WeeklyReportManager.DAYS[1]}, 9h (Brasília)`,
-        `**Último envio**\n${config.last_sent || "*Nunca*"}`
-    ].join("\n\n"));
-
-    addSep(container);
-    addRow(
-        container,
-        new StringSelectMenuBuilder()
-            .setCustomId("config_sel:report_day")
-            .setPlaceholder("Dia da semana do envio")
-            .addOptions(WeeklyReportManager.DAYS.map((label, value) => ({ value: String(value), label, default: Number(config.day) === value })))
-    );
-    addRow(
-        container,
-        channelSelect("config_channel:report_channel", "Canal onde o relatório será enviado", ChannelType.GuildText)
-            .setDefaultChannels(...channelDefaults(guild, config.channel_id))
-            .setMinValues(1).setMaxValues(1)
-    );
-
-    addNav(container);
     return finish(container);
 }
 
@@ -1071,10 +848,6 @@ async function build(interaction, category) {
         case "logs": return buildLogs(interaction);
         case "autorole": return buildAutorole(interaction);
         case "lockdown": return buildLockdown(interaction);
-        case "verification": return buildVerification(interaction);
-        case "accountfilter": return buildAccountFilter(interaction);
-        case "backup": return buildBackup(interaction);
-        case "weeklyreport": return buildWeeklyReport(interaction);
         case "stats": return buildStats(interaction);
         case "antinuke": return buildAntiNuke(interaction);
         case "voicerec": return buildVoiceRec(interaction);
@@ -1104,8 +877,6 @@ async function show(interaction, category = null, mode = "reply") {
 
 module.exports = {
     CATEGORY_OPTIONS,
-    FILTER_DAY_OPTIONS,
-    VERIFICATION_MODES,
     permissionOk,
     build,
     buildHome,

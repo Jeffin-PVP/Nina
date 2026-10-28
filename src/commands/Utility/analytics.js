@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -99,21 +100,21 @@ module.exports = {
             const s = data.summary;
             const embed = new EmbedBuilder()
                 .setColor(0xf569ff)
-                .setTitle(`📊 Nina Analytics · ${days} dias`)
+                .setTitle(`${E("stats")} Nina Analytics · ${days} dias`)
                 .setFooter({ text: `Período: ${data.period.start} até ${data.period.end} · Os dados começam após a instalação` })
                 .setTimestamp();
 
             if (subcommand === "geral") {
                 embed.setDescription("Resumo da atividade registrada pela Nina. Mensagens e métricas não são retroativas.")
                     .addFields(
-                        { name: "👥 Membros atuais", value: s.currentMembers.toLocaleString("pt-BR"), inline: true },
-                        { name: "💬 Mensagens", value: s.messages.toLocaleString("pt-BR") + delta(data.changes.messages), inline: true },
+                        { name: `${E("membros")} Membros atuais`, value: s.currentMembers.toLocaleString("pt-BR"), inline: true },
+                        { name: `${E("chat")} Mensagens`, value: s.messages.toLocaleString("pt-BR") + delta(data.changes.messages), inline: true },
                         { name: "🟢 Membros ativos", value: s.activeMembers.toLocaleString("pt-BR") + delta(data.changes.activeMembers), inline: true },
-                        { name: "📈 Entradas", value: s.joins.toLocaleString("pt-BR") + delta(data.changes.joins), inline: true },
+                        { name: `${E("ui_chart")} Entradas`, value: s.joins.toLocaleString("pt-BR") + delta(data.changes.joins), inline: true },
                         { name: "📉 Saídas", value: s.leaves.toLocaleString("pt-BR") + delta(data.changes.leaves), inline: true },
-                        { name: "➕ Crescimento líquido", value: `${s.netGrowth >= 0 ? "+" : ""}${s.netGrowth}`, inline: true },
-                        { name: "🎙️ Tempo em voz", value: formatDuration(s.voiceMinutes) + delta(data.changes.voiceMinutes), inline: true },
-                        { name: "🛡️ Advertências", value: s.warnings.toLocaleString("pt-BR"), inline: true },
+                        { name: `${E("ui_plus")} Crescimento líquido`, value: `${s.netGrowth >= 0 ? "+" : ""}${s.netGrowth}`, inline: true },
+                        { name: `${E("voz")} Tempo em voz`, value: formatDuration(s.voiceMinutes) + delta(data.changes.voiceMinutes), inline: true },
+                        { name: `${E("shield")} Advertências`, value: s.warnings.toLocaleString("pt-BR"), inline: true },
                         { name: "⚡ Engajamento", value: `${s.engagementRate}% dos membros`, inline: true }
                     );
                 const lastDays = data.series.slice(-7);
@@ -129,7 +130,7 @@ module.exports = {
                 const ch = data.topVoiceChannels.map((r, i) => `**${i + 1}.** <#${r.channelId}> — **${formatDuration(Math.floor(r.voiceSeconds / 60))}**`).join("\n");
                 const mb = data.topVoiceMembers.map((r, i) => `**${i + 1}.** <@${r.userId}> — **${formatDuration(Math.floor(r.voiceSeconds / 60))}**`).join("\n");
                 embed.setDescription(ch || mb ? null : "Ainda não há atividade de voz registrada neste período.");
-                if (ch) embed.addFields({ name: "🎙️ Canais de voz", value: ch.slice(0, 1024) });
+                if (ch) embed.addFields({ name: `${E("voz")} Canais de voz`, value: ch.slice(0, 1024) });
                 if (mb) embed.addFields({ name: "🏅 Membros em call", value: mb.slice(0, 1024) });
             } else if (subcommand === "horarios") {
                 const top = [...data.hours].filter(h => h.messages > 0).sort((a, b) => b.messages - a.messages).slice(0, 5);
@@ -138,7 +139,7 @@ module.exports = {
                 embed.setDescription(top.length ? "Horários no fuso de Brasília." : "Ainda não há mensagens registradas neste período.");
                 if (top.length) {
                     embed.addFields(
-                        { name: "🕒 Horários de pico", value: top.map(h => `**${String(h.hour).padStart(2, "0")}h**  ${bar(h.messages, maxH)}  ${h.messages}`).join("\n") },
+                        { name: `${E("clock")} Horários de pico`, value: top.map(h => `**${String(h.hour).padStart(2, "0")}h**  ${bar(h.messages, maxH)}  ${h.messages}`).join("\n") },
                         { name: "📆 Média por dia da semana", value: data.weekdays.map(w => `**${w.name.slice(0, 3)}**  ${bar(w.avgMessages, maxW)}  ${w.avgMessages}`).join("\n") }
                     );
                 }

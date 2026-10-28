@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -469,8 +470,8 @@ const STOP_MESSAGES = {
     manual: null,
     max_duration: "⏱️ A gravação atingiu o tempo máximo e foi encerrada.",
     empty: "⚪ A gravação foi encerrada porque a call ficou vazia.",
-    disconnected: "⚠️ A Nina perdeu a conexão com o canal e a gravação foi encerrada.",
-    buffer: "⚠️ A gravação foi encerrada porque o serviço de áudio ficou indisponível."
+    disconnected: `${E("warn")} A Nina perdeu a conexão com o canal e a gravação foi encerrada.`,
+    buffer: `${E("warn")} A gravação foi encerrada porque o serviço de áudio ficou indisponível.`
 };
 
 /** Encerra a gravação, envia o que restou e fecha a sessão na API. */
@@ -730,27 +731,27 @@ async function buildHome({ guild, member, notice = null }) {
         lines.push("**Gravação:** ⚪ nenhuma em andamento");
     }
 
-    lines.push(`**Este canal pode ser gravado:** ${channelState.ok ? "✅ sim" : `❌ não — ${channelState.reason}`}`);
-    lines.push(`**Sua permissão:** ${allowed ? "✅ autorizado" : "❌ sem cargo autorizado"}`);
+    lines.push(`**Este canal pode ser gravado:** ${channelState.ok ? `${E("ui_check")} sim` : `${E("ui_cancel")} não — ${channelState.reason}`}`);
+    lines.push(`**Sua permissão:** ${allowed ? `${E("ui_check")} autorizado` : `${E("ui_cancel")} sem cargo autorizado`}`);
     lines.push(`**Limite por gravação:** ${settings.max_minutes} min · **Gravações salvas:** ${total}`);
 
-    if (!settings.enabled) lines.push("\n⚠️ A gravação está **desativada** neste servidor (ative em `/config`).");
-    if (!RecordingApi.isConfigured()) lines.push("\n⚠️ O serviço de gravação ainda não foi configurado no host da Nina.");
+    if (!settings.enabled) lines.push(`\n${E("warn")} A gravação está **desativada** neste servidor (ative em \`/config\`).`);
+    if (!RecordingApi.isConfigured()) lines.push(`\n${E("warn")} O serviço de gravação ainda não foi configurado no host da Nina.`);
 
     const canStart = settings.enabled && RecordingApi.isConfigured() && allowed && channelState.ok && !session;
     const canStop = Boolean(session) && allowed && (sameChannel || isManager(member));
 
     const container = startContainer(session ? ui.COLORS.error : ui.COLORS.brand, notice);
 
-    container.addTextDisplayComponents(text("## 🎙️  Gravação de calls\nGrave a call, transcreva com IA e baixe o resultado."));
+    container.addTextDisplayComponents(text(`## ${E("voz")}  Gravação de calls\nGrave a call, transcreva com IA e baixe o resultado.`));
     container.addSeparatorComponents(separator());
     container.addTextDisplayComponents(text(lines.join("\n")));
     container.addSeparatorComponents(separator());
     container.addActionRowComponents(row(
         button("voicerec:start", "Iniciar gravação", "⏺️", ButtonStyle.Success).setDisabled(!canStart),
         button("voicerec:stop", "Parar gravação", "⏹️", ButtonStyle.Danger).setDisabled(!canStop),
-        button("voicerec:list", "Ver gravações", "📂", ButtonStyle.Primary).setDisabled(!allowed),
-        button("voicerec:home", "Atualizar", "🔄")
+        button("voicerec:list", "Ver gravações", E("pasta"), ButtonStyle.Primary).setDisabled(!allowed),
+        button("voicerec:home", "Atualizar", E("ui_torefresh"))
     ));
     container.addTextDisplayComponents(text("-# Os participantes são avisados no chat do canal quando a gravação começa. O áudio não é salvo no servidor da Nina."));
 
@@ -763,7 +764,7 @@ async function buildList({ guild, member, notice = null }) {
 
     const container = startContainer(ui.COLORS.info, notice);
 
-    container.addTextDisplayComponents(text(`## 📂  Gravações de ${ui.clip(guild.name, 60)}\nSelecione uma gravação para baixar ou transcrever.`));
+    container.addTextDisplayComponents(text(`## ${E("pasta")}  Gravações de ${ui.clip(guild.name, 60)}\nSelecione uma gravação para baixar ou transcrever.`));
     container.addSeparatorComponents(separator());
 
     if (!canRecord(member, settings)) {
@@ -786,7 +787,7 @@ async function buildList({ guild, member, notice = null }) {
     }
 
     container.addSeparatorComponents(separator());
-    container.addActionRowComponents(row(button("voicerec:home", "Voltar", "⬅️")));
+    container.addActionRowComponents(row(button("voicerec:home", "Voltar", E("ui_arrowl"))));
 
     return finish(container);
 }
@@ -821,8 +822,8 @@ async function buildDetail({ guild, member, recording, notice = null }) {
         button(`voicerec:tr:${recording.id}`, "Transcrever", "📝", ButtonStyle.Success).setDisabled(!canTranscribe)
     ] : []), button(`voicerec:dltr:${recording.id}`, "Baixar transcrição", "📄", ButtonStyle.Primary).setDisabled(!transcriptReady)));
     container.addActionRowComponents(row(
-        button(`voicerec:view:${recording.id}`, "Atualizar status", "🔄"),
-        button("voicerec:list", "Voltar", "⬅️")
+        button(`voicerec:view:${recording.id}`, "Atualizar status", E("ui_torefresh")),
+        button("voicerec:list", "Voltar", E("ui_arrowl"))
     ));
 
     return finish(container);

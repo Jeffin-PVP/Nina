@@ -80,14 +80,6 @@
                             alt=""></span> Economia & XP</button>
                 <button class="nav-item" data-section="sorteios"><span class="nav-icon"><img
                             src="icons/giveaway.svg?v=5" alt=""></span> Sorteios</button>
-                <button class="nav-item" data-section="verificacao"><span class="nav-icon"><img
-                            src="icons/security.svg?v=5" alt=""></span> Verificação de entrada</button>
-                <button class="nav-item" data-section="contasnovas"><span class="nav-icon"><img
-                            src="icons/welcome.svg?v=5" alt=""></span> Contas novas</button>
-                <button class="nav-item" data-section="relatorio"><span class="nav-icon"><img
-                            src="icons/stats.svg?v=5" alt=""></span> Relatório semanal</button>
-                <button class="nav-item" data-section="backup"><span class="nav-icon"><img
-                            src="icons/container.svg?v=5" alt=""></span> Backup</button>
                 <div class="sidebar-title">FERRAMENTAS</div>
                 <button class="nav-item" data-section="embeds"><span class="nav-icon"><img src="icons/embed.svg?v=5"
                             alt=""></span> Embeds</button>
@@ -910,96 +902,6 @@
                             ativado no Discord Developer Portal.</div>
                     </div>
                 </section>
-                <section id="secao-verificacao" class="section hidden">
-                    <div class="section-head">
-                        <div class="eyebrow">PROTEÇÃO</div>
-                        <h2>Verificação de entrada</h2>
-                        <p>O membro só libera o acesso ao servidor depois de confirmar que não é um robô.</p>
-                    </div>
-                    <div class="panel form-panel">
-                        <div class="setting">
-                            <div><b>Sistema ativado</b><small>Precisa de um cargo de verificado. O painel antigo deixa de funcionar quando desativado.</small></div>
-                            <label class="switch"><input id="vf-enabled" type="checkbox"><i></i></label>
-                        </div>
-                        <div class="grid-2">
-                            <div class="field"><label>Modo</label><select id="vf-mode">
-                                    <option value="button">Botão (um clique)</option>
-                                    <option value="captcha">Pergunta (captcha simples)</option>
-                                </select></div>
-                            <div class="field"><label>Canal do painel</label><select id="vf-canal"></select></div>
-                        </div>
-                        <div class="grid-2">
-                            <div class="field"><label>Cargo de verificado</label><select id="vf-cargo"></select></div>
-                            <div class="field"><label>Cargo de não verificado (opcional)</label><select id="vf-cargo-nv"></select></div>
-                        </div>
-                        <small class="muted">Para ter efeito, esconda os canais do @everyone e libere-os só para o cargo de verificado (ou deixe visível apenas o canal do painel). O cargo de não verificado é dado na entrada e removido ao verificar.</small>
-                        <small id="vf-status" class="muted"></small>
-                        <div class="form-actions"><button id="btn-salvar-verificacao" class="btn primary">Salvar verificação</button><button id="btn-enviar-painel-verificacao" class="btn secondary">Enviar painel no canal</button><span id="verificacao-feedback" class="feedback"></span></div>
-                    </div>
-                </section>
-                <section id="secao-contasnovas" class="section hidden">
-                    <div class="section-head">
-                        <div class="eyebrow">PROTEÇÃO</div>
-                        <h2>Contas novas</h2>
-                        <p>Trata contas recém-criadas que tentam entrar no servidor.</p>
-                    </div>
-                    <div class="panel form-panel">
-                        <div class="setting">
-                            <div><b>Filtro ativado</b><small>Avalia a idade da conta de cada novo membro (bots são ignorados).</small></div>
-                            <label class="switch"><input id="cn-enabled" type="checkbox"><i></i></label>
-                        </div>
-                        <div class="grid-2">
-                            <div class="field"><label>Idade mínima da conta (dias)</label><input id="cn-dias" type="number" min="1" max="90"></div>
-                            <div class="field"><label>Ação</label><select id="cn-acao"></select></div>
-                        </div>
-                        <div class="field"><label>Canal dos alertas (recomendado)</label><select id="cn-canal"></select></div>
-                        <small class="muted">Castigo exige a permissão Castigar Membros e expulsão exige Expulsar Membros. Sem a permissão, a Nina apenas alerta.</small>
-                        <div class="form-actions"><button id="btn-salvar-contasnovas" class="btn primary">Salvar filtro</button><span id="contasnovas-feedback" class="feedback"></span></div>
-                    </div>
-                </section>
-                <section id="secao-relatorio" class="section hidden">
-                    <div class="section-head">
-                        <div class="eyebrow">COMUNIDADE</div>
-                        <h2>Relatório semanal</h2>
-                        <p>Resumo automático de atividade e moderação enviado à equipe, às 9h (horário de Brasília).</p>
-                    </div>
-                    <div class="panel form-panel">
-                        <div class="setting">
-                            <div><b>Relatório ativado</b><small>Precisa de um canal para o envio.</small></div>
-                            <label class="switch"><input id="rl-enabled" type="checkbox"><i></i></label>
-                        </div>
-                        <div class="grid-2">
-                            <div class="field"><label>Canal da equipe</label><select id="rl-canal"></select></div>
-                            <div class="field"><label>Dia do envio</label><select id="rl-dia"></select></div>
-                        </div>
-                        <small id="rl-ultimo" class="muted"></small>
-                        <div class="form-actions"><button id="btn-salvar-relatorio" class="btn primary">Salvar relatório</button><button id="btn-enviar-relatorio" class="btn secondary">Enviar agora</button><span id="relatorio-feedback" class="feedback"></span></div>
-                    </div>
-                </section>
-                <section id="secao-backup" class="section hidden">
-                    <div class="section-head">
-                        <div class="eyebrow">SEGURANÇA</div>
-                        <h2>Backup do servidor</h2>
-                        <p>Guarda cargos, categorias, canais e permissões. Mensagens, membros e configurações da Nina não entram. Exige a permissão Administrador.</p>
-                    </div>
-                    <div class="panel form-panel">
-                        <div class="grid-2">
-                            <div class="field"><label>Nome do backup (opcional)</label><input id="bk-nome" maxlength="60" placeholder="Backup de hoje"></div>
-                        </div>
-                        <small id="bk-info" class="muted"></small>
-                        <div class="form-actions"><button id="btn-criar-backup" class="btn primary">Criar backup agora</button><button id="btn-refresh-backups" class="btn ghost">Atualizar</button><span id="backup-feedback" class="feedback"></span></div>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-head">
-                            <div>
-                                <h3>Backups salvos</h3>
-                                <p>A restauração é segura: só recria o que não existe (comparando pelo nome). Nada é apagado nem alterado.</p>
-                            </div>
-                        </div>
-                        <div id="bk-restore-status" class="list"></div>
-                        <div id="bk-lista" class="list"></div>
-                    </div>
-                </section>
                 <section id="secao-comandos" class="section hidden">
                     <div class="section-head">
                         <div class="eyebrow">REFERÊNCIA</div>
@@ -1012,7 +914,7 @@
         </div>
     </div>
     <div id="toast" class="toast"></div>
-    <script src="app.js?v=7"></script>
+    <script src="app.js"></script>
     <script src="ui.js"></script>
     <script src="/panel/roles-lockdown.js?v=6"></script>
     <script src="/panel/recordings.js?v=1"></script>

@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     PermissionFlagsBits
 } = require("discord.js");
@@ -54,7 +55,7 @@ async function execute(interaction) {
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,
-            emoji: "🚫",
+            emoji: E("ui_block"),
             title: "Membro bloqueado",
             description: `<@${target.id}> não poderá entrar nesta sala enquanto estiver bloqueado.`,
             source: interaction
@@ -67,7 +68,7 @@ async function execute(interaction) {
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,
-            emoji: "🔓",
+            emoji: E("unlock"),
             title: "Membro desbloqueado",
             description: `<@${target.id}> pode entrar novamente, desde que a sala esteja aberta.`,
             source: interaction
@@ -95,7 +96,7 @@ async function execute(interaction) {
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,
-            emoji: "👑",
+            emoji: E("crown"),
             title: "Propriedade transferida",
             description: `Agora <@${target.id}> é o dono da sala.`,
             source: interaction

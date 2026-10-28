@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     EmbedBuilder,
@@ -50,7 +51,7 @@ module.exports = {
             conviteUrl = new URL(convite);
         } catch {
             return interaction.reply({
-                content: "❌ O convite informado não é uma URL válida.",
+                content: `${E("ui_cancel")} O convite informado não é uma URL válida.`,
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -71,7 +72,7 @@ module.exports = {
         ) {
             return interaction.reply({
                 content:
-                    "❌ Use um convite oficial do Discord, como `https://discord.gg/xxxx`.",
+                    `${E("ui_cancel")} Use um convite oficial do Discord, como \`https://discord.gg/xxxx\`.`,
                 flags: MessageFlags.Ephemeral
             });
         }
@@ -82,7 +83,7 @@ module.exports = {
             !imagem.contentType.startsWith("image/")
         ) {
             return interaction.reply({
-                content: "❌ O arquivo enviado em `imagem` precisa ser uma imagem.",
+                content: `${E("ui_cancel")} O arquivo enviado em \`imagem\` precisa ser uma imagem.`,
                 flags: MessageFlags.Ephemeral
             });
         }

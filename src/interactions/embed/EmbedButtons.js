@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -21,31 +22,31 @@ class EmbedButtons {
                 new ButtonBuilder()
                     .setCustomId("embed_edit")
                     .setLabel("Editar")
-                    .setEmoji("<:ui_title:1560327153088860200>")
+                    .setEmoji(E("ui_title"))
                     .setStyle(ButtonStyle.Primary),
 
                 new ButtonBuilder()
                     .setCustomId("embed_ai")
                     .setLabel("IA")
-                    .setEmoji("<:ui_bot:1560326748313493546>")
+                    .setEmoji(E("ui_bot"))
                     .setStyle(ButtonStyle.Success),
 
                 new ButtonBuilder()
                     .setCustomId("embed_images")
                     .setLabel("Imagens")
-                    .setEmoji("<:ui_thumbnail:1560327143806730240>")
+                    .setEmoji(E("ui_thumbnail"))
                     .setStyle(ButtonStyle.Secondary),
 
                 new ButtonBuilder()
                     .setCustomId("embed_author")
                     .setLabel("Autor")
-                    .setEmoji("<:ui_author:1560326714595479693>")
+                    .setEmoji(E("ui_author"))
                     .setStyle(ButtonStyle.Secondary),
 
                 new ButtonBuilder()
                     .setCustomId("embed_footer")
                     .setLabel("Rodapé")
-                    .setEmoji("<:ui_footer:1560326886046040154>")
+                    .setEmoji(E("ui_footer"))
                     .setStyle(ButtonStyle.Secondary)
 
             ),
@@ -60,19 +61,19 @@ class EmbedButtons {
                 new ButtonBuilder()
                     .setCustomId("embed_fields")
                     .setLabel("Fields")
-                    .setEmoji("<:ui_field:1560326871864975390>")
+                    .setEmoji(E("ui_field"))
                     .setStyle(ButtonStyle.Secondary),
 
                 new ButtonBuilder()
                     .setCustomId("embed_channel")
                     .setLabel("Canal")
-                    .setEmoji("<:ui_textc:1560327137024544808>")
+                    .setEmoji(E("ui_textc"))
                     .setStyle(ButtonStyle.Secondary),
 
                 new ButtonBuilder()
                     .setCustomId("embed_timestamp")
                     .setLabel("Timestamp")
-                    .setEmoji("<:clock:1561426917717053530>")
+                    .setEmoji(E("clock"))
                     .setStyle(ButtonStyle.Secondary)
 
             ),
@@ -92,7 +93,7 @@ class EmbedButtons {
 
                         .setLabel("Enviar")
 
-                        .setEmoji("<:ui_check:1560326782610047098>")
+                        .setEmoji(E("ui_check"))
 
                         .setStyle(ButtonStyle.Success),
 
@@ -102,7 +103,7 @@ class EmbedButtons {
 
                         .setLabel("Cancelar")
 
-                        .setEmoji("<:ui_cancel:1560326759059030188>")
+                        .setEmoji(E("ui_cancel"))
 
                         .setStyle(ButtonStyle.Danger)
 

@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const ui = require("../../utils/ui");
 const ServerStatsManager = require("../../managers/ServerStatsManager");
@@ -58,19 +59,19 @@ module.exports = {
         if (subcommand === "ativar") {
             await interaction.deferReply({ ephemeral: true });
             await ServerStatsManager.enable(guild);
-            return interaction.editReply("📊 **Estatísticas ativadas!** Os contadores foram criados/atualizados.");
+            return interaction.editReply(`${E("stats")} **Estatísticas ativadas!** Os contadores foram criados/atualizados.`);
         }
 
         if (subcommand === "desativar") {
             await interaction.deferReply({ ephemeral: true });
             await ServerStatsManager.disable(guild, { remove: true });
-            return interaction.editReply("🗑️ **Estatísticas desativadas.** Os contadores foram removidos.");
+            return interaction.editReply(`${E("ui_trashcan")} **Estatísticas desativadas.** Os contadores foram removidos.`);
         }
 
         if (subcommand === "atualizar") {
             await interaction.deferReply({ ephemeral: true });
             await ServerStatsManager.updateGuild(guild);
-            return interaction.editReply("<a:ui_torefresh:1560327155819225178> **Contadores atualizados.**");
+            return interaction.editReply(`${E("ui_torefresh")} **Contadores atualizados.**`);
         }
 
         if (subcommand === "contador") {

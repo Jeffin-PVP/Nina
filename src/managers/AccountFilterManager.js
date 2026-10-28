@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const Repo = require("../database/repositories/ServerToolsRepository");
 
@@ -38,7 +39,7 @@ async function handle(member) {
     if (channel?.isTextBased?.()) {
         const embed = new EmbedBuilder()
             .setColor(0xfbbf24)
-            .setTitle("⚠️ Conta nova detectada")
+            .setTitle(`${E("warn")} Conta nova detectada`)
             .setThumbnail(member.user.displayAvatarURL({ size: 128 }))
             .addFields(
                 { name: "Usuário", value: `${member.user.tag}\n<@${member.id}> (\`${member.id}\`)`, inline: true },

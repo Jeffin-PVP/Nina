@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     EmbedBuilder
 } = require("discord.js");
@@ -363,7 +364,7 @@ class LogBuilder {
                 embed
                     .setColor(LogColors.MEMBER_BOOST)
                     .setTitle(`${LogIcons.MEMBER_BOOST} Novo Boost`)
-                    .setDescription(`${targetTag} impulsionou o servidor! 🚀`);
+                    .setDescription(`${targetTag} impulsionou o servidor! ${E("ui_rocket")}`);
 
                 break;
 
@@ -806,9 +807,9 @@ class LogBuilder {
                     .setTitle(`${LogIcons.GIVEAWAY} Sorteio Criado`)
                     .addFields(
                         { name: "🎁 Prêmio", value: data.extra?.prize || "—" },
-                        { name: "🏆 Vencedores", value: String(data.extra?.winners ?? "—"), inline: true },
+                        { name: `${E("trophy")} Vencedores`, value: String(data.extra?.winners ?? "—"), inline: true },
                         { name: "📍 Canal", value: data.extra?.channelId ? `<#${data.extra.channelId}>` : "—", inline: true },
-                        { name: "🛡️ Criado por", value: executorTag }
+                        { name: `${E("shield")} Criado por`, value: executorTag }
                     );
 
                 break;
@@ -826,7 +827,7 @@ class LogBuilder {
                                 ? data.extra.winners.map(id => `<@${id}>`).join(", ")
                                 : "Ninguém participou"
                         },
-                        { name: "👥 Participantes", value: String(data.extra?.participants ?? 0), inline: true }
+                        { name: `${E("membros")} Participantes`, value: String(data.extra?.participants ?? 0), inline: true }
                     );
 
                 break;
@@ -838,7 +839,7 @@ class LogBuilder {
                     .setTitle(`${LogIcons.GIVEAWAY} Sorteio Cancelado`)
                     .addFields(
                         { name: "🎁 Prêmio", value: data.extra?.prize || "—" },
-                        { name: "🛡️ Cancelado por", value: executorTag }
+                        { name: `${E("shield")} Cancelado por`, value: executorTag }
                     );
 
                 break;
@@ -856,7 +857,7 @@ class LogBuilder {
                                 ? data.extra.winners.map(id => `<@${id}>`).join(", ")
                                 : "—"
                         },
-                        { name: "🛡️ Solicitado por", value: executorTag }
+                        { name: `${E("shield")} Solicitado por`, value: executorTag }
                     );
 
                 break;
@@ -869,7 +870,7 @@ class LogBuilder {
                     .addFields(
                         { name: "🎁 Prêmio", value: data.extra?.prize || "—" },
                         { name: "✏️ Alterações", value: data.extra?.mudancas || "—" },
-                        { name: "🛡️ Editado por", value: executorTag }
+                        { name: `${E("shield")} Editado por`, value: executorTag }
                     );
 
                 break;
@@ -884,10 +885,10 @@ class LogBuilder {
                     .setColor(LogColors.AUTOMOD)
                     .setTitle(`${LogIcons.AUTOMOD} AutoMod`)
                     .addFields(
-                        { name: "👤 Usuário", value: targetTag, inline: true },
+                        { name: `${E("user")} Usuário`, value: targetTag, inline: true },
                         { name: "📍 Canal", value: data.extra?.channelId ? `<#${data.extra.channelId}>` : "—", inline: true },
                         { name: "📋 Motivo", value: data.reason || "—" },
-                        { name: "⚙️ Ações", value: data.extra?.actions || "—" }
+                        { name: `${E("config")} Ações`, value: data.extra?.actions || "—" }
                     );
 
                 break;
@@ -898,9 +899,9 @@ class LogBuilder {
                     .setColor(LogColors.RAID)
                     .setTitle(`${LogIcons.RAID} Possível raid detectado`)
                     .addFields(
-                        { name: "👥 Entradas na janela", value: String(data.extra?.joins ?? "—"), inline: true },
+                        { name: `${E("membros")} Entradas na janela`, value: String(data.extra?.joins ?? "—"), inline: true },
                         { name: "⏱️ Janela", value: `${data.extra?.windowSeconds ?? "—"}s`, inline: true },
-                        { name: "🛡️ Ação tomada", value: data.extra?.action || "—" }
+                        { name: `${E("shield")} Ação tomada`, value: data.extra?.action || "—" }
                     );
 
                 break;
@@ -911,7 +912,7 @@ class LogBuilder {
                     .setColor(LogColors.AUTOMOD)
                     .setTitle(`${LogIcons.RAID} Lockdown de anti-raid encerrado`)
                     .addFields(
-                        { name: "🔓 Canais destravados", value: String(data.extra?.channelsUnlocked ?? 0) }
+                        { name: `${E("unlock")} Canais destravados`, value: String(data.extra?.channelsUnlocked ?? 0) }
                     );
 
                 break;
@@ -922,9 +923,9 @@ class LogBuilder {
                     .setColor(LogColors.ANTINUKE_TRIGGER)
                     .setTitle(`${LogIcons.ANTINUKE_TRIGGER} Anti-Nuke acionado`)
                     .addFields(
-                        { name: "🛡️ Responsável", value: executorTag, inline: true },
-                        { name: "⚠️ Evento", value: String(data.extra?.type || "Desconhecido"), inline: true },
-                        { name: "⚙️ Ação", value: String(data.extra?.action || "—"), inline: true },
+                        { name: `${E("shield")} Responsável`, value: executorTag, inline: true },
+                        { name: `${E("warn")} Evento`, value: String(data.extra?.type || "Desconhecido"), inline: true },
+                        { name: `${E("config")} Ação`, value: String(data.extra?.action || "—"), inline: true },
                         { name: "📝 Motivo", value: String(data.extra?.reason || "Limite atingido.").slice(0, 1024) }
                     );
 

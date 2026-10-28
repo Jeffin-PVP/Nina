@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const { EmbedBuilder, PermissionFlagsBits } = require("discord.js");
 const Repo = require("../../database/repositories/ServerToolsRepository");
 const BackupManager = require("../../managers/BackupManager");
@@ -5,7 +6,7 @@ const BackupManager = require("../../managers/BackupManager");
 module.exports = {
     async execute(interaction) {
         const [, action, a, b] = interaction.customId.split(":");
-        const ownerId = action === "confirm" || action === "delete" ? b : a;
+        const ownerId = action === "confirm" ? b : a;
         if (interaction.user.id !== ownerId) {
             return interaction.reply({ content: "Só quem iniciou a restauração pode confirmar.", ephemeral: true });
         }
@@ -19,20 +20,15 @@ module.exports = {
         const backup = await Repo.getBackup(interaction.guild.id, Number(a));
         if (!backup) return interaction.update({ content: "Esse backup não existe mais.", embeds: [], components: [] });
 
-        if (action === "delete") {
-            await Repo.deleteBackup(interaction.guild.id, Number(a));
-            return interaction.update({ embeds: [new EmbedBuilder().setColor(0x99aab5).setDescription(`🗑️ Backup **${backup.name}** excluído.`)], components: [] });
-        }
-
-        await interaction.update({ embeds: [new EmbedBuilder().setColor(0x5865f2).setDescription("♻️ Restaurando… isso pode levar alguns minutos.")], components: [] });
+        await interaction.update({ embeds: [new EmbedBuilder().setColor(0x5865f2).setDescription(`${E("ui_torefresh")} Restaurando… isso pode levar alguns minutos.`)], components: [] });
         let lastEdit = 0;
         try {
             const stats = await BackupManager.restore(interaction.guild, backup.data, async text => {
                 if (Date.now() - lastEdit < 4000) return;
                 lastEdit = Date.now();
-                await interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setDescription(`♻️ Restaurando… ${text}`)] }).catch(() => null);
+                await interaction.editReply({ embeds: [new EmbedBuilder().setColor(0x5865f2).setDescription(`${E("ui_torefresh")} Restaurando… ${text}`)] }).catch(() => null);
             });
-            const embed = new EmbedBuilder().setColor(0x57f287).setTitle("✅ Restauração concluída")
+            const embed = new EmbedBuilder().setColor(0x57f287).setTitle(`${E("ui_check")} Restauração concluída`)
                 .setDescription(
                     `**${backup.name}**\n` +
                     `• Cargos criados: **${stats.rolesCreated}**\n• Categorias criadas: **${stats.categoriesCreated}**\n• Canais criados: **${stats.channelsCreated}**\n` +

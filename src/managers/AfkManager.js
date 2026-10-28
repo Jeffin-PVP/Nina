@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const Repo = require("../database/repositories/ServerToolsRepository");
 
 const NOTICE_COOLDOWN_MS = 60 * 1000;
@@ -30,7 +31,7 @@ async function handleMessage(message) {
     if (mine && Date.now() - Number(mine.since) > 15000) {
         await Repo.removeAfk(guild.id, author.id);
         const reply = await message.reply({
-            content: `👋 Bem-vindo de volta, **${author.displayName ?? author.username}**! Você ficou AFK por **${fmtDuration(Date.now() - Number(mine.since))}**.`,
+            content: `${E("aceno")} Bem-vindo de volta, **${author.displayName ?? author.username}**! Você ficou AFK por **${fmtDuration(Date.now() - Number(mine.since))}**.`,
             allowedMentions: { parse: [], repliedUser: false }
         }).catch(() => null);
         if (reply) setTimeout(() => reply.delete().catch(() => null), 10000).unref?.();

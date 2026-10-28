@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const { EmbedBuilder } = require("discord.js");
 const Repo = require("../database/repositories/ServerToolsRepository");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
@@ -31,23 +32,23 @@ async function buildReport(guild) {
 
     const embed = new EmbedBuilder()
         .setColor(0xf569ff)
-        .setTitle(`<:stats:1562187543653388391> Relatório semanal · ${guild.name}`)
+        .setTitle(`${E("stats")} Relatório semanal · ${guild.name}`)
         .setDescription(`Período: **${data.period.start}** até **${data.period.end}** (comparado à semana anterior).`)
         .setThumbnail(guild.iconURL({ size: 128 }))
         .addFields(
-            { name: "<:ui_users:1560327175826313336> Membros", value: `**${n(s.currentMembers)}** atuais\n+${n(s.joins)} / -${n(s.leaves)} (saldo **${s.netGrowth >= 0 ? "+" : ""}${n(s.netGrowth)}**)`, inline: true },
-            { name: "<:chat:1562187513949454366> Mensagens", value: `**${n(s.messages)}**${arrow(data.changes.messages)}\nMédia de ${n(s.avgMessagesPerDay)}/dia`, inline: true },
-            { name: "<:ui_green:1560326914483159081> Membros ativos", value: `**${n(s.activeMembers)}**${arrow(data.changes.activeMembers)}\nEngajamento ${s.engagementRate}%`, inline: true },
-            { name: "<:ui_mic:1560326973673316403> Tempo em voz", value: `**${dur(s.voiceMinutes)}**${arrow(data.changes.voiceMinutes)}`, inline: true },
-            { name: "<:shield:1561427396719284334> Moderação", value: `${n(warns?.c)} advertência(s)`, inline: true },
-            { name: "<:ticket:1562187545914380319> Tickets", value: `${n(opened?.c)} aberto(s) · ${n(closed?.c)} fechado(s)`, inline: true }
+            { name: `${E("membros")} Membros`, value: `**${n(s.currentMembers)}** atuais\n+${n(s.joins)} / -${n(s.leaves)} (saldo **${s.netGrowth >= 0 ? "+" : ""}${n(s.netGrowth)}**)`, inline: true },
+            { name: `${E("chat")} Mensagens`, value: `**${n(s.messages)}**${arrow(data.changes.messages)}\nMédia de ${n(s.avgMessagesPerDay)}/dia`, inline: true },
+            { name: "🟢 Membros ativos", value: `**${n(s.activeMembers)}**${arrow(data.changes.activeMembers)}\nEngajamento ${s.engagementRate}%`, inline: true },
+            { name: `${E("voz")} Tempo em voz`, value: `**${dur(s.voiceMinutes)}**${arrow(data.changes.voiceMinutes)}`, inline: true },
+            { name: `${E("shield")} Moderação`, value: `${n(warns?.c)} advertência(s)`, inline: true },
+            { name: `${E("ticket")} Tickets`, value: `${n(opened?.c)} aberto(s) · ${n(closed?.c)} fechado(s)`, inline: true }
         )
         .setTimestamp();
 
     const extras = [];
     if (data.peakHour !== null) extras.push(`🕒 Horário de pico: **${String(data.peakHour).padStart(2, "0")}h**`);
-    if (data.topChannels[0]) extras.push(`🏆 Canal mais ativo: <#${data.topChannels[0].channelId}> (${n(data.topChannels[0].messages)} msgs)`);
-    if (data.topMembers[0]) extras.push(`⭐ Membro mais ativo: <@${data.topMembers[0].userId}> (${n(data.topMembers[0].messages)} msgs)`);
+    if (data.topChannels[0]) extras.push(`${E("trophy")} Canal mais ativo: <#${data.topChannels[0].channelId}> (${n(data.topChannels[0].messages)} msgs)`);
+    if (data.topMembers[0]) extras.push(`${E("ui_fav")} Membro mais ativo: <@${data.topMembers[0].userId}> (${n(data.topMembers[0].messages)} msgs)`);
     if (extras.length) embed.addFields({ name: "Destaques", value: extras.join("\n") });
     const icon = { good: "🟢", warn: "🟠", info: "🔹" };
     if (data.insights.length) embed.addFields({ name: "💡 Insights", value: data.insights.slice(0, 4).map(i => `${icon[i.type] || "🔹"} ${i.text}`).join("\n").slice(0, 1024) });

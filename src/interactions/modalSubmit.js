@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     EmbedBuilder,
     ActionRowBuilder,
@@ -83,7 +84,7 @@ module.exports = {
 
                         .setLabel("Cancelar")
 
-                        .setEmoji("❌")
+                        .setEmoji(E("ui_cancel"))
 
                         .setStyle(
                             ButtonStyle.Danger

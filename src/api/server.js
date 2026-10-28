@@ -1,4 +1,5 @@
 
+const { E: NinaE } = require("../config/emojiRegistry");
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
@@ -148,7 +149,7 @@ class ApiServer {
 
                 const embed = new EmbedBuilder()
                     .setColor(0xf569ff)
-                    .setTitle("🌟 A Nina recebeu um voto!")
+                    .setTitle(`${NinaE("ui_fav")} A Nina recebeu um voto!`)
                     .setDescription(
                         `<@${user}> votou na Nina pelo Reveyl. Obrigado pelo apoio!`
                     )

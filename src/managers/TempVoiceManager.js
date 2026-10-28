@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     ChannelType,
     PermissionFlagsBits,
@@ -291,27 +292,27 @@ class TempVoiceManager {
             new ButtonBuilder()
                 .setCustomId("tempvoice:lock")
                 .setLabel("Bloquear")
-                .setEmoji("<:lock:1561418439879565404>")
+                .setEmoji(E("lock"))
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:rename")
                 .setLabel("Renomear")
-                .setEmoji("<:ui_title:1560327153088860200>")
+                .setEmoji(E("ui_title"))
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:limit")
                 .setLabel("Limite")
-                .setEmoji("<:ui_users:1560327175826313336>")
+                .setEmoji(E("ui_users"))
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:kick")
                 .setLabel("Expulsar")
-                .setEmoji("<:ui_hammer:1560326916345700407>")
+                .setEmoji(E("ui_hammer"))
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:delete")
                 .setLabel("Excluir")
-                .setEmoji("<:ui_trashcan:1560327162979029023>")
+                .setEmoji(E("ui_trashcan"))
                 .setStyle(ButtonStyle.Danger)
         );
 
@@ -321,17 +322,17 @@ class TempVoiceManager {
             new ButtonBuilder()
                 .setCustomId("tempvoice:transfer")
                 .setLabel("Transferir dono")
-                .setEmoji("<:crown:1561420881115349063>")
+                .setEmoji(E("crown"))
                 .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:ban")
                 .setLabel("Bloquear membro")
-                .setEmoji("<:ui_block:1560326731628548148>")
+                .setEmoji(E("ui_block"))
                 .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .setCustomId("tempvoice:unban")
                 .setLabel("Desbloquear")
-                .setEmoji("<:unlock:1561421260372582490>")
+                .setEmoji(E("unlock"))
                 .setStyle(ButtonStyle.Secondary)
         );
 
@@ -354,9 +355,9 @@ class TempVoiceManager {
                 ?.deny.has(PermissionFlagsBits.Connect);
 
             embed.addFields(
-                { name: "<:ui_users:1560327175826313336> Membros", value: `\`${channel.members.size}\``, inline: true },
-                { name: "<:lock:1561418439879565404> Estado", value: locked ? "Bloqueada" : "Aberta", inline: true },
-                { name: "<:crown:1561420881115349063> Dono", value: owner ? `<@${owner.id}>` : "—", inline: true }
+                { name: `${E("ui_users")} Membros`, value: `\`${channel.members.size}\``, inline: true },
+                { name: `${E("lock")} Estado`, value: locked ? "Bloqueada" : "Aberta", inline: true },
+                { name: `${E("crown")} Dono`, value: owner ? `<@${owner.id}>` : "—", inline: true }
             );
         }
 

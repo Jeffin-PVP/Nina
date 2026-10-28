@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
 } = require("discord.js");
@@ -45,7 +46,7 @@ module.exports = {
             if (!list.length) return ui.nothing(interaction, "Nenhum backup salvo. Use `/backup criar`.", "Sem backups");
             const lines = list.map(b => `**#${b.id}** · ${b.name}\n┗ <t:${Math.floor(new Date(b.created_at + "Z").getTime() / 1000)}:f> · por <@${b.created_by}> · ${(b.size / 1024).toFixed(0)} KB`);
             return interaction.reply({
-                embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`<:OtherSave:1564767705561567372> Backups (${list.length})`).setDescription(lines.join("\n").slice(0, 4000))],
+                embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`💾 Backups (${list.length})`).setDescription(lines.join("\n").slice(0, 4000))],
                 ephemeral: true, allowedMentions: { parse: [] }
             });
         }
@@ -68,7 +69,7 @@ module.exports = {
         const sum = BackupManager.summarize(backup.data);
         const embed = new EmbedBuilder()
             .setColor(0xfaa61a)
-            .setTitle("♻️ Restaurar backup?")
+            .setTitle(`${E("ui_torefresh")} Restaurar backup?`)
             .setDescription(
                 `**${backup.name}** (ID \`${id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.\n\n` +
                 "A restauração é **segura**: só recria cargos, categorias e canais que **não existem** (comparando pelo nome). Nada é apagado nem alterado, e as permissões que eu não tenho são ignoradas."

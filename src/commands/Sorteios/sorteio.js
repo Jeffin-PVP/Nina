@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -223,7 +224,7 @@ module.exports = {
             const row = GiveawayManager.buildBotaoParticipar(giveawayId);
 
             const mensagem = await canal.send({
-                content: "🎉 **SORTEIO** 🎉",
+                content: `${E("ui_celebrating")} **SORTEIO** ${E("ui_celebrating")}`,
                 embeds: [embed],
                 components: [row]
             });

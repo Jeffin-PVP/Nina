@@ -8,17 +8,8 @@ Se algum não existir (ou o fetch falhar), cai no emoji Unicode padrão,
 então nenhum comando quebra por falta de emoji.
 */
 
-const FALLBACK = {
-    ok: "✅", error: "❌", warn: "⚠️", info: "ℹ️",
-    lock: "🔒", unlock: "🔓", ban: "🔨", unban: "♻️", kick: "👢",
-    timeout: "⏳", purge: "🧹", clock: "🕒", role: "🏷️", nick: "✏️", shield: "🛡️",
-    coin: "🪙", wallet: "👛", bank: "🏦", gift: "🎁", work: "💼", trophy: "🏆",
-    pay: "💸", deposit: "📥", withdraw: "📤",
-    dice: "🎲", slots: "🎰",
-    ping: "📶", help: "❓", user: "👤", server: "🏰", sparkle: "✨", star: "⭐",
-    ticket: "🎫", calendar: "📅", heart: "💖", crown: "👑", id: "🆔", ai: "🤖",
-    config: "⚙️", log: "📜", channel: "#️⃣", image: "🖼️", mail: "✉️", boost: "🚀"
-};
+const registry = require("../config/emojiRegistry");
+const FALLBACK = registry.FALLBACK_UI;
 
 const NinaEmojiManager = require("../ai/NinaEmojiManager");
 
@@ -34,6 +25,7 @@ async function sync(client) {
         const emojis = await client.application.emojis.fetch();
 
         cache.clear();
+        registry.setLive(emojis.values());
 
         for (const emoji of emojis.values()) {
 
@@ -84,7 +76,7 @@ async function sync(client) {
 /** Texto do emoji para usar em embeds/mensagens. */
 function e(name) {
 
-    return cache.get(name)?.text ?? FALLBACK[name] ?? "▫️";
+    return cache.get(name)?.text ?? registry.E(name);
 
 }
 
@@ -95,7 +87,7 @@ function component(name) {
 
     if (custom) return { id: custom.id, name: custom.name, animated: custom.animated };
 
-    return FALLBACK[name] ?? "▫️";
+    return registry.component(name);
 
 }
 

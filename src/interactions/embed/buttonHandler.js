@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ChannelSelectMenuBuilder,
@@ -82,7 +83,7 @@ module.exports = {
             channelHandler.clearChannel(interaction);
 
             return interaction.update({
-                content: "❌ Editor fechado.",
+                content: `${E("ui_cancel")} Editor fechado.`,
                 embeds: [],
                 components: []
             });
@@ -112,7 +113,7 @@ module.exports = {
 
             return warn(
                 interaction,
-                "❌ Não achei a embed neste painel. Use `/embed` para abrir um novo editor."
+                `${E("ui_cancel")} Não achei a embed neste painel. Use \`/embed\` para abrir um novo editor.`
             );
 
         }
@@ -336,11 +337,11 @@ module.exports = {
             const channelId = channelHandler.getChannel(interaction);
 
             if (!channelId) {
-                return warn(interaction, "❌ Escolha um canal primeiro (botão **Canal**).");
+                return warn(interaction, `${E("ui_cancel")} Escolha um canal primeiro (botão **Canal**).`);
             }
 
             if (!EmbedUtils.hasContent(data)) {
-                return warn(interaction, "❌ A embed está vazia. Edite-a antes de enviar.");
+                return warn(interaction, `${E("ui_cancel")} A embed está vazia. Edite-a antes de enviar.`);
             }
 
             const channel =
@@ -348,7 +349,7 @@ module.exports = {
                 await interaction.guild.channels.fetch(channelId).catch(() => null);
 
             if (!channel || !channel.isTextBased()) {
-                return warn(interaction, "❌ Canal não encontrado. Escolha o canal de novo.");
+                return warn(interaction, `${E("ui_cancel")} Canal não encontrado. Escolha o canal de novo.`);
             }
 
             // Quem usa o editor precisa poder escrever lá, e a Nina também.
@@ -362,7 +363,7 @@ module.exports = {
                 channel.permissionsFor(interaction.member)?.has(needed);
 
             if (!memberCan) {
-                return warn(interaction, `❌ Você não tem permissão para enviar embeds em ${channel}.`);
+                return warn(interaction, `${E("ui_cancel")} Você não tem permissão para enviar embeds em ${channel}.`);
             }
 
             const botCan =
@@ -371,7 +372,7 @@ module.exports = {
             if (!botCan) {
                 return warn(
                     interaction,
-                    `❌ Eu preciso de **Ver canal**, **Enviar mensagens** e **Inserir links** em ${channel}.`
+                    `${E("ui_cancel")} Eu preciso de **Ver canal**, **Enviar mensagens** e **Inserir links** em ${channel}.`
                 );
             }
 
@@ -391,14 +392,14 @@ module.exports = {
 
                 console.error("❌ [Embed] Falha ao enviar:", error);
 
-                return warn(interaction, `❌ Não consegui enviar a embed: \`${error.message}\``);
+                return warn(interaction, `${E("ui_cancel")} Não consegui enviar a embed: \`${error.message}\``);
 
             }
 
             channelHandler.clearChannel(interaction);
 
             return interaction.update({
-                content: `✅ Embed enviada em ${channel}!`,
+                content: `${E("ui_check")} Embed enviada em ${channel}!`,
                 embeds: [],
                 components: []
             });

@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     Events,
     EmbedBuilder
@@ -24,7 +25,7 @@ function buildEmbedApresentacao(guild) {
             iconURL: guild.client.user.displayAvatarURL()
         })
 
-        .setTitle(`👋 Olá, ${guild.name}!`)
+        .setTitle(`${E("aceno")} Olá, ${guild.name}!`)
 
         .setDescription(
             "Obrigada por me adicionar! Eu sou a **Nina**, uma assistente inteligente para Discord " +

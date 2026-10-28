@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     PermissionFlagsBits,
     ModalBuilder,
@@ -61,7 +62,7 @@ async function execute(interaction) {
 
         return ui.respond(interaction, ui.panel({
             color: ui.COLORS.success,
-            emoji: locked ? "🔓" : "🔒",
+            emoji: locked ? E("unlock") : E("lock"),
             title: locked ? "Sala desbloqueada" : "Sala bloqueada",
             description: locked ? "Outros membros podem entrar novamente." : "Novos membros não podem entrar.",
             source: interaction
@@ -143,7 +144,7 @@ async function execute(interaction) {
         await TempVoiceRepository.removeRoom(data.channel.id);
         await data.channel.delete("Sala temporária excluída pelo dono").catch(() => {});
         return interaction.reply({
-            content: "🗑️ Sua sala temporária foi excluída.",
+            content: `${E("ui_trashcan")} Sua sala temporária foi excluída.`,
             ephemeral: true
         });
     }

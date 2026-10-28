@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
@@ -62,7 +63,7 @@ module.exports = {
 
                 return interaction.editReply({
                     content:
-                        `❌ Não consegui importar o container.\n\`${error.message}\``
+                        `${E("ui_cancel")} Não consegui importar o container.\n\`${error.message}\``
                 });
 
             }

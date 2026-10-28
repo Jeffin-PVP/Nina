@@ -6,6 +6,7 @@ Validação central: tudo que entra no editor (modais, IA) passa por aqui
 antes de virar embed, para nunca estourar um limite do Discord.
 */
 
+const { E } = require("../../config/emojiRegistry");
 const {
     PermissionFlagsBits,
     MessageFlags
@@ -248,7 +249,7 @@ async function ensureManager(interaction) {
     }
 
     await interaction.reply({
-        content: "❌ Você precisa da permissão **Gerenciar Mensagens** para usar o editor de embeds.",
+        content: `${E("ui_cancel")} Você precisa da permissão **Gerenciar Mensagens** para usar o editor de embeds.`,
         flags: MessageFlags.Ephemeral
     });
 

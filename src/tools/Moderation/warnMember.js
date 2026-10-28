@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     PermissionFlagsBits
 } = require("discord.js");
@@ -207,7 +208,7 @@ module.exports = new class extends Tool {
                             color: 0xffcc00,
 
                             title:
-                                "⚠️ Você recebeu uma advertência",
+                                `${E("warn")} Você recebeu uma advertência`,
 
                             description:
 

@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     ActionRowBuilder,
@@ -13,33 +14,33 @@ const ui = require("../../utils/ui");
 
 // Ícone de cada categoria (casa pelo nome, ignorando o emoji do rótulo)
 const CATEGORY_ICONS = {
-    "Economia": "<:moneybag:1561484846159757513>",
-    "Moderação": "<:escudo:1562187519150395393>",
-    "Jogos": "<:ui_xbox:1560327208961318966>",
-    "Tickets": "<:ticket:1562187545914380319>",
-    "Sorteios": "<a:ui_celebrating:1560326769876140158>",
-    "Utilidade": "<:ui_wrench:1560327206969024613>",
-    "Configuração": "<:ui_settings:1560327092078645258>",
-    "Inteligência Artificial": "<:ui_bot:1560326748313493546>",
-    "Boas-vindas": "<:aceno:1562187509490778162>",
-    "Cargos automáticos": "<:cargo:1562189000544882808>",
-    "Servidor": "<:server:1561430145259016262>",
-    "Geral": "<:ui_pin:1560327023531003965>",
-    "Voz": "<:voz:1562187549932388383>"
+    "Economia": E("moneybag"),
+    "Moderação": E("escudo"),
+    "Jogos": E("ui_xbox"),
+    "Tickets": E("ticket"),
+    "Sorteios": E("ui_celebrating"),
+    "Utilidade": E("ui_wrench"),
+    "Configuração": E("ui_settings"),
+    "Inteligência Artificial": E("ui_bot"),
+    "Boas-vindas": E("aceno"),
+    "Cargos automáticos": E("cargo"),
+    "Servidor": E("server"),
+    "Geral": E("ui_pin"),
+    "Voz": E("voz")
 };
 
 const DEFAULT_ICON = "⭐";
 
 // Ícones fixos usados nos campos/textos
 const ICON = {
-    help: "<:ajuda:1562529221333618809>",
-    world: "<:ui_world:1560327204565422101>",
-    info: "<:info:1561478835877453945>",
-    config: "<:config:1562187516625555496>",
-    star: "<:ui_sparks:1560327106788065320>",
-    log: "<:logs:1562187526272192622>",
-    clock: "<:clock:1561426917717053530>",
-    lock: "<:lock:1561418439879565404>"
+    help: E("ajuda"),
+    world: E("ui_world"),
+    info: E("info"),
+    config: E("config"),
+    star: E("ui_sparks"),
+    log: E("logs"),
+    clock: E("clock"),
+    lock: E("lock")
 };
 
 const RAW_EMOJI = /^<(a?):(\w+):(\d+)>$/;

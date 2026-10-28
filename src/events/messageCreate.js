@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const AIManager = require("../ai/AIManager");
 const ContextProvider = require("../ai/ContextProvider");
 const LevelManager = require("../managers/LevelManager");
@@ -92,7 +93,7 @@ module.exports = {
             console.error(err);
 
             await message.reply(
-                "❌ Ocorreu um erro ao conversar com a IA."
+                `${E("ui_cancel")} Ocorreu um erro ao conversar com a IA.`
             );
 
         }

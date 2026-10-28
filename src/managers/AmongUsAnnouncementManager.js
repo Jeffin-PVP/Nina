@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const { randomBytes } = require('crypto');
 const {
   ActionRowBuilder,
@@ -45,7 +46,7 @@ function selectionComponents(token) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`amongus:publish:${token}`).setLabel('Publicar anúncio').setEmoji('📨').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`amongus:cancel:${token}`).setLabel('Cancelar').setEmoji('<:ui_cancel:1560326759059030188>️').setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId(`amongus:cancel:${token}`).setLabel('Cancelar').setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Secondary)
     )
   ];
 }
@@ -55,11 +56,11 @@ function previewEmbed(data, interaction) {
     .setTitle('👾 Sala de Among Us aberta!')
     .setDescription(data.notes || 'Entre na partida e venha jogar com a gente!')
     .addFields(
-      { name: '<:ui_key:1560326937769943082> Código da sala', value: `\`${data.code}\``, inline: true },
-      { name: '<:ui_web:1560327191240253450> Região', value: data.region, inline: true },
-      { name: '<:ui_timestamp:1560327150815543447> Mapa', value: data.map || 'Não informado', inline: true },
-      { name: '<:ui_users:1560327175826313336> Jogadores', value: data.players ? `${data.players} vagas/jogadores` : 'Não informado', inline: true },
-      { name: '<:user:1561426447414071406> Anfitrião', value: `<@${interaction.user.id}>`, inline: true }
+      { name: `${E("ui_key")} Código da sala`, value: `\`${data.code}\``, inline: true },
+      { name: `${E("ui_web")} Região`, value: data.region, inline: true },
+      { name: `${E("ui_timestamp")} Mapa`, value: data.map || 'Não informado', inline: true },
+      { name: `${E("ui_users")} Jogadores`, value: data.players ? `${data.players} vagas/jogadores` : 'Não informado', inline: true },
+      { name: `${E("user")} Anfitrião`, value: `<@${interaction.user.id}>`, inline: true }
     )
     .setFooter({ text: 'Nina • Among Us | Confira o código antes de entrar' })
     .setTimestamp();
@@ -140,7 +141,7 @@ async function handleButton(interaction) {
     allowedMentions: { parse: [], roles: [role.id], users: [], repliedUser: false }
   });
   sessions.delete(token);
-  return interaction.update({ content: `✅ Anúncio publicado em ${channel}. O cargo ${role} foi mencionado.`, embeds: [], components: [] });
+  return interaction.update({ content: `${E("ui_check")} Anúncio publicado em ${channel}. O cargo ${role} foi mencionado.`, embeds: [], components: [] });
 }
 
 async function showCode(interaction) {

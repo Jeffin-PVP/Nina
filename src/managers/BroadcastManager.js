@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const { EmbedBuilder } = require("discord.js");
 
 const { encontrarCanalDeAnuncio } = require("../utils/findAnnounceChannel");
@@ -73,7 +74,7 @@ async function broadcast(client, { title, description, color, footer, kind = "br
 async function restart(client, { title, description, color, footer, delayMs = 4000 } = {}) {
 
     const resultados = await broadcast(client, {
-        title: title || "🔧 Reiniciando para atualização",
+        title: title || `${E("ui_wrench")} Reiniciando para atualização`,
         description: description || "O bot vai reiniciar em instantes. Voltamos logo!",
         color: color || "#FEE75C",
         footer,

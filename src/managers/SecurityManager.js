@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     PermissionFlagsBits,
     ContainerBuilder,
@@ -161,7 +162,7 @@ async function checkTopicGuard(message, config) {
 
         if (deleted) {
             const notice = await message.channel.send({
-                content: `<@${message.author.id}> ⚠️ Sua mensagem foi removida porque o assunto **${rule.topic}** não é permitido neste canal.`,
+                content: `<@${message.author.id}> ${E("warn")} Sua mensagem foi removida porque o assunto **${rule.topic}** não é permitido neste canal.`,
                 allowedMentions: { parse: [], users: [message.author.id], roles: [], repliedUser: false }
             }).catch(() => null);
             if (notice) setTimeout(() => notice.delete().catch(() => {}), NOTICE_TTL_MS).unref?.();
@@ -228,7 +229,7 @@ const HONEYPOT_ACTION_LABELS = {
 };
 
 function honeypotNoticeText(action) {
-    const base = "## <:atencao:1561916202597621841> NÃO ENVIE NENHUMA MENSAGEM AQUI\nEste canal serve para detectar contas automatizadas.\n";
+    const base = `## ${E("atencao")} NÃO ENVIE NENHUMA MENSAGEM AQUI\nEste canal serve para detectar contas automatizadas.\n`;
     if (action === "log") {
         return `${base}Qualquer mensagem enviada aqui será **registrada e enviada para análise da moderação**.`;
     }

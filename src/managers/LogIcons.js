@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const emojis = require("../config/emojis");
 
 module.exports = {
@@ -8,17 +9,17 @@ module.exports = {
     =========================
     */
 
-    BAN: "<:ui_hammer:1560326916345700407>",
-    UNBAN: "<:ui_hammer:1560326916345700407>",
-    KICK: "<:ui_hammer:1560326916345700407>",
-    WARN: "<:warn:1561487772307431435>",
-    REMOVE_WARN: "<:warn:1561487772307431435>",
-    TIMEOUT: "<:ui_timedout:1560327148315615234>",
-    REMOVE_TIMEOUT: "<:ui_timedout:1560327148315615234>",
-    PURGE: "<:ui_trashcan:1560327162979029023>",
-    LOCK: "<:lock:1561418439879565404>",
-    UNLOCK: "<:unlock:1561421260372582490>",
-    SLOWMODE: "<:clock:1561426917717053530>",
+    BAN: E("ui_hammer"),
+    UNBAN: E("ui_hammer"),
+    KICK: E("ui_hammer"),
+    WARN: E("warn"),
+    REMOVE_WARN: E("warn"),
+    TIMEOUT: E("ui_timedout"),
+    REMOVE_TIMEOUT: E("ui_timedout"),
+    PURGE: E("ui_trashcan"),
+    LOCK: E("lock"),
+    UNLOCK: E("unlock"),
+    SLOWMODE: E("clock"),
 
     /*
     =========================
@@ -26,11 +27,11 @@ module.exports = {
     =========================
     */
 
-    MEMBER_JOIN: "<:ui_invite:1560326931075833916>",
-    MEMBER_LEAVE: "<:ui_invite:1560326931075833916>",
-    MEMBER_BOOST: "<:ui_boost3:1560326745582731264>",
-    MEMBER_UNBOOST: "<:ui_boost1:1560326740985913444>",
-    MEMBER_NICKNAME: "<:ui_author:1560326714595479693>",
+    MEMBER_JOIN: E("ui_invite"),
+    MEMBER_LEAVE: E("ui_invite"),
+    MEMBER_BOOST: E("ui_boost3"),
+    MEMBER_UNBOOST: E("ui_boost1"),
+    MEMBER_NICKNAME: E("ui_author"),
 
     /*
     =========================
@@ -38,9 +39,9 @@ module.exports = {
     =========================
     */
 
-    MESSAGE_DELETE: "<:ui_trashcan:1560327162979029023>",
-    MESSAGE_EDIT: "<:ui_title:1560327153088860200>",
-    MESSAGE_BULK_DELETE: "<:ui_trashcan:1560327162979029023>",
+    MESSAGE_DELETE: E("ui_trashcan"),
+    MESSAGE_EDIT: E("ui_title"),
+    MESSAGE_BULK_DELETE: E("ui_trashcan"),
 
     /*
     =========================
@@ -48,9 +49,9 @@ module.exports = {
     =========================
     */
 
-    CHANNEL_CREATE: "<:ui_textc:1560327137024544808>",
-    CHANNEL_DELETE: "<:ui_trashcan:1560327162979029023>",
-    CHANNEL_UPDATE: "<:ui_title:1560327153088860200>",
+    CHANNEL_CREATE: E("ui_textc"),
+    CHANNEL_DELETE: E("ui_trashcan"),
+    CHANNEL_UPDATE: E("ui_title"),
 
     /*
     =========================
@@ -58,11 +59,11 @@ module.exports = {
     =========================
     */
 
-    ROLE_CREATE: "<:ui_fav:1560326869184937996>",
-    ROLE_DELETE: "<:ui_trashcan:1560327162979029023>",
-    ROLE_UPDATE: "<:ui_arrowsr:1560326708182130828>",
-    ROLE_ADD: "<:ui_plus:1560327041839009854>",
-    ROLE_REMOVE: "<:ui_minus:1560326977838383134>",
+    ROLE_CREATE: E("ui_fav"),
+    ROLE_DELETE: E("ui_trashcan"),
+    ROLE_UPDATE: E("ui_arrowsr"),
+    ROLE_ADD: E("ui_plus"),
+    ROLE_REMOVE: E("ui_minus"),
 
     /*
     =========================
@@ -70,9 +71,9 @@ module.exports = {
     =========================
     */
 
-    VOICE_JOIN: "<:ui_voicecsuccess:1560327184806322338>",
-    VOICE_LEAVE: "<:ui_voicecdanger:1560327182851641446>",
-    VOICE_MOVE: "<:ui_arrowsr:1560326708182130828>",
+    VOICE_JOIN: E("ui_voicecsuccess"),
+    VOICE_LEAVE: E("ui_voicecdanger"),
+    VOICE_MOVE: E("ui_arrowsr"),
 
     /*
     =========================
@@ -88,9 +89,9 @@ module.exports = {
     WITHDRAW: "💸",
     TRANSFER: "💳",
     BUY: "🛒",
-    SELL: "🏷️",
-    MONEY_ADD: "➕💰",
-    MONEY_REMOVE: "➖💰",
+    SELL: E("role"),
+    MONEY_ADD: `${E("ui_plus")}${E("moneybag")}`,
+    MONEY_REMOVE: `${E("ui_minus")}${E("moneybag")}`,
 
     /*
     =========================
@@ -109,10 +110,10 @@ module.exports = {
     =========================
     */
 
-    TICKET_CREATE: "🎫",
-    TICKET_CLOSE: "🔒",
-    TICKET_REOPEN: "🔓",
-    TICKET_DELETE: "🗑️",
+    TICKET_CREATE: E("ticket"),
+    TICKET_CLOSE: E("lock"),
+    TICKET_REOPEN: E("unlock"),
+    TICKET_DELETE: E("ui_trashcan"),
 
     /*
     =========================
@@ -120,9 +121,9 @@ module.exports = {
     =========================
     */
 
-    AI_COMMAND: "🤖",
-    AI_TOOL: "🛠️",
-    AI_ERROR: "❌",
+    AI_COMMAND: E("bot"),
+    AI_TOOL: E("ui_wrench"),
+    AI_ERROR: E("ui_cancel"),
 
     /*
     =========================
@@ -132,7 +133,7 @@ module.exports = {
 
     BOT_START: emojis.status.on,
     BOT_STOP: emojis.status.off,
-    DATABASE_ERROR: "💾❌",
+    DATABASE_ERROR: `💾${E("ui_cancel")}`,
 
     /*
     =========================
@@ -140,7 +141,7 @@ module.exports = {
     =========================
     */
 
-    GIVEAWAY: "<a:ui_celebrating:1560326769876140158>",
+    GIVEAWAY: E("ui_celebrating"),
 
     /*
     =========================
@@ -148,7 +149,7 @@ module.exports = {
     =========================
     */
 
-    AUTOMOD: "🛡️🤖",
+    AUTOMOD: `${E("shield")}${E("bot")}`,
 
     RAID: "🚨",
 

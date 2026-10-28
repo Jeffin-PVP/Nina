@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     ActionRowBuilder,
@@ -47,12 +48,12 @@ module.exports = {
             .setCustomId("nina_pay_confirm")
             .setLabel("Confirmar transferência")
             .setStyle(ButtonStyle.Success)
-            .setEmoji("✅");
+            .setEmoji(E("ui_check"));
         const rejectButton = new ButtonBuilder()
             .setCustomId("nina_pay_reject")
             .setLabel("Recusar / cancelar")
             .setStyle(ButtonStyle.Secondary)
-            .setEmoji("<:ui_cancel:1560326759059030188>️");
+            .setEmoji(`${E("ui_cancel")}️`);
 
         const row = new ActionRowBuilder().addComponents(confirmButton, rejectButton);
         const embed = ui.titled(
@@ -92,7 +93,7 @@ module.exports = {
             if (buttonInteraction.customId === "nina_pay_reject") {
                 await buttonInteraction.deferUpdate();
                 const who = actorId === sender.id ? "Quem enviaria" : "Quem receberia";
-                return finish(`❌ Transferência recusada/cancelada por ${who.toLowerCase()}. Nenhum saldo foi alterado.`);
+                return finish(`${E("ui_cancel")} Transferência recusada/cancelada por ${who.toLowerCase()}. Nenhum saldo foi alterado.`);
             }
 
             if (buttonInteraction.customId !== "nina_pay_confirm") return;
@@ -110,7 +111,7 @@ module.exports = {
                         ui.COLORS.economy, "clock", "Aguardando confirmação",
                         `${sender} quer enviar **${amount.toLocaleString("pt-BR")} Níqueis** para ${receiver}.\n\n` +
                         `✅ ${actorId === sender.id ? "Quem envia" : "Quem recebe"} confirmou.\n` +
-                        `⏳ Falta ${remaining}.\n\nO saldo ainda não foi alterado.`, interaction
+                        `${E("ui_timedout")} Falta ${remaining}.\n\nO saldo ainda não foi alterado.`, interaction
                     )],
                     components: [row]
                 }).catch(() => {});
@@ -128,12 +129,12 @@ module.exports = {
                     const reason = result.reason === "insufficient_funds"
                         ? `Saldo insuficiente no momento da confirmação. Saldo atual: ${ui.money(result.wallet)}.`
                         : "Não foi possível concluir a transferência. Nenhum valor foi transferido.";
-                    return finish(`⚠️ ${reason}`);
+                    return finish(`${E("warn")} ${reason}`);
                 }
-                return finish(`✅ Transferência concluída! ${sender} enviou ${ui.money(amount)} para ${receiver}.`);
+                return finish(`${E("ui_check")} Transferência concluída! ${sender} enviou ${ui.money(amount)} para ${receiver}.`);
             } catch (error) {
                 console.error("Erro ao concluir transferência global de Níqueis:", error);
-                return finish("⚠️ Ocorreu um erro ao concluir a transferência. Confira o saldo antes de tentar novamente.");
+                return finish(`${E("warn")} Ocorreu um erro ao concluir a transferência. Confira o saldo antes de tentar novamente.`);
             }
         });
 

@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const { Events, AuditLogEvent, PermissionsBitField } = require("discord.js");
 
 const LogManager = require("../managers/LogManager");
@@ -34,8 +35,8 @@ module.exports = {
                 .remove(newRole.permissions)
                 .toArray();
 
-            if (added.length) changes.push(`➕ Permissões: ${added.join(", ")}`);
-            if (removed.length) changes.push(`➖ Permissões: ${removed.join(", ")}`);
+            if (added.length) changes.push(`${E("ui_plus")} Permissões: ${added.join(", ")}`);
+            if (removed.length) changes.push(`${E("ui_minus")} Permissões: ${removed.join(", ")}`);
 
         }
 

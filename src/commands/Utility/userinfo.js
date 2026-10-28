@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const { SlashCommandBuilder } = require("discord.js");
 
 const ui = require("../../utils/ui");
@@ -35,7 +36,7 @@ module.exports = {
         const embed = ui.titled(color, "user", user.displayName ?? user.username, null, interaction)
             .setThumbnail(user.displayAvatarURL({ size: 256 }))
             .setDescription(
-                `${user}${user.bot ? "  •  🤖 **Bot**" : ""}\n` +
+                `${user}${user.bot ? `  •  ${E("bot")} **Bot**` : ""}\n` +
                 `${e("id")} \`${user.id}\``
             )
             .addFields({

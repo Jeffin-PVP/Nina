@@ -1,3 +1,4 @@
+const { E } = require("../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -609,7 +610,7 @@ async function handleButton(interaction) {
 
         await warn(
             interaction,
-            "❌ Essa sessão do `/container` expirou. Execute o comando novamente."
+            `${E("ui_cancel")} Essa sessão do \`/container\` expirou. Execute o comando novamente.`
         );
 
         return true;
@@ -620,7 +621,7 @@ async function handleButton(interaction) {
 
         await warn(
             interaction,
-            "❌ Só quem abriu este editor pode usá-lo. Use `/container` para criar o seu."
+            `${E("ui_cancel")} Só quem abriu este editor pode usá-lo. Use \`/container\` para criar o seu.`
         );
 
         return true;
@@ -638,7 +639,7 @@ async function handleButton(interaction) {
         case "container:add":
 
             if (data.blocks.length >= MAX_BLOCKS) {
-                await warn(interaction, `❌ Limite de **${MAX_BLOCKS} blocos** atingido. Remova algum antes.`);
+                await warn(interaction, `${E("ui_cancel")} Limite de **${MAX_BLOCKS} blocos** atingido. Remova algum antes.`);
                 return true;
             }
 
@@ -648,7 +649,7 @@ async function handleButton(interaction) {
         case "container:remove":
 
             if (!data.blocks.length) {
-                await warn(interaction, "❌ Não há blocos para remover.");
+                await warn(interaction, `${E("ui_cancel")} Não há blocos para remover.`);
                 return true;
             }
 
@@ -703,7 +704,7 @@ async function handleButton(interaction) {
                 flags: MessageFlags.IsComponentsV2,
                 components: [
                     new TextDisplayBuilder().setContent(
-                        "## ❌ Editor encerrado\nSua sessão do `/container` foi encerrada."
+                        `## ${E("ui_cancel")} Editor encerrado\nSua sessão do \`/container\` foi encerrada.`
                     )
                 ]
             });
@@ -720,7 +721,7 @@ async function handleButton(interaction) {
 async function sendToChannel(interaction, data) {
 
     if (!interaction.channel) {
-        await warn(interaction, "❌ Não encontrei este canal.");
+        await warn(interaction, `${E("ui_cancel")} Não encontrei este canal.`);
         return;
     }
 
@@ -734,14 +735,14 @@ async function sendToChannel(interaction, data) {
 
         await warn(
             interaction,
-            `❌ Não consegui enviar neste canal. Verifique se tenho permissão para ver e escrever aqui.\n\`${error.message}\``
+            `${E("ui_cancel")} Não consegui enviar neste canal. Verifique se tenho permissão para ver e escrever aqui.\n\`${error.message}\``
         );
 
         return;
 
     }
 
-    await warn(interaction, "✅ Container enviado!");
+    await warn(interaction, `${E("ui_check")} Container enviado!`);
 
 }
 
@@ -757,7 +758,7 @@ async function importFromChannel(interaction, session) {
 
         await warn(
             interaction,
-            "❌ Não consigo receber o arquivo neste canal. Use `/container arquivo:` e anexe o `.json`."
+            `${E("ui_cancel")} Não consigo receber o arquivo neste canal. Use \`/container arquivo:\` e anexe o \`.json\`.`
         );
 
         return;
@@ -812,13 +813,13 @@ async function importFromChannel(interaction, session) {
         await refreshEditor(interaction, imported);
 
         await interaction.editReply({
-            content: "✅ **Container importado!** O arquivo foi lido e não foi salvo no armazenamento da Nina."
+            content: `${E("ui_check")} **Container importado!** O arquivo foi lido e não foi salvo no armazenamento da Nina.`
         });
 
     } catch (error) {
 
         await interaction.editReply({
-            content: `❌ Não consegui importar o container.\n\`${error.message}\``
+            content: `${E("ui_cancel")} Não consegui importar o container.\n\`${error.message}\``
         });
 
     }
@@ -847,7 +848,7 @@ async function handleModal(interaction) {
 
         await warn(
             interaction,
-            "❌ Essa sessão do `/container` expirou. Execute o comando novamente."
+            `${E("ui_cancel")} Essa sessão do \`/container\` expirou. Execute o comando novamente.`
         );
 
         return true;
@@ -856,7 +857,7 @@ async function handleModal(interaction) {
 
     if (session.ownerId !== interaction.user.id) {
 
-        await warn(interaction, "❌ Só quem abriu este editor pode usá-lo.");
+        await warn(interaction, `${E("ui_cancel")} Só quem abriu este editor pode usá-lo.`);
 
         return true;
 
@@ -883,7 +884,7 @@ async function handleModal(interaction) {
         const content = value("content");
 
         if (!content) {
-            await warn(interaction, "❌ O bloco não pode ficar vazio.");
+            await warn(interaction, `${E("ui_cancel")} O bloco não pode ficar vazio.`);
             return true;
         }
 
@@ -906,8 +907,8 @@ async function handleModal(interaction) {
                 await warn(
                     interaction,
                     next.blocks.length
-                        ? `❌ Informe um número de 1 a ${next.blocks.length}, ou \`todos\`.`
-                        : "❌ Não há blocos para remover."
+                        ? `${E("ui_cancel")} Informe um número de 1 a ${next.blocks.length}, ou \`todos\`.`
+                        : `${E("ui_cancel")} Não há blocos para remover.`
                 );
 
                 return true;
@@ -923,7 +924,7 @@ async function handleModal(interaction) {
         const color = parseColor(value("color"));
 
         if (!color) {
-            await warn(interaction, "❌ Cor inválida. Use `#RRGGBB`, por exemplo `#7C3AED`.");
+            await warn(interaction, `${E("ui_cancel")} Cor inválida. Use \`#RRGGBB\`, por exemplo \`#7C3AED\`.`);
             return true;
         }
 
@@ -941,7 +942,7 @@ async function handleModal(interaction) {
         const problem = fits(next);
 
         if (problem) {
-            await warn(interaction, `❌ ${problem}`);
+            await warn(interaction, `${E("ui_cancel")} ${problem}`);
             return true;
         }
 
@@ -972,12 +973,12 @@ async function sendByWebhook(interaction, data, rawUrl) {
             withComponents: true
         });
 
-        await interaction.editReply({ content: "✅ Container enviado pelo webhook." });
+        await interaction.editReply({ content: `${E("ui_check")} Container enviado pelo webhook.` });
 
     } catch (error) {
 
         await interaction.editReply({
-            content: `❌ Não consegui enviar pelo webhook.\n\`${error.message}\``
+            content: `${E("ui_cancel")} Não consegui enviar pelo webhook.\n\`${error.message}\``
         });
 
     } finally {

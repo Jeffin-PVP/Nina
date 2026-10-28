@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     PermissionFlagsBits
 } = require("discord.js");
@@ -17,7 +18,7 @@ function buildResumoEmbed(sessao, resultado) {
         title: "Servidor criado com sucesso!",
         description:
             `${ui.mood("engenheira")} Tudo pronto!\n\n` +
-            `${ui.quote(`**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n**Segurança reforçada:** ${sessao.segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`)}`,
+            `${ui.quote(`**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n**Segurança reforçada:** ${sessao.segurancaReforcada ? `${E("lock")} Ativada` : "⚪ Desativada"}`)}`,
         fields: [
             ui.field("crown", "Cargos criados", ui.num(resultado.cargosCriados)),
             ui.field("server", "Categorias criadas", ui.num(resultado.categoriasCriadas)),

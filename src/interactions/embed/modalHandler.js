@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const AIManager = require("../../ai/AIManager");
 
 const { MessageFlags } = require("discord.js");
@@ -77,7 +78,7 @@ async function handleAI(interaction) {
         }
 
         return interaction.editReply({
-            content: "🤖 Embed gerada pela IA. Ajuste o que quiser, escolha um canal e envie.",
+            content: `${E("bot")} Embed gerada pela IA. Ajuste o que quiser, escolha um canal e envie.`,
             embeds: [EmbedPreview.build(data)],
             components: EmbedButtons.build()
         });
@@ -86,7 +87,7 @@ async function handleAI(interaction) {
 
         console.error("❌ [Embed] Falha na IA:", error);
 
-        const content = "❌ Não consegui gerar essa embed. Tente descrever de outro jeito.";
+        const content = `${E("ui_cancel")} Não consegui gerar essa embed. Tente descrever de outro jeito.`;
 
         // No painel, editReply sobrescreveria o editor: avisa em mensagem separada.
         if (fromPanel) {
@@ -118,7 +119,7 @@ async function handleEdit(interaction) {
 
         return warn(
             interaction,
-            "❌ Esse painel expirou. Use `/embed` para abrir um novo editor."
+            `${E("ui_cancel")} Esse painel expirou. Use \`/embed\` para abrir um novo editor.`
         );
 
     }
@@ -140,7 +141,7 @@ async function handleEdit(interaction) {
             : EmbedUtils.DEFAULT_COLOR;
 
         if (!color) {
-            return warn(interaction, "❌ Cor inválida. Use o formato `#RRGGBB`, por exemplo `#5865F2`.");
+            return warn(interaction, `${E("ui_cancel")} Cor inválida. Use o formato \`#RRGGBB\`, por exemplo \`#5865F2\`.`);
         }
 
         data.title = field(interaction, "title");
@@ -162,7 +163,7 @@ async function handleEdit(interaction) {
 
             return warn(
                 interaction,
-                `❌ ${!thumbnail.ok ? "Thumbnail" : "Imagem"} inválida. Use um link completo começando com \`https://\`.`
+                `${E("ui_cancel")} ${!thumbnail.ok ? "Thumbnail" : "Imagem"} inválida. Use um link completo começando com \`https://\`.`
             );
 
         }
@@ -186,7 +187,7 @@ async function handleEdit(interaction) {
 
             return warn(
                 interaction,
-                `❌ ${!icon.ok ? "O ícone" : "O link"} do autor é inválido. Use \`https://...\`.`
+                `${E("ui_cancel")} ${!icon.ok ? "O ícone" : "O link"} do autor é inválido. Use \`https://...\`.`
             );
 
         }
@@ -207,7 +208,7 @@ async function handleEdit(interaction) {
         const icon = optionalUrl(field(interaction, "footer_icon"));
 
         if (!icon.ok) {
-            return warn(interaction, "❌ O ícone do rodapé é inválido. Use `https://...`.");
+            return warn(interaction, `${E("ui_cancel")} O ícone do rodapé é inválido. Use \`https://...\`.`);
         }
 
         data.footer = text
@@ -239,8 +240,8 @@ async function handleEdit(interaction) {
                     return warn(
                         interaction,
                         data.fields.length
-                            ? `❌ Informe um número de 1 a ${data.fields.length}, ou \`todos\`.`
-                            : "❌ Não há fields para remover."
+                            ? `${E("ui_cancel")} Informe um número de 1 a ${data.fields.length}, ou \`todos\`.`
+                            : `${E("ui_cancel")} Não há fields para remover.`
                     );
 
                 }
@@ -258,7 +259,7 @@ async function handleEdit(interaction) {
 
                 return warn(
                     interaction,
-                    "❌ Para adicionar um field, preencha **Nome** e **Valor**."
+                    `${E("ui_cancel")} Para adicionar um field, preencha **Nome** e **Valor**.`
                 );
 
             }
@@ -267,7 +268,7 @@ async function handleEdit(interaction) {
 
                 return warn(
                     interaction,
-                    `❌ Uma embed aceita no máximo ${EmbedUtils.LIMITS.fields} fields. Remova algum antes.`
+                    `${E("ui_cancel")} Uma embed aceita no máximo ${EmbedUtils.LIMITS.fields} fields. Remova algum antes.`
                 );
 
             }
@@ -287,7 +288,7 @@ async function handleEdit(interaction) {
 
         return warn(
             interaction,
-            "❌ A embed ficaria vazia. Mantenha pelo menos um conteúdo (título, descrição, imagem, field...)."
+            `${E("ui_cancel")} A embed ficaria vazia. Mantenha pelo menos um conteúdo (título, descrição, imagem, field...).`
         );
 
     }
@@ -297,7 +298,7 @@ async function handleEdit(interaction) {
 
         return warn(
             interaction,
-            `❌ A embed passaria do limite de ${EmbedUtils.LIMITS.total} caracteres do Discord. Encurte algum texto.`
+            `${E("ui_cancel")} A embed passaria do limite de ${EmbedUtils.LIMITS.total} caracteres do Discord. Encurte algum texto.`
         );
 
     }

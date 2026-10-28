@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const { MessageFlags } = require("discord.js");
 module.exports = {
 
@@ -20,7 +21,7 @@ module.exports = {
             return interaction.reply({
 
                 content:
-                    "❌ Escolha um canal primeiro.",
+                    `${E("ui_cancel")} Escolha um canal primeiro.`,
 
                 flags: MessageFlags.Ephemeral
 

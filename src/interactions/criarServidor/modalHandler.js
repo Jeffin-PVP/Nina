@@ -1,3 +1,4 @@
+const { E } = require("../../config/emojiRegistry");
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -49,7 +50,7 @@ module.exports = {
             description: ui.quote(
                 `**Tema/Prompt:** ${ServerBuilder.resumirTexto(sessao.tema)}\n` +
                 `**Divisória (categoria):** \`${divisoriaCategoria}\`  •  **Divisória (canal):** \`${divisoriaCanal}\`\n` +
-                `**Emojis nos nomes:** ${usarEmojis ? "✅ Sim" : "❌ Não"}  •  **Segurança reforçada:** ${segurancaReforcada ? "🔒 Ativada" : "⚪ Desativada"}`
+                `**Emojis nos nomes:** ${usarEmojis ? `${E("ui_check")} Sim` : `${E("ui_cancel")} Não`}  •  **Segurança reforçada:** ${segurancaReforcada ? `${E("lock")} Ativada` : "⚪ Desativada"}`
             ),
             fields: [
                 ui.field("warn", "Atenção antes de confirmar",

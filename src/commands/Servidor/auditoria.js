@@ -1,3 +1,4 @@
+const { E: NinaE } = require("../../config/emojiRegistry");
 const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require("discord.js");
 const { audit, SEVERITY } = require("../../managers/SecurityAuditManager");
 const ui = require("../../utils/ui");
@@ -22,7 +23,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor(color)
                 .setTitle("🔎 Auditoria de segurança")
-                .setDescription(`Pontuação: **${result.score}/100** — ${result.grade}\n${result.findings.length ? `${result.findings.length} ponto(s) encontrado(s).` : "Nenhum risco relevante encontrado. 🎉"}`)
+                .setDescription(`Pontuação: **${result.score}/100** — ${result.grade}\n${result.findings.length ? `${result.findings.length} ponto(s) encontrado(s).` : `Nenhum risco relevante encontrado. ${NinaE("ui_celebrating")}`}`)
                 .setTimestamp();
 
             for (const f of result.findings.slice(0, 10)) {
