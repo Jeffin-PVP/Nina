@@ -1,4 +1,7 @@
 const { ChannelType, PermissionsBitField, PermissionFlagsBits } = require("discord.js");
+const Repo = require("../database/repositories/ServerToolsRepository");
+
+const MAX_SIZE = 4 * 1024 * 1024;
 
 const SUPPORTED = new Set([
     ChannelType.GuildCategory, ChannelType.GuildText, ChannelType.GuildVoice,
@@ -129,4 +132,15 @@ async function restore(guild, data, onProgress = () => {}) {
 
 const isRestoring = guildId => restoring.has(guildId);
 
-module.exports = { snapshot, summarize, restore, isRestoring, PermissionFlagsBits };
+
+// Cria e salva um backup. Usado pelo /backup criar e pelo painel /config.
+// Retorna { tooLarge: true } se a estrutura passar do limite, ou { id, name, summary }.
+async function createBackup(guild, createdBy, name) {
+    const data = snapshot(guild);
+    if (JSON.stringify(data).length > MAX_SIZE) return { tooLarge: true };
+    const finalName = name || `Backup ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
+    const id = await Repo.createBackup(guild.id, finalName, data, createdBy);
+    return { id, name: finalName, summary: summarize(data) };
+}
+
+module.exports = { snapshot, summarize, restore, isRestoring, createBackup, PermissionFlagsBits };

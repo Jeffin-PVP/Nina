@@ -6,8 +6,6 @@ const Repo = require("../../database/repositories/ServerToolsRepository");
 const BackupManager = require("../../managers/BackupManager");
 const ui = require("../../utils/ui");
 
-const MAX_SIZE = 4 * 1024 * 1024;
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName("backup")
@@ -31,11 +29,9 @@ module.exports = {
 
         if (sub === "criar") {
             await interaction.deferReply({ ephemeral: true });
-            const data = BackupManager.snapshot(guild);
-            if (JSON.stringify(data).length > MAX_SIZE) return ui.fail(interaction, "A estrutura é grande demais para um backup.", "Backup não criado");
-            const name = interaction.options.getString("nome") || `Backup ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
-            const id = await Repo.createBackup(guild.id, name, data, interaction.user.id);
-            const sum = BackupManager.summarize(data);
+            const created = await BackupManager.createBackup(guild, interaction.user.id, interaction.options.getString("nome"));
+            if (created.tooLarge) return ui.fail(interaction, "A estrutura é grande demais para um backup.", "Backup não criado");
+            const { id, name, summary: sum } = created;
             return ui.respond(interaction, ui.success(
                 `**${name}** (ID \`${id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.\nO servidor guarda até ${Repo.MAX_BACKUPS_PER_GUILD} backups; os mais antigos são removidos.\n\nMensagens, membros e configurações da Nina **não** entram no backup.`,
                 "Backup criado", interaction));

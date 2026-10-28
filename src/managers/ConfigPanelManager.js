@@ -32,6 +32,10 @@ const RecordingApi = require("../services/RecordingService");
 const SecurityRepository = require("../database/repositories/SecurityRepository");
 const SecurityManager = require("./SecurityManager");
 const LockdownManager = require("./LockdownManager");
+const ServerToolsRepository = require("../database/repositories/ServerToolsRepository");
+const VerificationManager = require("./VerificationManager");
+const AccountFilterManager = require("./AccountFilterManager");
+const WeeklyReportManager = require("./WeeklyReportManager");
 const { CATEGORIES } = require("./LogCategories");
 
 /*
@@ -59,7 +63,11 @@ const CATEGORY_OPTIONS = [
     { value: "antinuke", label: "Anti-Nuke", description: "Proteção contra ataques destrutivos", emoji: E("nuclear") },
     { value: "tempvoice", label: "TempVoice", description: "Salas de voz temporárias", emoji: E("voz") },
     { value: "voicerec", label: "Gravação de calls", description: "Gravar e transcrever calls com IA", emoji: E("ui_mic") },
-    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: E("lock") }
+    { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: E("lock") },
+    { value: "verification", label: "Verificação", description: "Libera o servidor só após o membro confirmar", emoji: E("ui_check") },
+    { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: E("ui_block") },
+    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: E("calendar") },
+    { value: "backup", label: "Backup", description: "Salvar e restaurar cargos e canais", emoji: E("pasta") }
 ];
 
 const NOT_SET = "*Não configurado*";
@@ -160,7 +168,7 @@ const roleMention = id => id ? `<@&${id}>` : NOT_SET;
 
 async function buildHome(interaction) {
     const guildId = interaction.guild.id;
-    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec] = await Promise.all([
+    const [settings, automod, welcome, tickets, stats, antinuke, lockdown, tempvoice, security, voicerec, verification, accountFilter, weeklyReport, backups] = await Promise.all([
         GuildRepository.getSettings(guildId),
         AutomodRepository.get(guildId),
         WelcomeRepository.get(guildId),
@@ -170,7 +178,11 @@ async function buildHome(interaction) {
         LockdownManager.getConfig(guildId),
         TempVoiceRepository.get(guildId),
         SecurityRepository.get(guildId),
-        VoiceRecordingRepository.get(guildId)
+        VoiceRecordingRepository.get(guildId),
+        ServerToolsRepository.getConfig(VerificationManager.TABLE, guildId),
+        ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guildId),
+        ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guildId),
+        ServerToolsRepository.listBackups(guildId)
     ]);
 
     const groups = [
@@ -178,6 +190,8 @@ async function buildHome(interaction) {
             ["AutoMod", automod.enabled],
             ["Anti-Nuke", antinuke.enabled],
             ["Lockdown", lockdown.enabled],
+            ["Verificação", verification.enabled],
+            ["Contas novas", accountFilter.enabled],
             ["Moderação", settings.moderation_enabled],
             ["TopicGuard", security.topic_enabled],
             ["Honeypot", security.honeypot_enabled || security.behavior_enabled]
@@ -191,7 +205,9 @@ async function buildHome(interaction) {
         [`${E("ui_wrench")} Utilidades`, [
             ["Stats", stats.enabled],
             ["TempVoice", tempvoice.enabled],
-            ["Gravação de calls", voicerec.enabled]
+            ["Gravação de calls", voicerec.enabled],
+            ["Relatório semanal", weeklyReport.enabled],
+            ["Backup", backups.length > 0]
         ]]
     ];
 
@@ -836,6 +852,199 @@ async function buildTempVoicePermissions(interaction) {
     return finish(container);
 }
 
+/*
+=========================
+    FERRAMENTAS DO SERVIDOR
+    (verificação, contas novas, relatório semanal e backup)
+=========================
+*/
+
+const ACCOUNT_ACTION_OPTIONS = [
+    { value: "alert", label: "Apenas alertar a equipe" },
+    { value: "timeout", label: "Castigo até a conta atingir a idade mínima" },
+    { value: "kick", label: "Expulsar automaticamente" }
+];
+
+const backupDate = row => {
+    const ts = Math.floor(new Date(`${row.created_at}Z`).getTime() / 1000);
+    return Number.isFinite(ts) ? `<t:${ts}:f>` : "—";
+};
+
+async function buildVerification(interaction) {
+    const guild = interaction.guild;
+    const c = await ServerToolsRepository.getConfig(VerificationManager.TABLE, guild.id);
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, E("ui_check"), "Verificação de entrada", "O membro só libera o servidor depois de confirmar que não é um robô.");
+
+    addToggle(container, {
+        id: "config_verif:enabled",
+        title: "Sistema de verificação",
+        description: c.enabled ? "Ativa: quem entra precisa usar o painel de verificação." : (c.role_id ? "Desativada." : "Escolha o cargo verificado para poder ativar."),
+        enabled: !!c.enabled
+    });
+
+    addSep(container);
+
+    addText(container, [
+        `**Modo:** ${c.mode === "captcha" ? "Pergunta (captcha simples)" : "Botão (um clique)"}`,
+        `**Cargo verificado:** ${roleMention(c.role_id)}`,
+        `**Cargo não verificado:** ${c.unverified_role_id ? roleMention(c.unverified_role_id) : "*não usado*"}`,
+        `**Painel:** ${c.message_id && c.channel_id ? mention(c.channel_id) : "*ainda não enviado*"}`
+    ].join("\n"));
+
+    addRow(
+        container,
+        roleSelect("config_role:verif_role", "Cargo entregue a quem se verificar")
+            .setDefaultRoles(...(c.role_id && guild.roles.cache.has(c.role_id) ? [c.role_id] : []))
+            .setMinValues(1)
+            .setMaxValues(1)
+    );
+    addRow(
+        container,
+        roleSelect("config_role:verif_unverified", "Cargo de quem ainda não se verificou (opcional)")
+            .setDefaultRoles(...(c.unverified_role_id && guild.roles.cache.has(c.unverified_role_id) ? [c.unverified_role_id] : []))
+            .setMinValues(0)
+            .setMaxValues(1)
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:verif_channel", "Canal do painel (é enviado ao selecionar)", ChannelType.GuildText)
+            .setDefaultChannels(...(c.channel_id && guild.channels.cache.has(c.channel_id) ? [c.channel_id] : []))
+            .setMinValues(1)
+            .setMaxValues(1)
+    );
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_verif_mode")
+            .setPlaceholder("Como o membro se verifica")
+            .addOptions([
+                { label: "Botão (um clique)", value: "button", default: c.mode !== "captcha" },
+                { label: "Pergunta (captcha simples)", value: "captcha", default: c.mode === "captcha" }
+            ])
+    );
+
+    addText(container, "-# Para valer de verdade, esconda os canais do servidor de @everyone e libere-os só para o cargo verificado. Enviar o painel ativa a verificação; ao trocar o modo, reenvie o painel.");
+    addNav(container, [actionButton("config_verif:send", c.message_id ? "Reenviar painel" : "Enviar painel", E("ui_send"), ButtonStyle.Primary)]);
+    return finish(container);
+}
+
+async function buildAccountFilter(interaction) {
+    const guild = interaction.guild;
+    const c = await ServerToolsRepository.getConfig(AccountFilterManager.TABLE, guild.id);
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, E("ui_block"), "Filtro de contas novas", "Trata contas recém-criadas que tentam entrar no servidor.");
+
+    addToggle(container, {
+        id: "config_account:enabled",
+        title: "Filtro de contas novas",
+        description: c.enabled ? "Ativo." : "Desativado.",
+        enabled: !!c.enabled
+    });
+
+    addSep(container);
+
+    addText(container, [
+        `${E("clock")} **Idade mínima:** ${c.min_age_days} dia(s)`,
+        `${E("shield")} **Ação:** ${AccountFilterManager.ACTIONS[c.action] || c.action}`,
+        `${E("channel")} **Alertas:** ${c.alert_channel_id ? mention(c.alert_channel_id) : "*nenhum canal definido*"}`
+    ].join("\n"));
+
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_account_action")
+            .setPlaceholder("O que fazer com contas abaixo do mínimo")
+            .addOptions(ACCOUNT_ACTION_OPTIONS.map(o => ({ ...o, default: o.value === c.action })))
+    );
+    addRow(
+        container,
+        channelSelect("config_channel:account_alert", "Canal dos alertas", ChannelType.GuildText)
+            .setDefaultChannels(...(c.alert_channel_id && guild.channels.cache.has(c.alert_channel_id) ? [c.alert_channel_id] : []))
+            .setMinValues(1)
+            .setMaxValues(1)
+    );
+    addRow(container, actionButton("config_modal:account_age", "Idade mínima", E("clock")));
+
+    addText(container, "-# Castigo exige a permissão Castigar Membros e expulsão exige Expulsar Membros. Bots não passam pelo filtro.");
+    addNav(container);
+    return finish(container);
+}
+
+async function buildWeeklyReport(interaction) {
+    const guild = interaction.guild;
+    const c = await ServerToolsRepository.getConfig(WeeklyReportManager.TABLE, guild.id);
+    const container = card(stateColor(c.enabled));
+
+    addHeader(container, E("calendar"), "Relatório semanal", "Resumo automático de atividade e moderação enviado para a equipe.");
+
+    addToggle(container, {
+        id: "config_report:enabled",
+        title: "Relatório semanal",
+        description: c.enabled ? "Ativo." : (c.channel_id ? "Desativado." : "Escolha o canal da equipe para poder ativar."),
+        enabled: !!c.enabled
+    });
+
+    addSep(container);
+
+    addText(container, [
+        `${E("channel")} **Canal:** ${mention(c.channel_id)}`,
+        `${E("calendar")} **Envio:** ${WeeklyReportManager.DAYS[c.day] ?? "—"}, às 9h (Brasília)`,
+        `${E("clock")} **Último envio:** ${c.last_sent || "*nunca*"}`
+    ].join("\n"));
+
+    addRow(
+        container,
+        channelSelect("config_channel:report_channel", "Canal da equipe", ChannelType.GuildText)
+            .setDefaultChannels(...(c.channel_id && guild.channels.cache.has(c.channel_id) ? [c.channel_id] : []))
+            .setMinValues(1)
+            .setMaxValues(1)
+    );
+    addRow(
+        container,
+        new StringSelectMenuBuilder()
+            .setCustomId("config_report_day")
+            .setPlaceholder("Dia da semana do envio")
+            .addOptions(WeeklyReportManager.DAYS.map((name, value) => ({ label: name, value: String(value), default: value === c.day })))
+    );
+
+    addNav(container, [actionButton("config_report:send", "Enviar agora", E("ui_send"), ButtonStyle.Primary)]);
+    return finish(container);
+}
+
+async function buildBackup(interaction) {
+    const backups = await ServerToolsRepository.listBackups(interaction.guild.id);
+    const container = card(backups.length ? ui.COLORS.success : ui.COLORS.neutral);
+
+    addHeader(container, E("pasta"), "Backup do servidor", "Salva cargos, categorias, canais e permissões para recriar o que faltar.");
+
+    addText(container, backups.length
+        ? backups.map(b => `**#${b.id}** · ${b.name}\n┗ ${backupDate(b)} · por <@${b.created_by}> · ${(b.size / 1024).toFixed(0)} KB`).join("\n")
+        : "*Nenhum backup salvo ainda.*");
+
+    addRow(container, actionButton("config_backup:create", "Criar backup agora", E("pasta"), ButtonStyle.Primary));
+
+    if (backups.length) {
+        addRow(
+            container,
+            new StringSelectMenuBuilder()
+                .setCustomId("config_backup_pick")
+                .setPlaceholder("Escolha um backup para restaurar ou excluir")
+                .addOptions(backups.slice(0, 25).map(b => ({
+                    label: `#${b.id} · ${b.name}`.slice(0, 100),
+                    value: String(b.id),
+                    description: `${(b.size / 1024).toFixed(0)} KB`
+                })))
+        );
+    }
+
+    addText(container, `-# Só quem tem Administrador pode criar, restaurar ou excluir. Guarda até ${ServerToolsRepository.MAX_BACKUPS_PER_GUILD} backups (os mais antigos saem). A restauração só recria o que não existe; nada é apagado. Mensagens, membros e configurações da Nina não entram.`);
+    addNav(container);
+    return finish(container);
+}
+
 async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
@@ -853,6 +1062,10 @@ async function build(interaction, category) {
         case "voicerec": return buildVoiceRec(interaction);
         case "tempvoice": return buildTempVoice(interaction);
         case "tempvoice_permissions": return buildTempVoicePermissions(interaction);
+        case "verification": return buildVerification(interaction);
+        case "accountfilter": return buildAccountFilter(interaction);
+        case "weeklyreport": return buildWeeklyReport(interaction);
+        case "backup": return buildBackup(interaction);
         default: return buildHome(interaction);
     }
 }

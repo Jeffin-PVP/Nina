@@ -5,6 +5,9 @@ const {
     TextInputStyle,
     ActionRowBuilder,
     AttachmentBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    EmbedBuilder,
     MessageFlags,
     PermissionFlagsBits
 } = require("discord.js");
@@ -31,9 +34,254 @@ const { normalizeReactionEmoji } = require("../../utils/reactionEmoji");
 const LockdownManager = require("../../managers/LockdownManager");
 const SecurityRepository = require("../../database/repositories/SecurityRepository");
 const SecurityManager = require("../../managers/SecurityManager");
+const ServerToolsRepository = require("../../database/repositories/ServerToolsRepository");
+const VerificationManager = require("../../managers/VerificationManager");
+const AccountFilterManager = require("../../managers/AccountFilterManager");
+const WeeklyReportManager = require("../../managers/WeeklyReportManager");
+const BackupManager = require("../../managers/BackupManager");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
+}
+
+
+/*
+=========================
+    FERRAMENTAS DO SERVIDOR
+    (verificação, contas novas, relatório semanal, backup)
+=========================
+*/
+
+const textChannelOk = channel => !!channel?.isTextBased?.() && !channel.isThread?.();
+
+function channelProblem(guild, channel) {
+    if (!textChannelOk(channel)) return "Selecione um canal de texto válido, não uma thread.";
+    const perms = channel.permissionsFor(guild.members.me);
+    if (!perms?.has(PermissionFlagsBits.ViewChannel) || !perms.has(PermissionFlagsBits.SendMessages) || !perms.has(PermissionFlagsBits.EmbedLinks)) {
+        return `Em ${channel} eu preciso de: ver o canal, enviar mensagens e incorporar links.`;
+    }
+    return null;
+}
+
+function accountActionProblem(guild, action) {
+    const me = guild.members.me;
+    if (action === "timeout" && !me?.permissions.has(PermissionFlagsBits.ModerateMembers)) {
+        return "Para aplicar castigo eu preciso da permissão **Castigar Membros**.";
+    }
+    if (action === "kick" && !me?.permissions.has(PermissionFlagsBits.KickMembers)) {
+        return "Para expulsar eu preciso da permissão **Expulsar Membros**.";
+    }
+    return null;
+}
+
+/** Envia (ou reenvia) o painel de verificação e ativa o sistema, como o /verificacao setup. */
+async function publishVerificationPanel(guild, channel) {
+    const table = VerificationManager.TABLE;
+    const config = await ServerToolsRepository.getConfig(table, guild.id);
+    if (!config.role_id) return { error: "Escolha primeiro o cargo verificado." };
+    const roleProblem = VerificationManager.checkRoleUsable(guild, guild.roles.cache.get(config.role_id));
+    if (roleProblem) return { error: roleProblem };
+    const problem = channelProblem(guild, channel);
+    if (problem) return { error: problem };
+    await ServerToolsRepository.setConfig(table, guild.id, { enabled: 1 });
+    const fresh = await ServerToolsRepository.getConfig(table, guild.id);
+    await VerificationManager.sendPanel(guild, fresh, channel);
+    return { ok: true };
+}
+
+/**
+ * Aviso depois de deferUpdate + editReply do painel: ui.ok/ui.fail usariam editReply
+ * e sobrescreveriam o painel (Components V2 não aceita embeds), então vai como followUp efêmero.
+ */
+function notify(interaction, kind, description, title) {
+    const builder = { ok: ui.success, fail: ui.error, caution: ui.warn }[kind];
+    return interaction.followUp({ embeds: [builder(description, title, interaction)], flags: MessageFlags.Ephemeral });
+}
+
+async function ferramentas(interaction) {
+    const id = interaction.customId;
+    const guild = interaction.guild;
+    const guildId = guild.id;
+    const Repo = ServerToolsRepository;
+
+    /* ---------- Verificação de entrada ---------- */
+
+    if (id === "config_verif:enabled") {
+        const table = VerificationManager.TABLE;
+        const c = await Repo.getConfig(table, guildId);
+        if (!c.enabled) {
+            if (!c.role_id) return ui.caution(interaction, "Escolha primeiro o cargo verificado.", "Cargo não configurado");
+            const problem = VerificationManager.checkRoleUsable(guild, guild.roles.cache.get(c.role_id));
+            if (problem) return ui.fail(interaction, problem, "Cargo inválido");
+        }
+        await Repo.setConfig(table, guildId, { enabled: c.enabled ? 0 : 1 });
+        return interaction.update(await ConfigPanelManager.build(interaction, "verification"));
+    }
+
+    if (id === "config_verif_mode") {
+        const mode = interaction.values[0] === "captcha" ? "captcha" : "button";
+        await Repo.setConfig(VerificationManager.TABLE, guildId, { mode });
+        return interaction.update(await ConfigPanelManager.build(interaction, "verification"));
+    }
+
+    if (id === "config_role:verif_role" || id === "config_role:verif_unverified") {
+        const isMain = id === "config_role:verif_role";
+        const picked = interaction.roles.first();
+        const role = picked ? guild.roles.cache.get(picked.id) : null;
+        const c = await Repo.getConfig(VerificationManager.TABLE, guildId);
+        if (role) {
+            const problem = VerificationManager.checkRoleUsable(guild, role);
+            if (problem) return ui.fail(interaction, problem, "Cargo inválido");
+            if (role.id === (isMain ? c.unverified_role_id : c.role_id)) {
+                return ui.fail(interaction, "Os dois cargos precisam ser diferentes.", "Cargos iguais");
+            }
+        } else if (isMain) {
+            return interaction.update(await ConfigPanelManager.build(interaction, "verification"));
+        }
+        await Repo.setConfig(VerificationManager.TABLE, guildId, isMain ? { role_id: role.id } : { unverified_role_id: role?.id ?? null });
+        return interaction.update(await ConfigPanelManager.build(interaction, "verification"));
+    }
+
+    if (id === "config_channel:verif_channel") {
+        const channel = interaction.channels.first();
+        if (!channel) return ui.fail(interaction, "Não consegui identificar o canal selecionado.", "Canal inválido");
+        const c = await Repo.getConfig(VerificationManager.TABLE, guildId);
+        if (!c.role_id) {
+            // Ainda sem cargo: só guarda o canal; o painel é enviado depois.
+            const problem = channelProblem(guild, channel);
+            if (problem) return ui.fail(interaction, problem, "Canal inválido");
+            await Repo.setConfig(VerificationManager.TABLE, guildId, { channel_id: channel.id });
+            return interaction.update(await ConfigPanelManager.build(interaction, "verification"));
+        }
+        await interaction.deferUpdate();
+        const result = await publishVerificationPanel(guild, channel).catch(error => ({ error: error.message }));
+        await interaction.editReply(await ConfigPanelManager.build(interaction, "verification"));
+        return result.ok
+            ? notify(interaction, "ok", `Painel enviado em ${channel}. A verificação está ativa.`, "Painel enviado")
+            : notify(interaction, "caution", result.error, "Não foi possível enviar o painel");
+    }
+
+    if (id === "config_verif:send") {
+        const c = await Repo.getConfig(VerificationManager.TABLE, guildId);
+        const channel = (c.channel_id && guild.channels.cache.get(c.channel_id)) || interaction.channel;
+        await interaction.deferUpdate();
+        const result = await publishVerificationPanel(guild, channel).catch(error => ({ error: error.message }));
+        await interaction.editReply(await ConfigPanelManager.build(interaction, "verification"));
+        return result.ok
+            ? notify(interaction, "ok", `Painel enviado em ${channel}. A verificação está ativa.`, "Painel enviado")
+            : notify(interaction, "caution", result.error, "Não foi possível enviar o painel");
+    }
+
+    /* ---------- Filtro de contas novas ---------- */
+
+    if (id === "config_account:enabled") {
+        const table = AccountFilterManager.TABLE;
+        const c = await Repo.getConfig(table, guildId);
+        if (!c.enabled) {
+            const problem = accountActionProblem(guild, c.action);
+            if (problem) return ui.fail(interaction, problem, "Faltam permissões");
+        }
+        await Repo.setConfig(table, guildId, { enabled: c.enabled ? 0 : 1 });
+        return interaction.update(await ConfigPanelManager.build(interaction, "accountfilter"));
+    }
+
+    if (id === "config_account_action") {
+        const action = interaction.values[0];
+        if (!Object.keys(AccountFilterManager.ACTIONS).includes(action)) return;
+        const problem = accountActionProblem(guild, action);
+        if (problem) return ui.fail(interaction, problem, "Faltam permissões");
+        await Repo.setConfig(AccountFilterManager.TABLE, guildId, { action });
+        return interaction.update(await ConfigPanelManager.build(interaction, "accountfilter"));
+    }
+
+    if (id === "config_channel:account_alert") {
+        const channel = interaction.channels.first();
+        if (!channel) return ui.fail(interaction, "Não consegui identificar o canal selecionado.", "Canal inválido");
+        const problem = channelProblem(guild, channel);
+        if (problem) return ui.fail(interaction, problem, "Canal inválido");
+        await Repo.setConfig(AccountFilterManager.TABLE, guildId, { alert_channel_id: channel.id });
+        return interaction.update(await ConfigPanelManager.build(interaction, "accountfilter"));
+    }
+
+    /* ---------- Relatório semanal ---------- */
+
+    if (id === "config_report:enabled") {
+        const table = WeeklyReportManager.TABLE;
+        const c = await Repo.getConfig(table, guildId);
+        if (!c.enabled && !c.channel_id) return ui.caution(interaction, "Escolha primeiro o canal da equipe.", "Canal não configurado");
+        await Repo.setConfig(table, guildId, { enabled: c.enabled ? 0 : 1 });
+        return interaction.update(await ConfigPanelManager.build(interaction, "weeklyreport"));
+    }
+
+    if (id === "config_channel:report_channel") {
+        const channel = interaction.channels.first();
+        if (!channel) return ui.fail(interaction, "Não consegui identificar o canal selecionado.", "Canal inválido");
+        const problem = channelProblem(guild, channel);
+        if (problem) return ui.fail(interaction, problem, "Canal inválido");
+        await Repo.setConfig(WeeklyReportManager.TABLE, guildId, { channel_id: channel.id });
+        return interaction.update(await ConfigPanelManager.build(interaction, "weeklyreport"));
+    }
+
+    if (id === "config_report_day") {
+        const day = Number(interaction.values[0]);
+        if (!Number.isInteger(day) || day < 0 || day > 6) return;
+        await Repo.setConfig(WeeklyReportManager.TABLE, guildId, { day });
+        return interaction.update(await ConfigPanelManager.build(interaction, "weeklyreport"));
+    }
+
+    if (id === "config_report:send") {
+        const c = await Repo.getConfig(WeeklyReportManager.TABLE, guildId);
+        if (!c.channel_id) return ui.caution(interaction, "Escolha primeiro o canal da equipe.", "Canal não configurado");
+        await interaction.deferUpdate();
+        try {
+            await WeeklyReportManager.sendReport(guild, c.channel_id);
+        } catch {
+            return notify(interaction, "fail", "Não consegui enviar. Verifique se o canal ainda existe e se tenho permissão.", "Falha ao enviar");
+        }
+        return notify(interaction, "ok", `Relatório enviado em <#${c.channel_id}>.`, "Relatório enviado");
+    }
+
+    /* ---------- Backup (somente Administrador, como o /backup) ---------- */
+
+    if (id === "config_backup:create" || id === "config_backup_pick") {
+        if (!interaction.memberPermissions?.has(PermissionFlagsBits.Administrator)) {
+            return ui.caution(interaction, "Só quem tem **Administrador** pode usar os backups.", "Sem permissão");
+        }
+
+        if (id === "config_backup:create") {
+            await interaction.deferUpdate();
+            const created = await BackupManager.createBackup(guild, interaction.user.id, null);
+            if (created.tooLarge) return notify(interaction, "fail", "A estrutura é grande demais para um backup.", "Backup não criado");
+            await interaction.editReply(await ConfigPanelManager.build(interaction, "backup"));
+            const sum = created.summary;
+            return notify(interaction, "ok", `**${created.name}** (ID \`${created.id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.`, "Backup criado");
+        }
+
+        const backupId = Number(interaction.values[0]);
+        const backup = Number.isInteger(backupId) ? await Repo.getBackup(guildId, backupId) : null;
+        if (!backup) return ui.caution(interaction, "Não encontrei esse backup neste servidor.", "Backup inexistente");
+
+        const me = guild.members.me;
+        const canRestore = me.permissions.has(PermissionFlagsBits.ManageChannels) && me.permissions.has(PermissionFlagsBits.ManageRoles) && !BackupManager.isRestoring(guildId);
+        const sum = BackupManager.summarize(backup.data);
+        const embed = new EmbedBuilder()
+            .setColor(0xfaa61a)
+            .setTitle(`${E("pasta")} ${backup.name}`)
+            .setDescription(
+                `ID \`${backupId}\` · ${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.\n\n` +
+                "**Restaurar** só recria cargos, categorias e canais que **não existem** (comparando pelo nome). Nada é apagado nem alterado, e as permissões que eu não tenho são ignoradas.\n" +
+                "**Excluir** remove este backup para sempre." +
+                (canRestore ? "" : "\n\n⚠️ Para restaurar eu preciso de **Gerenciar Canais** e **Gerenciar Cargos**, e não pode haver outra restauração em andamento.")
+            );
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(`backup:confirm:${backupId}:${interaction.user.id}`).setLabel("Restaurar").setStyle(ButtonStyle.Success).setDisabled(!canRestore),
+            new ButtonBuilder().setCustomId(`backup:delete:${backupId}:${interaction.user.id}`).setLabel("Excluir").setStyle(ButtonStyle.Danger),
+            new ButtonBuilder().setCustomId(`backup:cancel:${interaction.user.id}`).setLabel("Cancelar").setStyle(ButtonStyle.Secondary)
+        );
+        return interaction.reply({ embeds: [embed], components: [row], flags: MessageFlags.Ephemeral });
+    }
+
+    return false;
 }
 
 /**
@@ -431,6 +679,15 @@ async function execute(interaction) {
         }
     }
 
+    if (
+        id.startsWith("config_verif") || id.startsWith("config_account") || id.startsWith("config_report") ||
+        id.startsWith("config_backup") || id === "config_role:verif_role" || id === "config_role:verif_unverified" ||
+        id === "config_channel:verif_channel" || id === "config_channel:account_alert" || id === "config_channel:report_channel"
+    ) {
+        const handled = await ferramentas(interaction);
+        if (handled !== false) return handled;
+    }
+
     if (id.startsWith("config_channel:")) {
         const target = id.split(":")[1];
         if (target === "lockdown_channels" || target === "lockdown_categories") {
@@ -649,6 +906,15 @@ async function execute(interaction) {
             return interaction.showModal(modal);
         }
 
+        if (type === "account_age") {
+            const c = await ServerToolsRepository.getConfig(AccountFilterManager.TABLE, interaction.guild.id);
+            const modal = new ModalBuilder().setCustomId("config_submit:account_age").setTitle("Idade mínima da conta");
+            modal.addComponents(
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId("dias").setLabel("Dias (1 a 90)").setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(2).setValue(String(c.min_age_days)))
+            );
+            return interaction.showModal(modal);
+        }
+
         if (type === "antinuke") {
             const c = await AntiNukeRepository.get(interaction.guild.id);
             const modal = new ModalBuilder().setCustomId("config_submit:antinuke").setTitle("Configurar Anti-Nuke");
@@ -792,6 +1058,13 @@ async function modal(interaction) {
         if (!Number.isFinite(threshold) || threshold < 0 || threshold > 1 || !["ignore", "delete", "warn", "kick", "ban"].includes(action)) return ui.caution(interaction, "Confiança deve ficar entre 0 e 1 e a ação precisa ser ignore, delete, warn, kick ou ban.", "Valores inválidos");
         await AutomodRepository.update(guildId, { image_threshold: threshold, image_action: action });
         return ui.respond(interaction, ui.success("A configuração do Anti-Scam visual foi atualizada.", "Anti-Scam atualizado", interaction), { ephemeral: true });
+    }
+
+    if (type === "account_age") {
+        const dias = Number.parseInt(interaction.fields.getTextInputValue("dias"), 10);
+        if (!Number.isInteger(dias) || dias < 1 || dias > 90) return ui.caution(interaction, "Informe um número de dias entre 1 e 90.", "Valor inválido");
+        await ServerToolsRepository.setConfig(AccountFilterManager.TABLE, guildId, { min_age_days: dias });
+        return ui.respond(interaction, ui.success(`Contas com menos de **${dias} dia(s)** agora passam pelo filtro.`, "Filtro atualizado", interaction), { ephemeral: true });
     }
 
     if (type === "antinuke") {

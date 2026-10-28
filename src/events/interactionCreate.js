@@ -243,7 +243,7 @@ module.exports = {
                     return voiceRecording.select(interaction);
                 }
 
-                if (interaction.customId === "config_voicerec_max" || interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action") {
+                if (interaction.customId === "config_voicerec_max" || interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action" || interaction.customId === "config_verif_mode" || interaction.customId === "config_account_action" || interaction.customId === "config_report_day" || interaction.customId === "config_backup_pick") {
                     return configPanel.execute(interaction);
                 }
 

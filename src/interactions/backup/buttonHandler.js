@@ -6,7 +6,7 @@ const BackupManager = require("../../managers/BackupManager");
 module.exports = {
     async execute(interaction) {
         const [, action, a, b] = interaction.customId.split(":");
-        const ownerId = action === "confirm" ? b : a;
+        const ownerId = action === "cancel" ? a : b;
         if (interaction.user.id !== ownerId) {
             return interaction.reply({ content: "Só quem iniciou a restauração pode confirmar.", ephemeral: true });
         }
@@ -19,6 +19,11 @@ module.exports = {
 
         const backup = await Repo.getBackup(interaction.guild.id, Number(a));
         if (!backup) return interaction.update({ content: "Esse backup não existe mais.", embeds: [], components: [] });
+
+        if (action === "delete") {
+            await Repo.deleteBackup(interaction.guild.id, Number(a));
+            return interaction.update({ content: "", embeds: [new EmbedBuilder().setColor(0x57f287).setDescription(`${E("ui_check")} Backup **${backup.name}** excluído.`)], components: [] });
+        }
 
         await interaction.update({ embeds: [new EmbedBuilder().setColor(0x5865f2).setDescription(`${E("ui_torefresh")} Restaurando… isso pode levar alguns minutos.`)], components: [] });
         let lastEdit = 0;
