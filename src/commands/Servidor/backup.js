@@ -39,7 +39,15 @@ module.exports = {
 
         if (sub === "listar") {
             const list = await Repo.listBackups(guild.id);
-            if (!list.length) return ui.nothing(interaction, "Nenhum backup salvo. Use `/backup criar`.", "Sem backups");
+            if (!list.length) {
+                // Usa o emoji de pasta/backup nesta resposta, em vez do emoji genérico de log.
+                const embed = new EmbedBuilder()
+                    .setColor(0x2b2d31)
+                    .setTitle(`${E("OtherSave")} Sem backups`)
+                    .setDescription("Nenhum backup salvo. Use `/backup criar` para criar o primeiro backup.")
+                    .setTimestamp();
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
             const lines = list.map(b => `**#${b.id}** · ${b.name}\n┗ <t:${Math.floor(new Date(b.created_at + "Z").getTime() / 1000)}:f> · por <@${b.created_by}> · ${(b.size / 1024).toFixed(0)} KB`);
             return interaction.reply({
                 embeds: [new EmbedBuilder().setColor(0x5865f2).setTitle(`💾 Backups (${list.length})`).setDescription(lines.join("\n").slice(0, 4000))],

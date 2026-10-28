@@ -128,7 +128,7 @@ function navButtons(extra = []) {
     return [
         ...extra,
         new ButtonBuilder().setCustomId("config_home").setLabel("Voltar").setEmoji(E("ui_arrowl")).setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}`).setStyle(ButtonStyle.Danger)
     ];
 }
 
@@ -256,7 +256,7 @@ async function buildHome(interaction) {
     addRow(
         container,
         new ButtonBuilder().setCustomId("config_refresh").setLabel("Atualizar").setEmoji(E("ui_torefresh")).setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Danger)
+        new ButtonBuilder().setCustomId("config_close").setLabel("Fechar").setEmoji(`${E("ui_cancel")}`).setStyle(ButtonStyle.Danger)
     );
 
     addText(container, "-# Requer a permissão Gerenciar Servidor · Os comandos antigos continuam disponíveis.");
@@ -847,7 +847,7 @@ async function buildTempVoicePermissions(interaction) {
     addRow(
         container,
         actionButton("config_tempvoice:permissions_back", "Voltar ao TempVoice", E("ui_arrowl")),
-        actionButton("config_close", "Fechar", `${E("ui_cancel")}️`, ButtonStyle.Danger)
+        actionButton("config_close", "Fechar", `${E("ui_cancel")}`, ButtonStyle.Danger)
     );
     return finish(container);
 }

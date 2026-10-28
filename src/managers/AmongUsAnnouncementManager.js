@@ -46,7 +46,7 @@ function selectionComponents(token) {
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`amongus:publish:${token}`).setLabel('Publicar anúncio').setEmoji('📨').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`amongus:cancel:${token}`).setLabel('Cancelar').setEmoji(`${E("ui_cancel")}️`).setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder().setCustomId(`amongus:cancel:${token}`).setLabel('Cancelar').setEmoji(`${E("ui_cancel")}`).setStyle(ButtonStyle.Secondary)
     )
   ];
 }
