@@ -1,5 +1,10 @@
 require("dotenv").config();
 
+// Monitor de desempenho opcional: habilite com NINA_PERF_MONITOR=true.
+// Não altera os recursos do bot e não registra dados pessoais.
+const { startPerformanceMonitor } = require("./src/monitoring/performanceMonitor");
+startPerformanceMonitor({ intervalMs: 30_000 });
+
 const fs = require("fs");
 const path = require("path");
 
