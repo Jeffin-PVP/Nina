@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta name="description" content="Veja os comandos do Nina para IA, moderação, economia, tickets, utilidade e gerenciamento de servidores.">
+
+    <title>Comandos do Nina — Bot de Discord</title>
+
+    <link
+        rel="stylesheet"
+        href="css/main.css"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/commands.css"
+    >
+
+
+    <!-- SEO -->
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#080b18">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Comandos do Nina — Bot de Discord">
+    <meta property="og:description" content="Veja os comandos do Nina para IA, moderação, economia, tickets, utilidade e gerenciamento de servidores.">
+    <meta property="og:image" content="assets/Logo Nina.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Comandos do Nina — Bot de Discord">
+    <meta name="twitter:description" content="Veja os comandos do Nina para IA, moderação, economia, tickets, utilidade e gerenciamento de servidores.">
+    <meta name="twitter:image" content="assets/Logo Nina.png">
+
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="canonical" href="https://nina.injectcloud.space/website/commands.html">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+
+    <header class="navbar">
+
+        <div class="nav-container">
+
+            <a
+                href="index.html"
+                class="logo"
+            >
+                <span class="logo-mark">J</span>
+                <span class="logo-text">
+                    <span>Nina</span>
+                </span>
+            </a>
+
+            <button
+                class="mobile-menu"
+                id="mobileMenu"
+                aria-label="Abrir menu"
+            >
+                ☰
+            </button>
+
+            <nav id="navMenu">
+
+                <a href="index.html">
+                    Início
+                </a>
+
+                <a href="index.html#features">
+                    Recursos
+                </a>
+
+                <a
+                    href="commands.html"
+                    class="active"
+                >
+                    Comandos
+                </a>
+
+                <a href="https://nina.injectcloud.space/panel">
+                    Dashboard
+                </a>
+
+                <a href="index.html#about">
+                    Sobre
+                </a>
+
+                <a
+                    href="https://discord.com/oauth2/authorize?client_id=1551732753047879860&permissions=8&integration_type=0&scope=bot"
+                    class="nav-button"
+                >
+                    Adicionar ao Discord
+                </a>
+
+            </nav>
+
+        </div>
+
+    </header>
+
+
+    <!-- HERO -->
+
+    <main>
+
+        <section class="commands-hero">
+
+            <div class="commands-hero-content">
+
+                <div class="section-badge">
+                    📚 CENTRAL DE COMANDOS
+                </div>
+
+                <h1>
+                    Tudo que o
+                    <span>Nina</span>
+                    pode fazer.
+                </h1>
+
+                <p>
+                    Explore todos os comandos disponíveis
+                    para administrar, configurar e divertir
+                    seu servidor.
+                </p>
+
+                <div class="command-count">
+
+                    <strong id="totalCommands">
+                        42
+                    </strong>
+
+                    <span>
+                        comandos disponíveis
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- COMMANDS -->
+
+        <section class="commands-section">
+
+            <div class="commands-container">
+
+                <!-- SEARCH -->
+
+                <div class="commands-tools">
+
+                    <div class="search-box">
+
+                        <span>⌕</span>
+
+                        <input
+                            type="text"
+                            id="commandSearch"
+                            placeholder="Pesquisar comando..."
+                            autocomplete="off"
+                        >
+
+                        <kbd>/</kbd>
+
+                    </div>
+
+                </div>
+
+
+                <!-- FILTERS -->
+
+                <div
+                    class="category-filters"
+                    id="categoryFilters"
+                >
+
+                    <button
+                        class="filter active"
+                        data-category="all"
+                    >
+                        Todos
+                    </button>
+
+                </div>
+
+
+                <!-- RESULT INFO -->
+
+                <div class="commands-result">
+
+                    <span id="resultText">
+                        Mostrando 42 comandos
+                    </span>
+
+                </div>
+
+
+                <!-- COMMAND LIST -->
+
+                <div
+                    class="commands-grid"
+                    id="commandsGrid"
+                >
+                </div>
+
+
+                <!-- EMPTY -->
+
+                <div
+                    class="commands-empty"
+                    id="commandsEmpty"
+                >
+
+                    <div class="empty-icon">
+                        🔎
+                    </div>
+
+                    <h3>
+                        Nenhum comando encontrado
+                    </h3>
+
+                    <p>
+                        Tente pesquisar por outro nome
+                        ou selecionar outra categoria.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+
+        <div class="footer-container">
+
+            <div class="footer-brand">
+
+                <div class="logo">
+
+                    <span class="logo-mark">
+                        J
+                    </span>
+
+                    <span class="logo-text">
+                        <span>Nina</span>
+                    </span>
+
+                </div>
+
+                <p>
+                    Seu servidor. Mais inteligente.
+                </p>
+
+            </div>
+
+            <div class="footer-links">
+
+                <a href="index.html">
+                    Início
+                </a>
+
+                <a href="commands.html">
+                    Comandos
+                </a>
+
+                <a href="https://nina.injectcloud.space/panel">
+                    Dashboard
+                </a>
+
+            </div>
+
+        </div>
+
+        <div class="footer-bottom">
+
+            <span>
+                © <span id="currentYear"></span> Nina.
+                Todos os direitos reservados.
+            </span>
+
+        </div>
+
+    </footer>
+
+
+    <script src="js/main.js"></script>
+    <script src="js/commands.js"></script>
+
+</body>
+
+</html>

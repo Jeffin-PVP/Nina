@@ -219,6 +219,13 @@ class ApiServer {
             express.static(path.join(publicDir, "panel"), { index: "index.html" })
         );
 
+        // Site institucional da Nina (páginas públicas, termos e privacidade).
+        // Mantido separado dos arquivos do Dashboard e do painel.
+        this.app.use(
+            "/website",
+            express.static(path.join(publicDir, "website"), { index: "index.html" })
+        );
+
         // Verificação simples de disponibilidade.
         this.app.get("/health", (req, res) => {
             res.status(200).json({

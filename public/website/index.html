@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta name="description" content="Nina é um bot de Discord com IA, moderação, tickets, economia, sorteios e ferramentas para servidores.">
+
+    <title>Nina — Bot de Discord com IA e Moderação</title>
+
+    <link
+        rel="icon"
+        href="assets/favicon.ico"
+    >
+
+    <link
+        rel="stylesheet"
+        href="css/main.css"
+    >
+
+    <!-- SEO -->
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#080b18">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Nina — Bot de Discord com IA e Moderação">
+    <meta property="og:description" content="Nina é um bot de Discord com IA, moderação, tickets, economia, sorteios e ferramentas para servidores.">
+    <meta property="og:image" content="assets/Logo Nina.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Nina — Bot de Discord com IA e Moderação">
+    <meta name="twitter:description" content="Nina é um bot de Discord com IA, moderação, tickets, economia, sorteios e ferramentas para servidores.">
+    <meta name="twitter:image" content="assets/Logo Nina.png">
+
+
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Nina",
+        "applicationCategory": "CommunicationApplication",
+        "operatingSystem": "Discord",
+        "description": "Bot de Discord com inteligência artificial, moderação, tickets, economia e ferramentas para servidores.",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "BRL"
+        }
+    }
+    </script>
+
+    <link rel="canonical" href="https://nina.injectcloud.space/website/">
+</head>
+
+<body>
+
+    <!-- ========================= -->
+    <!-- BACKGROUND -->
+    <!-- ========================= -->
+
+    <div class="background">
+
+        <div class="glow glow-one"></div>
+        <div class="glow glow-two"></div>
+        <div class="grid"></div>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- NAVBAR -->
+    <!-- ========================= -->
+
+    <header class="navbar">
+
+        <div class="container nav-container">
+
+            <a
+                href="index.html"
+                class="brand"
+            >
+
+                <div class="brand-icon">
+                    J
+                </div>
+
+                <span>
+                    <span>Nina</span>
+                </span>
+
+            </a>
+
+
+            <nav class="nav-links">
+
+                <a href="#recursos">
+                    Recursos
+                </a>
+
+                <a href="#sobre">
+                    Sobre
+                </a>
+
+                <a href="#dashboard">
+                    Dashboard
+                </a>
+
+                <a href="docs.html">
+                    Documentação
+                </a>
+
+            </nav>
+
+
+            <a
+                href="https://discord.com/oauth2/authorize?client_id=1551732753047879860&permissions=8&integration_type=0&scope=bot"
+                class="nav-button"
+            >
+                Adicionar ao Discord
+            </a>
+
+
+            <button
+                class="menu-button"
+                id="menuButton"
+                aria-label="Abrir menu"
+            >
+                ☰
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- ========================= -->
+    <!-- MOBILE MENU -->
+    <!-- ========================= -->
+
+    <div
+        class="mobile-menu"
+        id="mobileMenu"
+    >
+
+        <a href="#recursos">
+            Recursos
+        </a>
+
+        <a href="#sobre">
+            Sobre
+        </a>
+
+        <a href="#dashboard">
+            Dashboard
+        </a>
+
+        <a href="docs.html">
+            Documentação
+        </a>
+
+        <a
+            href="https://discord.com/oauth2/authorize?client_id=1551732753047879860&permissions=8&integration_type=0&scope=bot"
+            class="mobile-discord"
+        >
+            Adicionar ao Discord
+        </a>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- HERO -->
+    <!-- ========================= -->
+
+    <main>
+
+        <section class="hero">
+
+            <div class="container hero-container">
+
+                <div class="hero-content">
+
+                    <div class="status-badge">
+
+                        <span class="status-dot"></span>
+
+                        Nina está online
+
+                    </div>
+
+
+                    <h1>
+
+                        Seu servidor.
+                        <span>Mais inteligente.</span>
+
+                    </h1>
+
+
+                    <p class="hero-description">
+
+                        Um assistente inteligente para ajudar
+                        você a administrar, moderar e organizar
+                        seu servidor Discord.
+
+                    </p>
+
+
+                    <div class="hero-buttons">
+
+                        <a
+                            href="https://discord.com/oauth2/authorize?client_id=1551732753047879860&permissions=8&integration_type=0&scope=bot"
+                            class="button button-primary"
+                        >
+
+                            <span>+</span>
+
+                            Adicionar ao Discord
+
+                        </a>
+
+
+                        <a
+                            href="#recursos"
+                            class="button button-secondary"
+                        >
+
+                            Conhecer recursos
+
+                            <span>→</span>
+
+                        </a>
+
+                    </div>
+
+
+                    <div class="hero-stats">
+
+                        <div>
+
+                            <strong>
+                                IA
+                            </strong>
+
+                            <span>
+                                Inteligente
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                24/7
+                            </strong>
+
+                            <span>
+                                Disponibilidade
+                            </span>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                🛡️
+                            </strong>
+
+                            <span>
+                                Moderação
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- ========================= -->
+                <!-- BOT PREVIEW -->
+                <!-- ========================= -->
+
+                <div class="hero-preview">
+
+                    <div class="preview-glow"></div>
+
+                    <div class="bot-window">
+
+                        <div class="window-header">
+
+                            <div class="window-title">
+
+                                <div class="bot-avatar">
+                                    J
+                                </div>
+
+                                <div>
+
+                                    <strong>
+                                        Nina
+                                    </strong>
+
+                                    <span>
+                                        Assistente inteligente
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="window-status">
+
+                                <span></span>
+
+                                Online
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="window-body">
+
+                            <div class="message bot-message">
+
+                                <div class="message-avatar">
+                                    J
+                                </div>
+
+                                <div class="message-content">
+
+                                    <strong>
+                                        Nina
+                                    </strong>
+
+                                    <p>
+                                        Olá! 👋
+                                        Como posso ajudar
+                                        com seu servidor?
+                                    </p>
+
+                                </div>
+
+                            </div>
+
+
+                            <div class="command-box">
+
+                                <span>
+                                    /
+                                </span>
+
+                                <span class="typing">
+                                    config
+                                </span>
+
+                                <span class="cursor"></span>
+
+                            </div>
+
+
+                            <div class="command-options">
+
+                                <div>
+                                    <strong>
+                                        /config
+                                    </strong>
+
+                                    <span>
+                                        Configurar o Nina
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <strong>
+                                        /logs
+                                    </strong>
+
+                                    <span>
+                                        Gerenciar logs
+                                    </span>
+                                </div>
+
+                                <div>
+                                    <strong>
+                                        /dm
+                                    </strong>
+
+                                    <span>
+                                        Mensagens diretas
+                                    </span>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- FEATURES -->
+        <!-- ========================= -->
+
+        <section
+            class="features"
+            id="recursos"
+        >
+
+            <div class="container">
+
+                <div class="section-heading">
+
+                    <span>
+                        RECURSOS
+                    </span>
+
+                    <h2>
+                        Tudo que seu servidor precisa.
+                    </h2>
+
+                    <p>
+                        Ferramentas inteligentes para
+                        tornar a administração do seu
+                        servidor mais simples.
+                    </p>
+
+                </div>
+
+
+                <div class="feature-grid">
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            🧠
+                        </div>
+
+                        <h3>
+                            Inteligência
+                        </h3>
+
+                        <p>
+                            Um assistente inteligente capaz
+                            de ajudar em tarefas relacionadas
+                            ao seu servidor.
+                        </p>
+
+                    </article>
+
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            🛡️
+                        </div>
+
+                        <h3>
+                            Moderação
+                        </h3>
+
+                        <p>
+                            Ferramentas para auxiliar sua
+                            equipe na administração e
+                            moderação da comunidade.
+                        </p>
+
+                    </article>
+
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            📋
+                        </div>
+
+                        <h3>
+                            Logs
+                        </h3>
+
+                        <p>
+                            Acompanhe eventos importantes
+                            do servidor de forma organizada.
+                        </p>
+
+                    </article>
+
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            ⚙️
+                        </div>
+
+                        <h3>
+                            Configuração
+                        </h3>
+
+                        <p>
+                            Configure os recursos do
+                            Nina diretamente no Discord.
+                        </p>
+
+                    </article>
+
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            👥
+                        </div>
+
+                        <h3>
+                            Gerenciamento
+                        </h3>
+
+                        <p>
+                            Consulte membros, cargos,
+                            canais e informações do servidor.
+                        </p>
+
+                    </article>
+
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            🌐
+                        </div>
+
+                        <h3>
+                            Dashboard
+                        </h3>
+
+                        <p>
+                            Gerencie seus servidores através
+                            de uma interface web moderna.
+                        </p>
+
+                    </article>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- ABOUT -->
+        <!-- ========================= -->
+
+        <section
+            class="about"
+            id="sobre"
+        >
+
+            <div class="container about-container">
+
+                <div class="about-content">
+
+                    <span class="section-label">
+                        NINA
+                    </span>
+
+                    <h2>
+                        Administração inteligente,
+                        sem complicação.
+                    </h2>
+
+                    <p>
+                        O Nina foi desenvolvido para
+                        centralizar ferramentas administrativas
+                        e inteligentes em um único aplicativo
+                        para Discord.
+                    </p>
+
+                    <p>
+                        Desde moderação e logs até informações
+                        sobre membros, canais e cargos,
+                        o objetivo é facilitar o trabalho
+                        da equipe do servidor.
+                    </p>
+
+                    <a
+                        href="#discord"
+                        class="text-button"
+                    >
+                        Conheça o Nina
+                        →
+                    </a>
+
+                </div>
+
+
+                <div class="about-terminal">
+
+                    <div class="terminal-header">
+
+                        <div class="terminal-dots">
+
+                            <span></span>
+                            <span></span>
+                            <span></span>
+
+                        </div>
+
+                        <span>
+                            nina
+                        </span>
+
+                    </div>
+
+
+                    <div class="terminal-body">
+
+                        <p>
+                            <span class="terminal-purple">
+                                $
+                            </span>
+                            nina status
+                        </p>
+
+                        <p class="terminal-success">
+                            ✓ Bot online
+                        </p>
+
+                        <p class="terminal-success">
+                            ✓ IA conectada
+                        </p>
+
+                        <p class="terminal-success">
+                            ✓ Database conectada
+                        </p>
+
+                        <p class="terminal-success">
+                            ✓ Sistemas carregados
+                        </p>
+
+                        <p>
+                            <span class="terminal-purple">
+                                $
+                            </span>
+                            _
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- DASHBOARD CTA -->
+        <!-- ========================= -->
+
+        <section
+            class="dashboard-section"
+            id="dashboard"
+        >
+
+            <div class="container">
+
+                <div class="dashboard-card">
+
+                    <div class="dashboard-content">
+
+                        <span class="section-label">
+                            DASHBOARD
+                        </span>
+
+                        <h2>
+                            Controle tudo em um só lugar.
+                        </h2>
+
+                        <p>
+                            Uma interface web moderna para
+                            administrar as configurações
+                            do Nina.
+                        </p>
+
+                        <a
+                            href="https://nina.injectcloud.space/panel"
+                            class="button button-primary"
+                        >
+                            Abrir painel
+                            →
+                        </a>
+
+                    </div>
+
+
+                    <div class="dashboard-preview">
+
+                        <div class="dashboard-sidebar">
+
+                            <strong>
+                                Nina
+                            </strong>
+
+                            <span class="active">
+                                Overview
+                            </span>
+
+                            <span>
+                                Automod
+                            </span>
+
+                            <span>
+                                Welcome
+                            </span>
+
+                            <span>
+                                Autorole
+                            </span>
+
+                            <span>
+                                Logs
+                            </span>
+
+                        </div>
+
+
+                        <div class="dashboard-main">
+
+                            <div class="dashboard-top">
+
+                                <span>
+                                    Dashboard
+                                </span>
+
+                                <span>
+                                    ● Online
+                                </span>
+
+                            </div>
+
+
+                            <div class="dashboard-cards">
+
+                                <div>
+                                    <span>
+                                        Membros
+                                    </span>
+
+                                    <strong>
+                                        —
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>
+                                        Canais
+                                    </span>
+
+                                    <strong>
+                                        —
+                                    </strong>
+                                </div>
+
+                                <div>
+                                    <span>
+                                        Status
+                                    </span>
+
+                                    <strong>
+                                        Online
+                                    </strong>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ========================= -->
+        <!-- DISCORD CTA -->
+        <!-- ========================= -->
+
+        <section
+            class="discord-section"
+            id="discord"
+        >
+
+            <div class="container">
+
+                <div class="discord-card">
+
+                    <div class="discord-icon">
+                        🌸🌸🌸🌸🌸
+                    </div>
+
+                    <h2>
+                        Entre no servidor de
+                        <br>
+                        Suporte
+                    </h2>
+
+                    <p>
+                        Entre no servidor de suporte sa Nina para receber atualizações em primeira mão.
+                    </p>
+
+                    <a
+                        href="https://discord.gg/Kk4AbujYTF"
+                        class="button button-primary button-large"
+                    >
+                        Entrar no servidor
+                        →
+                    </a>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- ========================= -->
+    <!-- FOOTER -->
+    <!-- ========================= -->
+
+    <footer>
+
+        <div class="container footer-container">
+
+            <div>
+
+                <a
+                    href="index.html"
+                    class="brand"
+                >
+
+                    <div class="brand-icon">
+                        J
+                    </div>
+
+                    <span>
+                        <span>Nina</span>
+                    </span>
+
+                </a>
+
+                <p>
+                    Seu servidor. Mais inteligente.
+                </p>
+
+            </div>
+
+
+            <div class="footer-links">
+
+                <div>
+
+                    <strong>
+                        Produto
+                    </strong>
+
+                    <a href="#recursos">
+                        Recursos
+                    </a>
+
+                    <a href="#dashboard">
+                        Dashboard
+                    </a>
+
+                    <a href="docs.html">
+                        Documentação
+                    </a>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Comunidade
+                    </strong>
+
+                    <a href="#">
+                        Discord
+                    </a>
+
+                    <a href="#">
+                        GitHub
+                    </a>
+
+                </div>
+
+
+                <div>
+
+                    <strong>
+                        Legal
+                    </strong>
+
+                    <a href="privacy.html">
+                        Privacidade
+                    </a>
+
+                    <a href="terms.html">
+                        Termos
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="footer-bottom">
+
+            <div class="container">
+
+                © <span id="year"></span>
+                Nina. Todos os direitos reservados.
+
+            </div>
+
+        </div>
+
+    </footer>
+
+
+    <script src="js/main.js"></script>
+
+</body>
+
+</html>

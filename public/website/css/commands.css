@@ -1,0 +1,790 @@
+/* =========================================================
+   NINA — COMMANDS
+========================================================= */
+
+.commands-hero {
+
+    position: relative;
+
+    min-height: 430px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-align: center;
+
+    padding:
+        140px
+        24px
+        80px;
+
+    overflow: hidden;
+
+    background:
+        radial-gradient(
+            circle at 50% 20%,
+            rgba(40, 100, 255, 0.18),
+            transparent 45%
+        ),
+        radial-gradient(
+            circle at 20% 70%,
+            rgba(110, 50, 255, 0.12),
+            transparent 40%
+        );
+}
+
+
+.commands-hero::before {
+
+    content: "";
+
+    position: absolute;
+
+    width: 700px;
+    height: 700px;
+
+    border-radius: 50%;
+
+    border: 1px solid rgba(80, 130, 255, 0.08);
+
+    top: -400px;
+
+    left: 50%;
+
+    transform: translateX(-50%);
+
+}
+
+
+.commands-hero-content {
+
+    position: relative;
+
+    max-width: 800px;
+
+    z-index: 2;
+
+}
+
+
+.section-badge {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 8px;
+
+    padding:
+        8px
+        14px;
+
+    border-radius: 999px;
+
+    background:
+        rgba(60, 100, 255, 0.08);
+
+    border:
+        1px solid
+        rgba(80, 130, 255, 0.2);
+
+    color: #7da8ff;
+
+    font-size: 12px;
+
+    font-weight: 700;
+
+    letter-spacing: 1.5px;
+
+    margin-bottom: 22px;
+
+}
+
+
+.commands-hero h1 {
+
+    margin: 0;
+
+    font-size:
+        clamp(
+            42px,
+            6vw,
+            72px
+        );
+
+    line-height: 1.05;
+
+    letter-spacing: -3px;
+
+}
+
+
+.commands-hero h1 span {
+
+    background:
+        linear-gradient(
+            90deg,
+            #5b8cff,
+            #9b6cff
+        );
+
+    -webkit-background-clip: text;
+
+    background-clip: text;
+
+    color: transparent;
+
+}
+
+
+.commands-hero p {
+
+    max-width: 650px;
+
+    margin:
+        24px auto
+        0;
+
+    color: #8e9ab2;
+
+    font-size: 17px;
+
+    line-height: 1.7;
+
+}
+
+
+.command-count {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    margin-top: 28px;
+
+    padding:
+        10px
+        18px;
+
+    border-radius: 12px;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.08);
+
+    color: #8490a8;
+
+}
+
+
+.command-count strong {
+
+    color: #ffffff;
+
+    font-size: 20px;
+
+}
+
+
+/* =========================================================
+   SECTION
+========================================================= */
+
+.commands-section {
+
+    padding:
+        30px
+        24px
+        100px;
+
+}
+
+
+.commands-container {
+
+    max-width: 1200px;
+
+    margin: 0 auto;
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.commands-tools {
+
+    display: flex;
+
+    justify-content: center;
+
+    margin-bottom: 24px;
+
+}
+
+
+.search-box {
+
+    width: 100%;
+
+    max-width: 650px;
+
+    height: 58px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    padding:
+        0
+        16px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(255, 255, 255, 0.035);
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.09);
+
+    backdrop-filter: blur(15px);
+
+    transition:
+        border-color .2s,
+        box-shadow .2s;
+
+}
+
+
+.search-box:focus-within {
+
+    border-color:
+        rgba(80, 130, 255, 0.55);
+
+    box-shadow:
+        0 0 0 4px
+        rgba(80, 130, 255, 0.08);
+
+}
+
+
+.search-box > span {
+
+    font-size: 25px;
+
+    color: #68758f;
+
+}
+
+
+.search-box input {
+
+    flex: 1;
+
+    min-width: 0;
+
+    height: 100%;
+
+    border: 0;
+
+    outline: none;
+
+    background: transparent;
+
+    color: #ffffff;
+
+    font-size: 15px;
+
+}
+
+
+.search-box input::placeholder {
+
+    color: #626d83;
+
+}
+
+
+.search-box kbd {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    min-width: 28px;
+
+    height: 28px;
+
+    border-radius: 7px;
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.1);
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    color: #77839b;
+
+    font-size: 12px;
+
+}
+
+
+/* =========================================================
+   FILTERS
+========================================================= */
+
+.category-filters {
+
+    display: flex;
+
+    justify-content: center;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-bottom: 30px;
+
+}
+
+
+.filter {
+
+    border: 1px solid
+        rgba(255, 255, 255, 0.08);
+
+    background:
+        rgba(255, 255, 255, 0.025);
+
+    color: #7f8ba2;
+
+    padding:
+        9px
+        14px;
+
+    border-radius: 10px;
+
+    cursor: pointer;
+
+    font-size: 13px;
+
+    transition:
+        .2s;
+
+}
+
+
+.filter:hover {
+
+    color: #ffffff;
+
+    border-color:
+        rgba(90, 130, 255, 0.35);
+
+}
+
+
+.filter.active {
+
+    color: #ffffff;
+
+    background:
+        rgba(70, 110, 255, 0.14);
+
+    border-color:
+        rgba(80, 130, 255, 0.45);
+
+}
+
+
+/* =========================================================
+   RESULT
+========================================================= */
+
+.commands-result {
+
+    margin-bottom: 18px;
+
+    color: #626e84;
+
+    font-size: 13px;
+
+}
+
+
+/* =========================================================
+   GRID
+========================================================= */
+
+.commands-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            auto-fill,
+            minmax(260px, 1fr)
+        );
+
+    gap: 15px;
+
+}
+
+
+/* =========================================================
+   COMMAND CARD
+========================================================= */
+
+.command-card {
+
+    position: relative;
+
+    padding: 20px;
+
+    border-radius: 16px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255, 255, 255, 0.045),
+            rgba(255, 255, 255, 0.018)
+        );
+
+    border:
+        1px solid
+        rgba(255, 255, 255, 0.07);
+
+    overflow: hidden;
+
+    cursor: pointer;
+
+    transition:
+        transform .2s,
+        border-color .2s,
+        background .2s,
+        box-shadow .2s;
+
+}
+
+
+.command-card:hover {
+
+    transform:
+        translateY(-4px);
+
+    border-color:
+        rgba(85, 130, 255, 0.3);
+
+    background:
+        rgba(255, 255, 255, 0.055);
+
+    box-shadow:
+        0 15px 40px
+        rgba(0, 0, 0, 0.2);
+
+}
+
+
+.command-card::before {
+
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 0;
+
+    width: 100%;
+
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(100, 140, 255, 0.5),
+            transparent
+        );
+
+    opacity: 0;
+
+    transition: opacity .2s;
+
+}
+
+
+.command-card:hover::before {
+
+    opacity: 1;
+
+}
+
+
+.command-top {
+
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 16px;
+
+}
+
+
+.command-icon {
+
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background:
+        rgba(70, 110, 255, 0.1);
+
+    border:
+        1px solid
+        rgba(80, 130, 255, 0.15);
+
+    font-size: 19px;
+
+}
+
+
+.command-category {
+
+    padding:
+        5px
+        8px;
+
+    border-radius: 7px;
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    color: #7c88a0;
+
+    font-size: 10px;
+
+    font-weight: 700;
+
+    letter-spacing: .5px;
+
+}
+
+
+.command-name {
+
+    margin: 0 0 8px;
+
+    color: #ffffff;
+
+    font-size: 16px;
+
+    font-weight: 700;
+
+    font-family:
+        "Consolas",
+        "Courier New",
+        monospace;
+
+}
+
+
+.command-name::first-letter {
+
+    color: #6d9bff;
+
+}
+
+
+.command-description {
+
+    margin: 0;
+
+    color: #77839a;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+
+}
+
+
+/* =========================================================
+   EMPTY
+========================================================= */
+
+.commands-empty {
+
+    display: none;
+
+    text-align: center;
+
+    padding:
+        80px
+        20px;
+
+}
+
+
+.commands-empty.show {
+
+    display: block;
+
+}
+
+
+.empty-icon {
+
+    width: 70px;
+    height: 70px;
+
+    margin:
+        0
+        auto
+        20px;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 20px;
+
+    background:
+        rgba(255, 255, 255, 0.04);
+
+    font-size: 28px;
+
+}
+
+
+.commands-empty h3 {
+
+    margin: 0 0 8px;
+
+    color: #ffffff;
+
+}
+
+
+.commands-empty p {
+
+    margin: 0;
+
+    color: #6f7b91;
+
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .commands-hero {
+
+        min-height: 390px;
+
+        padding-top: 120px;
+
+    }
+
+    .commands-hero h1 {
+
+        letter-spacing: -2px;
+
+    }
+
+    .commands-hero p {
+
+        font-size: 15px;
+
+    }
+
+    .commands-section {
+
+        padding:
+            20px
+            15px
+            70px;
+
+    }
+
+    .commands-grid {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+    .category-filters {
+
+        justify-content: flex-start;
+
+        overflow-x: auto;
+
+        flex-wrap: nowrap;
+
+        padding-bottom: 5px;
+
+    }
+
+    .filter {
+
+        flex-shrink: 0;
+
+    }
+
+}
+
+@media (max-width: 520px) {
+    .commands-hero {
+        padding-left: 0;
+        padding-right: 0;
+    }
+
+    .commands-hero h1 {
+        font-size: clamp(36px, 11vw, 52px);
+        line-height: 1.05;
+    }
+
+    .category-filters {
+        scrollbar-width: thin;
+        gap: 7px;
+    }
+
+    .command-card {
+        padding: 17px;
+    }
+
+    .command-top {
+        gap: 8px;
+    }
+}

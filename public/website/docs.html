@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Documentação oficial do Nina: configuração, comandos, IA, moderação, tickets e outros recursos.">
+<title>Documentação do Nina</title>
+<link rel="stylesheet" href="css/docs.css">
+
+    <!-- SEO -->
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#080b18">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Documentação do Nina">
+    <meta property="og:description" content="Documentação oficial do Nina: configuração, comandos, IA, moderação, tickets e outros recursos.">
+    <meta property="og:image" content="assets/Logo Nina.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Documentação do Nina">
+    <meta name="twitter:description" content="Documentação oficial do Nina: configuração, comandos, IA, moderação, tickets e outros recursos.">
+    <meta name="twitter:image" content="assets/Logo Nina.png">
+
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="canonical" href="https://nina.injectcloud.space/website/docs.html">
+</head>
+<body>
+<header class="docs-navbar">
+  <a href="index.html" class="brand"><span class="brand-mark">J</span><span><span>Nina</span></span></a>
+  <div class="navbar-actions">
+    <a href="index.html">Início</a>
+    <a href="commands.html">Comandos</a>
+    <a href="https://nina.injectcloud.space/panel" class="dashboard-btn">Dashboard</a>
+  </div>
+  <button class="mobile-toggle" id="mobileToggle" aria-label="Abrir documentação">☰</button>
+</header>
+
+<div class="docs-layout">
+<aside class="docs-sidebar" id="docsSidebar">
+  <div class="sidebar-title">DOCUMENTAÇÃO</div>
+  <nav>
+    <a href="#introducao" class="side-link active">Introdução</a>
+    <a href="#comecando" class="side-link">Começando</a>
+    <a href="#configuracao" class="side-link">Configuração</a>
+    <a href="#moderacao" class="side-link">Moderação</a>
+    <a href="#economia" class="side-link">Economia</a>
+    <a href="#tickets" class="side-link">Tickets</a>
+    <a href="#sorteios" class="side-link">Sorteios</a>
+    <a href="#logs" class="side-link">Logs</a>
+    <a href="#boasvindas" class="side-link">Boas-vindas</a>
+    <a href="#autorole" class="side-link">Cargos automáticos</a>
+    <a href="#jogos" class="side-link">Jogos</a>
+    <a href="#utilidade" class="side-link">Utilidade</a>
+    <a href="#servidor" class="side-link">Servidor</a>
+    <a href="#ajuda" class="side-link">Sistema de ajuda</a>
+  </nav>
+  <div class="sidebar-bottom"><a href="commands.html">📚 Ver todos os comandos</a></div>
+</aside>
+
+<main class="docs-content">
+<section class="docs-hero" id="introducao">
+  <div class="eyebrow">NINA • DOCUMENTAÇÃO</div>
+  <h1>Documentação do <span>Nina</span></h1>
+  <p>Guia central para entender, configurar e utilizar os recursos do Nina no seu servidor Discord.</p>
+  <div class="hero-actions">
+    <a href="#comecando" class="primary-btn">Começar agora</a>
+    <a href="commands.html" class="secondary-btn">Ver comandos</a>
+  </div>
+</section>
+
+<section class="doc-section" id="comecando">
+  <div class="section-label">01</div><h2>Começando</h2>
+  <p>O Nina reúne ferramentas de moderação, configuração, economia, tickets, sorteios, utilidade e gerenciamento de servidores em um único bot.</p>
+  <div class="info-grid">
+    <article class="info-card"><div class="info-icon">🤖</div><h3>Adicione o Nina</h3><p>Instale o bot no servidor através do convite oficial.</p></article>
+    <article class="info-card"><div class="info-icon">⚙️</div><h3>Configure</h3><p>Use os comandos de configuração para preparar os recursos do servidor.</p></article>
+    <article class="info-card"><div class="info-icon">📚</div><h3>Explore</h3><p>Consulte a página de comandos ou use <code>/ajuda</code>.</p></article>
+  </div>
+</section>
+
+<section class="doc-section" id="configuracao">
+  <div class="section-label">02</div><h2>Configuração</h2><p>Comandos relacionados à configuração do Nina.</p>
+  <div class="command-list">
+    <a href="commands.html#config" class="command-row"><code>/config</code><span>Configuração do Nina.</span></a>
+    <a href="commands.html#logs" class="command-row"><code>/logs</code><span>Configuração dos sistemas de logs.</span></a>
+  </div>
+</section>
+
+<section class="doc-section" id="moderacao">
+  <div class="section-label">03</div><h2>Moderação</h2><p>Ferramentas para gerenciamento e moderação do servidor.</p>
+  <div class="command-list">
+    <a href="commands.html#automod" class="command-row"><code>/automod</code><span>Moderação automática.</span></a>
+    <a href="commands.html#ban" class="command-row"><code>/ban</code><span>Bane um membro.</span></a>
+    <a href="commands.html#banlist" class="command-row"><code>/banlist</code><span>Lista de banimentos.</span></a>
+    <a href="commands.html#kick" class="command-row"><code>/kick</code><span>Expulsa um membro.</span></a>
+    <a href="commands.html#lock" class="command-row"><code>/lock</code><span>Bloqueia um canal.</span></a>
+    <a href="commands.html#nick" class="command-row"><code>/nick</code><span>Altera o apelido de um membro.</span></a>
+    <a href="commands.html#purge" class="command-row"><code>/purge</code><span>Remove várias mensagens.</span></a>
+    <a href="commands.html#removetimeout" class="command-row"><code>/removetimeout</code><span>Remove o timeout.</span></a>
+    <a href="commands.html#removewarn" class="command-row"><code>/removewarn</code><span>Remove uma advertência.</span></a>
+    <a href="commands.html#role" class="command-row"><code>/role</code><span>Gerencia cargos.</span></a>
+    <a href="commands.html#slowmode" class="command-row"><code>/slowmode</code><span>Configura o modo lento.</span></a>
+    <a href="commands.html#timeout" class="command-row"><code>/timeout</code><span>Aplica timeout.</span></a>
+    <a href="commands.html#unban" class="command-row"><code>/unban</code><span>Remove um banimento.</span></a>
+    <a href="commands.html#unlock" class="command-row"><code>/unlock</code><span>Desbloqueia um canal.</span></a>
+    <a href="commands.html#warn" class="command-row"><code>/warn</code><span>Adverte um membro.</span></a>
+    <a href="commands.html#warnings" class="command-row"><code>/warnings</code><span>Consulta advertências.</span></a>
+  </div>
+</section>
+
+<section class="doc-section" id="economia">
+  <div class="section-label">04</div><h2>Economia</h2><p>Sistema econômico do Nina.</p>
+  <div class="command-list">
+    <a href="commands.html#balance" class="command-row"><code>/balance</code><span>Consulta o saldo.</span></a>
+    <a href="commands.html#daily" class="command-row"><code>/daily</code><span>Recompensa diária.</span></a>
+    <a href="commands.html#deposit" class="command-row"><code>/deposit</code><span>Deposita dinheiro.</span></a>
+    <a href="commands.html#leaderboard" class="command-row"><code>/leaderboard</code><span>Ranking econômico.</span></a>
+    <a href="commands.html#pay" class="command-row"><code>/pay</code><span>Envia dinheiro.</span></a>
+    <a href="commands.html#withdraw" class="command-row"><code>/withdraw</code><span>Retira dinheiro.</span></a>
+    <a href="commands.html#work" class="command-row"><code>/work</code><span>Trabalha para ganhar dinheiro.</span></a>
+  </div>
+</section>
+
+<section class="doc-section" id="tickets"><div class="section-label">05</div><h2>Tickets</h2><div class="command-list"><a href="commands.html#ticket" class="command-row"><code>/ticket</code><span>Sistema de tickets do servidor.</span></a></div></section>
+<section class="doc-section" id="sorteios"><div class="section-label">06</div><h2>Sorteios</h2><div class="command-list"><a href="commands.html#sorteio" class="command-row"><code>/sorteio</code><span>Gerenciamento de sorteios.</span></a></div></section>
+<section class="doc-section" id="logs"><div class="section-label">07</div><h2>Logs</h2><p>O comando <code>/logs</code> está relacionado à configuração dos sistemas de logs do Nina.</p></section>
+<section class="doc-section" id="boasvindas"><div class="section-label">08</div><h2>Boas-vindas</h2><div class="command-list"><a href="commands.html#boasvindas" class="command-row"><code>/boasvindas</code><span>Configuração do sistema de boas-vindas.</span></a></div></section>
+<section class="doc-section" id="autorole"><div class="section-label">09</div><h2>Cargos automáticos</h2><div class="command-list"><a href="commands.html#autorole" class="command-row"><code>/autorole</code><span>Gerenciamento de cargos automáticos.</span></a></div></section>
+<section class="doc-section" id="jogos"><div class="section-label">10</div><h2>Jogos</h2><div class="command-list"><a href="commands.html#coinflip" class="command-row"><code>/coinflip</code><span>Jogo de cara ou coroa.</span></a><a href="commands.html#slots" class="command-row"><code>/slots</code><span>Jogo de caça-níqueis.</span></a></div></section>
+<section class="doc-section" id="utilidade"><div class="section-label">11</div><h2>Utilidade</h2><div class="command-list">
+<a href="commands.html#ajuda" class="command-row"><code>/ajuda</code><span>Consulta comandos e informações.</span></a>
+<a href="commands.html#avatar" class="command-row"><code>/avatar</code><span>Visualiza o avatar.</span></a>
+<a href="commands.html#embed" class="command-row"><code>/embed</code><span>Cria uma embed.</span></a>
+<a href="commands.html#embedia" class="command-row"><code>/embedia</code><span>Ferramenta relacionada a embeds.</span></a>
+<a href="commands.html#ping" class="command-row"><code>/ping</code><span>Verifica a latência.</span></a>
+<a href="commands.html#roleinfo" class="command-row"><code>/roleinfo</code><span>Exibe informações de um cargo.</span></a>
+<a href="commands.html#say" class="command-row"><code>/say</code><span>Faz o bot enviar uma mensagem.</span></a>
+<a href="commands.html#serverinfo" class="command-row"><code>/serverinfo</code><span>Exibe informações do servidor.</span></a>
+<a href="commands.html#userinfo" class="command-row"><code>/userinfo</code><span>Exibe informações de um usuário.</span></a>
+</div></section>
+<section class="doc-section" id="servidor"><div class="section-label">12</div><h2>Servidor</h2><div class="command-list"><a href="commands.html#criar-servidor" class="command-row"><code>/criar-servidor</code><span>Ferramenta para criação de servidor.</span></a></div></section>
+<section class="doc-section" id="ajuda"><div class="section-label">13</div><h2>Sistema de ajuda</h2><div class="callout"><strong>💡 Dica</strong><p>Use <code>/ajuda comando:&lt;nome&gt;</code> para consultar detalhes de um comando específico no Discord.</p></div></section>
+
+<section class="docs-footer">
+  <h2>Precisa de mais detalhes?</h2>
+  <p>Consulte a central de comandos para encontrar os 42 comandos disponíveis no Nina.</p>
+  <a href="commands.html" class="primary-btn">Abrir central de comandos →</a>
+</section>
+</main>
+</div>
+<script src="js/docs.js"></script>
+</body>
+</html>
