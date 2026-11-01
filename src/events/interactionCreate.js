@@ -251,7 +251,9 @@ module.exports = {
                     return voiceRecording.select(interaction);
                 }
 
-                if (interaction.customId === "config_voicerec_max" || interaction.customId === "config_category" || interaction.customId === "config_log_category" || interaction.customId === "config_selfrole_remove" || interaction.customId === "config_honeypot_action" || interaction.customId === "config_verif_mode" || interaction.customId === "config_account_action" || interaction.customId === "config_report_day" || interaction.customId === "config_backup_pick") {
+                // Todo select de texto do painel /config começa com "config_": roteia pelo prefixo
+                // (antes era uma lista fixa e o menu de modo dos tickets ficava de fora).
+                if (interaction.customId.startsWith("config_")) {
                     return configPanel.execute(interaction);
                 }
 
