@@ -133,6 +133,17 @@ class EconomyRepository {
         return database.all(`SELECT user_id, wallet, bank, (wallet + bank) AS total FROM economy_global_users ORDER BY total DESC LIMIT ?`, [limit]);
     }
 
+    static async getGuildLevelLeaderboard(guildId, limit = 10) {
+        return database.all(
+            `SELECT user_id, xp, level
+             FROM economy_users
+             WHERE guild_id = ?
+             ORDER BY xp DESC, level DESC, user_id ASC
+             LIMIT ?`,
+            [guildId, limit]
+        );
+    }
+
     static async transfer(guildId, fromUserId, toUserId, amount) {
         if (!Number.isSafeInteger(amount) || amount <= 0 || fromUserId === toUserId) return false;
         await this.ensureGlobalUser(fromUserId);

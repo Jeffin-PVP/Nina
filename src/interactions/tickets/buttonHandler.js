@@ -51,6 +51,12 @@ async function closeTicket(interaction, ticket) {
         source: interaction
     }), { components: [ticketActionRow("closed")] });
     await TicketManager.applyClosed(channel, ticket);
+    await TicketManager.sendTicketTranscript({
+        guild,
+        channel,
+        ticket,
+        user: await interaction.client.users.fetch(ticket.user_id).catch(() => null)
+    });
 }
 
 module.exports = {
@@ -155,6 +161,19 @@ module.exports = {
             }
             await interaction.deferReply();
             return closeTicket(interaction, ticket);
+        }
+
+        if (customId.startsWith("ticket_rate:")) {
+            const [, threadId, rawRating] = interaction.customId.split(":");
+            const rating = Number(rawRating);
+            if (!threadId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+                return ui.caution(interaction, "Avaliação inválida.", "Ticket");
+            }
+            await TicketRepository.setRating(threadId, rating);
+            return interaction.update({
+                content: `⭐ Avaliação registrada: **${rating}/5**. Obrigado!`,
+                components: []
+            });
         }
 
         /* REABRIR TICKET */

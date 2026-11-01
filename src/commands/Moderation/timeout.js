@@ -6,9 +6,7 @@ const {
 
 const ui = require("../../utils/ui");
 const { e } = require("../../utils/emojis");
-
-const ToolManager =
-    require("../../ai/ToolManager");
+const moderationConfirm = require("../../interactions/moderation/confirmAction");
 
 module.exports = {
 
@@ -139,95 +137,21 @@ module.exports = {
 
         }
 
-        try {
+        const UNITS = { seconds: "segundo(s)", minutes: "minuto(s)", hours: "hora(s)", days: "dia(s)" };
 
-            const fakeMessage = {
-
-                guild: interaction.guild,
-
-                member: interaction.member,
-
-                author: interaction.user,
-
-                client: interaction.client,
-
-                channel: interaction.channel
-
-            };
-
-            const result =
-                await ToolManager.execute(
-
-                    "timeoutMember",
-
-                    fakeMessage,
-
-                    {
-
-                        userId: user.id,
-
-                        time,
-
-                        unit,
-
-                        reason
-
-                    }
-
-                );
-
-            if (!result.success) {
-
-                return interaction.editReply({
-
-                    embeds: [
-
-                        ui.error(result.error, undefined, interaction)
-
-                    ]
-
-                });
-
+        await moderationConfirm.prompt(interaction, {
+            title: "Confirmar timeout",
+            description: `Você está prestes a aplicar timeout em <@${user.id}> por **${time} ${UNITS[unit] ?? unit}**.\n\n**Motivo:** ${reason}`,
+            action: "timeout",
+            payload: {
+                userId: user.id,
+                duration: time,
+                unit,
+                reason
             }
+        });
 
-            const UNITS = { seconds: "segundo(s)", minutes: "minuto(s)", hours: "hora(s)", days: "dia(s)" };
-
-            const embed = ui.modEmbed({
-                emoji: "timeout",
-                title: "Timeout aplicado",
-                color: ui.COLORS.info,
-                user,
-                moderator: interaction.user,
-                reason,
-                fields: [{ name: `${e("clock")} Duração`, value: `${time} ${UNITS[unit] ?? unit}`, inline: true }],
-                source: interaction
-            });
-
-            await interaction.editReply({
-
-                embeds: [
-
-                    embed
-
-                ]
-
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            await interaction.editReply({
-
-                embeds: [
-
-                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
-
-                ]
-
-            });
-
-        }
+        return;
 
     }
 

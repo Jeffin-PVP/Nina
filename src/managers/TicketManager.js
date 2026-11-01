@@ -1,4 +1,5 @@
 const { ChannelType, PermissionFlagsBits } = require("discord.js");
+const GuildRepository = require("../database/repositories/GuildRepository");
 
 /*
 Camada única para os dois modos de ticket:
@@ -115,4 +116,98 @@ async function removeMember(channel, userId) {
     return channel.permissionOverwrites.delete(userId);
 }
 
-module.exports = { MODES, normalizeMode, modeLabel, isStaff, resolveCategory, createTicketContainer, applyClosed, applyReopened, addMember, removeMember };
+async function buildTranscript(channel, ticket) {
+    if (!channel || !channel.messages) {
+        return null;
+    }
+
+    const lines = [
+        `Ticket #${String(ticket.number).padStart(4, "0")}`,
+        `Servidor: ${channel.guild?.name || "Desconhecido"}`,
+        `Usuário: <@${ticket.user_id}>`,
+        `Fechado em: ${new Date().toISOString()}`,
+        "",
+        "--- TRANSCRIÇÃO ---",
+        ""
+    ];
+
+    let lastId;
+    const messages = [];
+
+    for (let page = 0; page < 10; page++) {
+        const batch = await channel.messages.fetch({ limit: 100, before: lastId || undefined }).catch(() => null);
+        if (!batch || batch.size === 0) break;
+
+        const entries = [...batch.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+        messages.push(...entries);
+        lastId = entries[0]?.id;
+
+        if (batch.size < 100) break;
+    }
+
+    const seen = new Set();
+    for (const message of messages.sort((a, b) => a.createdTimestamp - b.createdTimestamp)) {
+        if (seen.has(message.id)) continue;
+        seen.add(message.id);
+
+        const stamp = new Date(message.createdTimestamp).toISOString();
+        const author = message.author?.globalName || message.author?.username || "Sistema";
+        const content = message.content?.trim() || "[sem texto]";
+        const attachments = message.attachments?.size ? ` [anexos: ${[...message.attachments.values()].map(a => a.name || a.url).join(", ")}]` : "";
+        lines.push(`[${stamp}] ${author}: ${content}${attachments}`);
+    }
+
+    return Buffer.from(lines.join("\n"), "utf8");
+}
+
+async function sendTicketTranscript({ guild, channel, ticket, user }) {
+    const transcript = await buildTranscript(channel, ticket);
+    if (!transcript) return;
+
+    const logChannelId = await GuildRepository.getLogChannel(guild.id).catch(() => null);
+    const logChannel = logChannelId ? guild.channels.cache.get(logChannelId) : null;
+
+    if (logChannel?.isTextBased?.()) {
+        await logChannel.send({
+            content: `📄 Transcrição do ticket #${String(ticket.number).padStart(4, "0")}`,
+            files: [{ attachment: transcript, name: `ticket-${String(ticket.number).padStart(4, "0")}.txt` }]
+        }).catch(() => null);
+    }
+
+    try {
+        await user.send({
+            content: `📄 Sua conversa do ticket #${String(ticket.number).padStart(4, "0")} foi anexada abaixo.\n` +
+                `Também envie uma avaliação de 1 a 5 para ajudar a melhorar o atendimento.`,
+            files: [{ attachment: transcript, name: `ticket-${String(ticket.number).padStart(4, "0")}.txt` }],
+            components: [
+                {
+                    type: 1,
+                    components: [
+                        { type: 2, style: 1, custom_id: `ticket_rate:${channel.id}:1`, label: "1⭐" },
+                        { type: 2, style: 1, custom_id: `ticket_rate:${channel.id}:2`, label: "2⭐" },
+                        { type: 2, style: 3, custom_id: `ticket_rate:${channel.id}:3`, label: "3⭐" },
+                        { type: 2, style: 3, custom_id: `ticket_rate:${channel.id}:4`, label: "4⭐" },
+                        { type: 2, style: 4, custom_id: `ticket_rate:${channel.id}:5`, label: "5⭐" }
+                    ]
+                }
+            ]
+        });
+    } catch {
+        // DM bloqueada: não bloqueia o fechamento do ticket.
+    }
+}
+
+module.exports = {
+    MODES,
+    normalizeMode,
+    modeLabel,
+    isStaff,
+    resolveCategory,
+    createTicketContainer,
+    applyClosed,
+    applyReopened,
+    addMember,
+    removeMember,
+    buildTranscript,
+    sendTicketTranscript
+};

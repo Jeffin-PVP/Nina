@@ -283,6 +283,22 @@ class TicketRepository {
 
     }
 
+    static async setRating(threadId, rating) {
+
+        await database.run(
+
+            `
+            UPDATE tickets
+            SET rating = ?
+            WHERE thread_id = ?
+            `,
+
+            [rating, threadId]
+
+        );
+
+    }
+
     static async remove(threadId) {
 
         await database.run(

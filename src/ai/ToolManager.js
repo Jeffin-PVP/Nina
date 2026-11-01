@@ -4,6 +4,28 @@ const { canModerateMember } = require("./moderationSafety");
 
 class ToolManager {
 
+    static requiresConfirmation(toolName) {
+        return new Set([
+            "banMember",
+            "kickMember",
+            "timeoutMember",
+            "purgeMessages",
+            "slowmodeChannel",
+            "lockChannel",
+            "unlockChannel",
+            "unbanMember"
+        ]).has(toolName);
+    }
+
+    static async requestConfirmation(message, toolName, args = {}) {
+        if (!message?.channel || !this.requiresConfirmation(toolName)) return null;
+
+        const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+        const token = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const pending = require("../interactions/ai/confirmAction");
+        await pending.prompt(message, { toolName, args, token });
+        return token;
+    }
 
     /**
      * Executa uma ferramenta.
@@ -105,6 +127,15 @@ class ToolManager {
 
             }
 
+        }
+
+        if (this.requiresConfirmation(tool.name) && args?.confirm !== true) {
+            return {
+                success: false,
+                requiresConfirmation: true,
+                toolName: tool.name,
+                reason: "A ação requer confirmação do usuário antes de continuar."
+            };
         }
 
         // Ações que alteram diretamente um membro precisam respeitar

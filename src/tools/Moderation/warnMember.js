@@ -6,6 +6,7 @@ const {
 const Tool = require("../../structures/Tool");
 
 const WarningRepository = require("../../database/repositories/WarningRepository");
+const ModerationRepository = require("../../database/repositories/ModerationRepository");
 
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
@@ -167,7 +168,7 @@ module.exports = new class extends Tool {
         try {
 
 
-            await WarningRepository.create({
+            const warningId = await WarningRepository.create({
 
                 guildId: message.guild.id,
 
@@ -179,7 +180,17 @@ module.exports = new class extends Tool {
 
             });
 
-
+            await ModerationRepository.createCase({
+                guildId: message.guild.id,
+                userId: member.id,
+                moderatorId: message.author.id,
+                type: "warn",
+                reason,
+                metadata: {
+                    warning_id: warningId,
+                    auto_action: false
+                }
+            });
 
             const totalWarnings =
                 await WarningRepository.count({
@@ -190,10 +201,61 @@ module.exports = new class extends Tool {
 
                 });
 
+            const progression = await ModerationRepository.getGuildSettings(message.guild.id);
+            let autoAction = null;
 
+            if (totalWarnings >= Number(progression.warns_to_ban || 8)) {
+                const banReason = `Auto-punição por ${totalWarnings} advertências no servidor.`;
+                await member.ban({ reason: banReason, deleteMessageSeconds: 0 });
+                await ModerationRepository.createCase({
+                    guildId: message.guild.id,
+                    userId: member.id,
+                    moderatorId: message.author.id,
+                    type: "ban",
+                    reason: banReason,
+                    metadata: {
+                        auto: true,
+                        total_warnings: totalWarnings,
+                        trigger: "progressive_warns"
+                    }
+                });
+                autoAction = "ban";
+            } else if (totalWarnings >= Number(progression.warns_to_kick || 5)) {
+                const kickReason = `Auto-punição por ${totalWarnings} advertências no servidor.`;
+                await member.kick(kickReason);
+                await ModerationRepository.createCase({
+                    guildId: message.guild.id,
+                    userId: member.id,
+                    moderatorId: message.author.id,
+                    type: "kick",
+                    reason: kickReason,
+                    metadata: {
+                        auto: true,
+                        total_warnings: totalWarnings,
+                        trigger: "progressive_warns"
+                    }
+                });
+                autoAction = "kick";
+            } else if (totalWarnings >= Number(progression.warns_to_timeout || 3)) {
+                const timeoutReason = `Auto-punição por ${totalWarnings} advertências no servidor.`;
+                await member.timeout(10 * 60 * 1000, timeoutReason);
+                await ModerationRepository.createCase({
+                    guildId: message.guild.id,
+                    userId: member.id,
+                    moderatorId: message.author.id,
+                    type: "timeout",
+                    reason: timeoutReason,
+                    metadata: {
+                        auto: true,
+                        duration: "10 minutos",
+                        total_warnings: totalWarnings,
+                        trigger: "progressive_warns"
+                    }
+                });
+                autoAction = "timeout";
+            }
 
             let dmSent = true;
-
 
 
             try {
@@ -280,6 +342,8 @@ module.exports = new class extends Tool {
                 reason,
 
                 warnings: totalWarnings,
+
+                autoAction,
 
                 dmSent,
 

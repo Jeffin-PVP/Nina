@@ -6,6 +6,7 @@ const Tool = require("../../structures/Tool");
 
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
+const ModerationRepository = require("../../database/repositories/ModerationRepository");
 
 
 module.exports = new class extends Tool {
@@ -234,6 +235,18 @@ module.exports = new class extends Tool {
 
 
 
+            await ModerationRepository.createCase({
+                guildId: message.guild.id,
+                userId: member.id,
+                moderatorId: message.author.id,
+                type: "timeout",
+                reason,
+                metadata: {
+                    duration: `${duration} minuto(s)`,
+                    source: "manual"
+                }
+            });
+
             await LogManager.send({
 
                 type: LogTypes.TIMEOUT,
@@ -257,10 +270,7 @@ module.exports = new class extends Tool {
 
             });
 
-
-
             return {
-
                 success: true,
 
                 action: "timeout",

@@ -6,9 +6,7 @@ const {
 
 const ui = require("../../utils/ui");
 const { e } = require("../../utils/emojis");
-
-const ToolManager =
-    require("../../ai/ToolManager");
+const moderationConfirm = require("../../interactions/moderation/confirmAction");
 
 module.exports = {
 
@@ -32,6 +30,25 @@ module.exports = {
 
                 .setRequired(true)
 
+        )
+
+        .addIntegerOption(option =>
+            option
+                .setName("duracao")
+                .setDescription("Duração do banimento temporário (opcional).")
+                .setRequired(false)
+                .setMinValue(1)
+        )
+        .addStringOption(option =>
+            option
+                .setName("unidade")
+                .setDescription("Unidade da duração do banimento temporário.")
+                .setRequired(false)
+                .addChoices(
+                    { name: "Minutos", value: "minutes" },
+                    { name: "Horas", value: "hours" },
+                    { name: "Dias", value: "days" }
+                )
         )
 
         .addStringOption(option =>
@@ -64,6 +81,8 @@ module.exports = {
         const user =
             interaction.options.getUser("membro");
 
+        const duration = interaction.options.getInteger("duracao");
+        const unit = interaction.options.getString("unidade");
         const reason =
             interaction.options.getString("motivo") ??
             "Nenhum motivo informado.";
@@ -82,84 +101,22 @@ module.exports = {
 
         }
 
-        try {
+        const durationText = duration && unit ? ` por ${duration} ${unit === "days" ? "dias" : unit === "hours" ? "horas" : "minutos"}` : "";
 
-            const fakeMessage = {
-
-                guild: interaction.guild,
-
-                member: interaction.member,
-
-                author: interaction.user,
-
-                client: interaction.client,
-
-                channel: interaction.channel
-
-            };
-
-            const result =
-                await ToolManager.execute(
-
-                    "banMember",
-
-                    fakeMessage,
-
-                    {
-
-                        userId: user.id,
-
-                        reason
-
-                    }
-
-                );
-
-            if (!result.success) {
-
-                return interaction.editReply({
-
-                    embeds: [
-
-                        ui.error(result.error, undefined, interaction)
-
-                    ]
-
-                });
-
-            }
-
-            const embed = ui.modEmbed({
-                emoji: "ban",
-                title: "Membro banido",
-                color: ui.COLORS.error,
-                user,
-                moderator: interaction.user,
+        await moderationConfirm.prompt(interaction, {
+            title: "Confirmar banimento",
+            description: `Você está prestes a banir <@${user.id}>${durationText}.\n\n**Motivo:** ${reason}`,
+            action: "ban",
+            payload: {
+                userId: user.id,
                 reason,
-                source: interaction
-            });
+                duration,
+                unit,
+                deleteMessageSeconds: 0
+            }
+        });
 
-            await interaction.editReply({
-
-                embeds: [embed]
-
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            await interaction.editReply({
-
-                embeds: [
-
-                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
-
-                ]
-
-            });
-
-        }
+        return;
 
     }
 

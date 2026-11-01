@@ -6,6 +6,8 @@ const Tool = require("../../structures/Tool");
 
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
+const ModerationRepository = require("../../database/repositories/ModerationRepository");
+const TemporaryBanManager = require("../../managers/TemporaryBanManager");
 
 
 module.exports = new class extends Tool {
@@ -55,6 +57,14 @@ module.exports = new class extends Tool {
 
                         description: "Segundos de mensagens para apagar."
 
+                    },
+                    duration: {
+                        type: "integer",
+                        description: "Duração do banimento temporário em minutos, horas ou dias."
+                    },
+                    unit: {
+                        type: "string",
+                        description: "Unidade da duração: minutes, hours, days."
                     }
 
                 },
@@ -87,10 +97,16 @@ module.exports = new class extends Tool {
                 )
             );
 
+        const durationNumber = Number(args.duration ?? 0);
+        const unit = String(args.unit ?? "minutes");
+        let durationMs = 0;
 
+        if (durationNumber > 0) {
+            const multipliers = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
+            durationMs = durationNumber * (multipliers[unit] ?? multipliers.minutes);
+        }
 
-        const member =
-            await message.guild.members
+        const member =            await message.guild.members
                 .fetch(args.userId)
                 .catch(() => null);
 
@@ -191,6 +207,33 @@ module.exports = new class extends Tool {
 
 
 
+            const expiresAt = durationMs > 0 ? Date.now() + durationMs : null;
+
+            if (expiresAt) {
+                await ModerationRepository.saveTemporaryBan({
+                    guildId: message.guild.id,
+                    userId: member.id,
+                    moderatorId: message.author.id,
+                    reason,
+                    expiresAt
+                });
+                TemporaryBanManager.schedule(message.guild.id, member.id, reason, durationMs);
+            }
+
+            await ModerationRepository.createCase({
+                guildId: message.guild.id,
+                userId: member.id,
+                moderatorId: message.author.id,
+                type: "ban",
+                reason,
+                metadata: {
+                    deleteMessageSeconds,
+                    source: "manual",
+                    durationMs,
+                    expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null
+                }
+            });
+
             await LogManager.send({
 
                 type: LogTypes.BAN,
@@ -212,9 +255,7 @@ module.exports = new class extends Tool {
             });
 
 
-
             return {
-
                 success: true,
 
                 action: "ban",
@@ -232,6 +273,8 @@ module.exports = new class extends Tool {
                 reason,
 
                 deleteMessageSeconds,
+                durationMs,
+                expiresAt: durationMs > 0 ? new Date(Date.now() + durationMs).toISOString() : null,
 
                 logged: true
 

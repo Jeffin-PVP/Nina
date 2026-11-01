@@ -6,9 +6,7 @@ const {
 
 const ui = require("../../utils/ui");
 const { e } = require("../../utils/emojis");
-
-const ToolManager =
-    require("../../ai/ToolManager");
+const moderationConfirm = require("../../interactions/moderation/confirmAction");
 
 module.exports = {
 
@@ -82,84 +80,17 @@ module.exports = {
 
         }
 
-        try {
-
-            const fakeMessage = {
-
-                guild: interaction.guild,
-
-                member: interaction.member,
-
-                author: interaction.user,
-
-                client: interaction.client,
-
-                channel: interaction.channel
-
-            };
-
-            const result =
-                await ToolManager.execute(
-
-                    "kickMember",
-
-                    fakeMessage,
-
-                    {
-
-                        userId: user.id,
-
-                        reason
-
-                    }
-
-                );
-
-            if (!result.success) {
-
-                return interaction.editReply({
-
-                    embeds: [
-
-                        ui.error(result.error, undefined, interaction)
-
-                    ]
-
-                });
-
+        await moderationConfirm.prompt(interaction, {
+            title: "Confirmar expulsão",
+            description: `Você está prestes a expulsar <@${user.id}>.\n\n**Motivo:** ${reason}`,
+            action: "kick",
+            payload: {
+                userId: user.id,
+                reason
             }
+        });
 
-            const embed = ui.modEmbed({
-                emoji: "kick",
-                title: "Membro expulso",
-                color: ui.COLORS.warn,
-                user,
-                moderator: interaction.user,
-                reason,
-                source: interaction
-            });
-
-            await interaction.editReply({
-
-                embeds: [embed]
-
-            });
-
-        } catch (error) {
-
-            console.error(error);
-
-            await interaction.editReply({
-
-                embeds: [
-
-                    ui.error("Ocorreu um erro ao executar o comando.", undefined, interaction)
-
-                ]
-
-            });
-
-        }
+        return;
 
     }
 

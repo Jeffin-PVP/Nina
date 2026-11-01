@@ -3,6 +3,7 @@ const groq = require("./groq");
 const systemPrompt = require("./systemPrompt");
 
 const ToolManager = require("./ToolManager");
+const AiRepository = require("../database/repositories/AiRepository");
 
 const ConversationMemory = require("./ConversationMemory");
 const NinaEmojiManager = require("./NinaEmojiManager");
@@ -42,6 +43,23 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
     static async chat({ message, question, context }) {
 
         const channelId = message.channel.id;
+
+        if (message.guild) {
+            const faq = await AiRepository.findMatchingFaq(message.guild.id, question);
+            if (faq) {
+                return faq.answer;
+            }
+
+            const config = await AiRepository.getGuildConfig(message.guild.id);
+            if (!config.enabled) {
+                return "A IA está desativada neste servidor. Um administrador pode ativá-la novamente.";
+            }
+
+            const usage = await AiRepository.consumeUsage(message.guild.id, message.author.id, config.limit_per_user, config.limit_per_server);
+            if (!usage.allowed) {
+                return `Limite de IA atingido para este servidor/usuário. Tente novamente amanhã. (${usage.current}/${usage.limitUser} por usuário, ${usage.totalServer}/${usage.limitServer} no servidor).`;
+            }
+        }
 
         const contextBlock = this.buildContextBlock(context);
 
@@ -117,7 +135,13 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
 
                 console.log(`→ ${toolName}`, args);
 
-                const result = await ToolManager.execute(toolName, message, args);
+                const destructive = ToolManager.requiresConfirmation(toolName);
+                if (destructive && !args.confirm) {
+                    const promptMessage = await ToolManager.requestConfirmation(message, toolName, args);
+                    return `⚠️ Ação sensível solicitada: **${toolName}**. Confirme no botão abaixo antes de continuar.\n${promptMessage ? "" : ""}`;
+                }
+
+                const result = await ToolManager.execute(toolName, message, { ...args, confirm: true });
 
                 console.log(`← resultado:`, result);
 

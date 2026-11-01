@@ -84,6 +84,90 @@ const statements = [
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
 
+    `CREATE TABLE IF NOT EXISTS ai_faq (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS ai_usage (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        date TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, user_id, date)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS ai_guild_config (
+        guild_id TEXT NOT NULL PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        limit_per_user INTEGER NOT NULL DEFAULT 15,
+        limit_per_server INTEGER NOT NULL DEFAULT 200,
+        reset_day TEXT NOT NULL DEFAULT 'daily'
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS guild_birthdays (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        month INTEGER NOT NULL,
+        day INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, user_id)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS guild_suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS moderation_cases (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        case_number INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        metadata_json TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (guild_id, case_number)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS staff_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        note TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS moderation_settings (
+        guild_id TEXT NOT NULL PRIMARY KEY,
+        warns_to_timeout INTEGER NOT NULL DEFAULT 3,
+        warns_to_kick INTEGER NOT NULL DEFAULT 5,
+        warns_to_ban INTEGER NOT NULL DEFAULT 8
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS temporary_bans (
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        moderator_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, user_id)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS inventories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id TEXT NOT NULL,
@@ -133,6 +217,7 @@ const statements = [
         user_id TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'open',
         claimed_by TEXT NULL,
+        rating INTEGER NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         closed_at TEXT NULL,
         closed_by TEXT NULL,
@@ -556,6 +641,9 @@ const indexes = [
     `CREATE INDEX IF NOT EXISTS idx_economy_transactions_user ON economy_transactions (guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_economy_transactions_created ON economy_transactions (created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_warnings_user ON warnings (guild_id, user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_moderation_cases_user ON moderation_cases (guild_id, user_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_staff_notes_user ON staff_notes (guild_id, user_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_temporary_bans_expiry ON temporary_bans (expires_at)`,
     `CREATE INDEX IF NOT EXISTS idx_tickets_guild_status ON tickets (guild_id, status)`,
     `CREATE INDEX IF NOT EXISTS idx_giveaways_running ON giveaways (guild_id, status, ends_at)`,
     `CREATE INDEX IF NOT EXISTS idx_global_bans_banned_at ON global_bans (banned_at)`,
@@ -610,13 +698,17 @@ function migrateSecuritySchema() {
 }
 
 function migrateTicketSchema() {
-    const columns = new Set(db.prepare("PRAGMA table_info(ticket_config)").all().map(row => row.name));
+    const configColumns = new Set(db.prepare("PRAGMA table_info(ticket_config)").all().map(row => row.name));
+    const ticketColumns = new Set(db.prepare("PRAGMA table_info(tickets)").all().map(row => row.name));
     const migrations = [
         ["mode", "TEXT NOT NULL DEFAULT 'thread'"],
         ["category_id", "TEXT NULL"]
     ];
     for (const [name, definition] of migrations) {
-        if (!columns.has(name)) db.exec(`ALTER TABLE ticket_config ADD COLUMN ${name} ${definition}`);
+        if (!configColumns.has(name)) db.exec(`ALTER TABLE ticket_config ADD COLUMN ${name} ${definition}`);
+    }
+    if (!ticketColumns.has("rating")) {
+        db.exec("ALTER TABLE tickets ADD COLUMN rating INTEGER NULL");
     }
 }
 

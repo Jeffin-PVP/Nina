@@ -156,6 +156,20 @@ class LevelManager {
 
     }
 
+    static async getGuildLeaderboard(guildId, limit = 10) {
+        return EconomyRepository.getGuildLevelLeaderboard(guildId, limit);
+    }
+
+    static async getUserRank(guildId, userId, limit = 10000) {
+        const ranking = await EconomyRepository.getGuildLevelLeaderboard(guildId, limit);
+        const index = ranking.findIndex(entry => entry.user_id === userId);
+
+        return {
+            position: index >= 0 ? index + 1 : ranking.length + 1,
+            total: ranking.length
+        };
+    }
+
 }
 
 module.exports = LevelManager;

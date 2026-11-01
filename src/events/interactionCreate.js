@@ -56,6 +56,8 @@ const voiceRecording =
 const amongUs = require("../managers/AmongUsAnnouncementManager");
 const VerificationManager = require("../managers/VerificationManager");
 const backupButtons = require("../interactions/backup/buttonHandler");
+const moderationConfirm = require("../interactions/moderation/confirmAction");
+const aiConfirm = require("../interactions/ai/confirmAction");
 
 module.exports = {
 
@@ -177,6 +179,12 @@ module.exports = {
                 }
                 if (interaction.customId.startsWith("backup:")) {
                     return backupButtons.execute(interaction);
+                }
+                if (interaction.customId.startsWith("modconfirm:")) {
+                    return moderationConfirm.execute(interaction);
+                }
+                if (interaction.customId.startsWith("ai_confirm:")) {
+                    return aiConfirm.execute(interaction);
                 }
                 if (interaction.customId.startsWith("voicerec:")) {
                     return voiceRecording.execute(interaction);

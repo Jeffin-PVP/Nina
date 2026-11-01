@@ -6,6 +6,7 @@ const Tool = require("../../structures/Tool");
 
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
+const ModerationRepository = require("../../database/repositories/ModerationRepository");
 
 
 module.exports = new class extends Tool {
@@ -167,6 +168,17 @@ module.exports = new class extends Tool {
 
 
 
+            await ModerationRepository.createCase({
+                guildId: message.guild.id,
+                userId: member.id,
+                moderatorId: message.author.id,
+                type: "kick",
+                reason,
+                metadata: {
+                    source: "manual"
+                }
+            });
+
             await LogManager.send({
 
                 type: LogTypes.KICK,
@@ -182,9 +194,7 @@ module.exports = new class extends Tool {
             });
 
 
-
             return {
-
                 success: true,
 
                 action: "kick",

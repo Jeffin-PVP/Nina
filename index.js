@@ -31,6 +31,9 @@ const ServerStatsManager =
 const GlobalBanManager =
     require("./src/managers/GlobalBanManager");
 
+const TemporaryBanManager =
+    require("./src/managers/TemporaryBanManager");
+
 const TempVoiceManager =
     require("./src/managers/TempVoiceManager");
 
@@ -286,6 +289,8 @@ client.once(
         GlobalBanManager.start().catch(error => {
             console.error("❌ Falha ao carregar banimentos globais:", error);
         });
+
+        TemporaryBanManager.start(client);
 
         // Remove registros/canais temporários que sobraram após reinício do bot.
         for (const guild of client.guilds.cache.values()) {
