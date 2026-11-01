@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } = require("discord.js");
 const Repo = require("../../database/repositories/ServerToolsRepository");
 const VerificationManager = require("../../managers/VerificationManager");
 const ui = require("../../utils/ui");
@@ -45,6 +45,7 @@ module.exports = {
                 return ui.fail(interaction, `Em ${channel} eu preciso de: ver o canal, enviar mensagens e incorporar links.`, "Faltam permissões");
             }
 
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             await Repo.setConfig(TABLE, guild.id, {
                 enabled: 1, mode, role_id: role.id, unverified_role_id: unverified?.id ?? null
             });
@@ -59,6 +60,7 @@ module.exports = {
         if (sub === "painel") {
             const config = await Repo.getConfig(TABLE, guild.id);
             if (!config.enabled || !config.role_id) return ui.caution(interaction, "Configure antes com `/verificacao setup`.", "Não configurada");
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             await VerificationManager.sendPanel(guild, config, interaction.channel);
             return ui.ok(interaction, `Painel reenviado em ${interaction.channel}.`, "Painel enviado");
         }

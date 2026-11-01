@@ -1,4 +1,4 @@
-const Groq = require("groq-sdk");
+const lazyGroq = require("./lazyGroq");
 
 /*
     Instância separada do Groq, usada SOMENTE pelo comando /criar-servidor.
@@ -7,6 +7,4 @@ const Groq = require("groq-sdk");
     cota da IA conversacional do bot.
 */
 
-module.exports = new Groq({
-    apiKey: process.env.GROQ_CRIAR_SERVIDOR_API_KEY
-});
+module.exports = lazyGroq("GROQ_CRIAR_SERVIDOR_API_KEY");

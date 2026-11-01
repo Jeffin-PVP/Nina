@@ -8,7 +8,16 @@ startPerformanceMonitor({ intervalMs: 30_000 });
 const fs = require("fs");
 const path = require("path");
 
-const { iniciarReveyl } = require('./reveyl');
+// Integração opcional com o Reveyl: se o arquivo ./reveyl não existir, o bot
+// sobe normalmente (o webhook de votos em src/api/server.js continua ativo).
+let iniciarReveyl = () => {};
+
+try {
+    ({ iniciarReveyl } = require('./reveyl'));
+} catch (error) {
+    if (error.code !== "MODULE_NOT_FOUND" || !String(error.message).includes("'./reveyl'")) throw error;
+    console.warn("⚠️ ./reveyl não encontrado; integração Reveyl do bot desativada.");
+}
 
 const ApiServer =
     require("./src/api/server");
@@ -249,8 +258,6 @@ client.once(
 
     () => {
 
-        console.clear();
-
         console.log(
             "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         );
@@ -349,4 +356,8 @@ client.login(
 });
 
 
-iniciarReveyl(client);
+try {
+    iniciarReveyl(client);
+} catch (error) {
+    console.error("❌ Falha ao iniciar a integração Reveyl:", error);
+}

@@ -17,7 +17,7 @@ module.exports = {
 
         setTimeout(async () => {
             try {
-                await target.send ? target.send({ content: `⏰ Lembrete: ${messageText}` }) : target.send(`⏰ Lembrete: ${messageText}`);
+                await target.send({ content: `⏰ Lembrete: ${messageText}` });
             } catch {
                 // ignora falhas de envio
             }

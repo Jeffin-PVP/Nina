@@ -2,7 +2,8 @@ const { E } = require("../../config/emojiRegistry");
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType
+    ChannelType,
+    MessageFlags
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
@@ -197,6 +198,8 @@ module.exports = {
                     ephemeral: true
                 });
             }
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
             const botMember = await guild.members.fetchMe();
             const permissoesCanal = canal.permissionsFor(botMember);
 

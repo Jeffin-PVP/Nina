@@ -1,7 +1,8 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    ChannelType
+    ChannelType,
+    MessageFlags
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
@@ -33,6 +34,8 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
     async execute(interaction) {
+
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const text = interaction.options.getString("mensagem");
         const channel = interaction.options.getChannel("canal") ?? interaction.channel;

@@ -1,13 +1,9 @@
-const Groq = require("groq-sdk");
+const lazyGroq = require("./lazyGroq");
 
 const embedPrompt =
     require("./prompts/embedPrompt");
 
-const groq = new Groq({
-
-    apiKey: process.env.EMBED_GROQ_API_KEY
-
-});
+const groq = lazyGroq("EMBED_GROQ_API_KEY");
 
 class EmbedAI {
 

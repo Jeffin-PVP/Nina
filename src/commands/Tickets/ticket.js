@@ -4,7 +4,8 @@ const {
     ChannelType,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    MessageFlags
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
@@ -203,6 +204,7 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder().setCustomId("ticket_open").setLabel("Abrir Ticket").setEmoji(component("ticket")).setStyle(ButtonStyle.Primary)
             );
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             await interaction.channel.send({ embeds: [embed], components: [row] });
             return ui.ok(interaction, `O painel de tickets foi enviado em ${interaction.channel}.`, "Painel enviado");
         }

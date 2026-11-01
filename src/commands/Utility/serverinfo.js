@@ -19,6 +19,8 @@ module.exports = {
 
     async execute(interaction) {
 
+        await interaction.deferReply();
+
         const { guild } = interaction;
 
         await guild.fetch();
@@ -61,7 +63,7 @@ module.exports = {
 
         }
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
 
     }
 

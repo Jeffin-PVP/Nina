@@ -1,6 +1,7 @@
 
 const { E: NinaE } = require("../config/emojiRegistry");
 const path = require("path");
+const crypto = require("crypto");
 const fs = require("fs");
 const express = require("express");
 const cors = require("cors");
@@ -15,6 +16,13 @@ const {
 const routes = require("./routes");
 const dashboardRoutes = require("./dashboardRoutes");
 const panelRoutes = require("./panelRoutes");
+
+// Compara o segredo do webhook em tempo constante (não vaza o tamanho/conteúdo por timing).
+function segredoConfere(recebido, esperado) {
+    const a = crypto.createHash("sha256").update(String(recebido)).digest();
+    const b = crypto.createHash("sha256").update(String(esperado)).digest();
+    return crypto.timingSafeEqual(a, b);
+}
 
 class ApiServer {
     constructor(client) {
@@ -55,7 +63,7 @@ class ApiServer {
                 const authorization = req.get("Authorization");
 
                 // Confere a senha configurada no Reveyl.
-                if (!secret || authorization !== secret) {
+                if (!secret || !authorization || !segredoConfere(authorization, secret)) {
                     console.warn("[Reveyl Vote] Autorização inválida.");
                     return res.sendStatus(401);
                 }
@@ -141,11 +149,10 @@ class ApiServer {
 
                 votes[String(user)] = (votes[String(user)] || 0) + 1;
 
-                fs.writeFileSync(
-                    votesFile,
-                    JSON.stringify(votes, null, 2),
-                    "utf8"
-                );
+                // Grava num arquivo temporário e renomeia: evita arquivo cortado se o processo cair no meio.
+                const tempFile = `${votesFile}.tmp`;
+                fs.writeFileSync(tempFile, JSON.stringify(votes, null, 2), "utf8");
+                fs.renameSync(tempFile, votesFile);
 
                 const embed = new EmbedBuilder()
                     .setColor(0xf569ff)

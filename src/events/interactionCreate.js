@@ -287,7 +287,12 @@ module.exports = {
                     { ephemeral: true }
                 );
 
-            } catch { }
+            } catch (replyError) {
+
+                // Sem isso o usuário só veria "a Nina não respondeu a tempo" e o motivo sumiria.
+                console.error("Falha ao enviar a resposta de erro da interação:", replyError);
+
+            }
 
         }
 

@@ -1,5 +1,3 @@
-const Groq = require("groq-sdk");
+const lazyGroq = require("./lazyGroq");
 
-module.exports = new Groq({
-    apiKey: process.env.GROQ_API_KEY
-});
+module.exports = lazyGroq("GROQ_API_KEY");

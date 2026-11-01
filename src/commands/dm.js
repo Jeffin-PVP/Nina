@@ -1,7 +1,8 @@
 const {
     SlashCommandBuilder,
     PermissionFlagsBits,
-    EmbedBuilder
+    EmbedBuilder,
+    MessageFlags
 } = require("discord.js");
 
 const ui = require("../utils/ui");
@@ -94,6 +95,9 @@ module.exports = {
         const parsedColor = /^#?[0-9a-f]{6}$/i.test(color ?? "")
             ? parseInt(color.replace("#", ""), 16)
             : ui.COLORS.info;
+
+        // Enviar DM pode demorar: confirma a interação antes (resposta só para quem usou).
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         try {
 

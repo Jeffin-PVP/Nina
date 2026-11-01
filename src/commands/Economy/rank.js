@@ -16,6 +16,9 @@ module.exports = {
         ),
 
     async execute(interaction) {
+        // Gerar o card leva tempo: confirma a interação antes (limite de 3s do Discord).
+        await interaction.deferReply();
+
         const targetUser = interaction.options.getUser("usuario") ?? interaction.user;
         const targetMember = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
@@ -36,6 +39,6 @@ module.exports = {
 
         const attachment = new AttachmentBuilder(cardBuffer, { name: `rank-${targetUser.id}.png` });
 
-        return interaction.reply({ files: [attachment] });
+        return interaction.editReply({ files: [attachment] });
     }
 };

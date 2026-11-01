@@ -18,6 +18,8 @@ module.exports = {
 
     async execute(interaction) {
 
+        await interaction.deferReply();
+
         const picked = interaction.options.getUser("membro") ?? interaction.user;
 
         // fetch(true) traz banner e cor de destaque
@@ -99,7 +101,7 @@ module.exports = {
 
         }
 
-        return interaction.reply({ embeds: [embed] });
+        return interaction.editReply({ embeds: [embed] });
 
     }
 

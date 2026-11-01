@@ -1,9 +1,3 @@
-const Groq = require("groq-sdk");
+const lazyGroq = require("../ai/lazyGroq");
 
-if (!process.env.ANTISCAM_GROQ_API_KEY) {
-    throw new Error("ANTISCAM_GROQ_API_KEY não configurada.");
-}
-
-module.exports = new Groq({
-    apiKey: process.env.ANTISCAM_GROQ_API_KEY
-});
+module.exports = lazyGroq("ANTISCAM_GROQ_API_KEY");
