@@ -5,8 +5,8 @@ module.exports = {
         .setName("evento")
         .setDescription("Cria um evento agendado no servidor.")
         .addStringOption(option => option.setName("nome").setDescription("Nome do evento.").setRequired(true))
-        .addStringOption(option => option.setName("descricao").setDescription("Descrição do evento.").setRequired(false))
         .addIntegerOption(option => option.setName("horas").setDescription("A partir de quantas horas no futuro.").setRequired(true).setMinValue(1).setMaxValue(720))
+        .addStringOption(option => option.setName("descricao").setDescription("Descrição do evento.").setRequired(false))
         .addChannelOption(option => option.setName("canal").setDescription("Canal para o evento (opcional)").setRequired(false)),
 
     async execute(interaction) {
