@@ -68,7 +68,7 @@ const CATEGORY_OPTIONS = [
     { value: "lockdown", label: "Lockdown", description: "Bloqueio rápido de canais e categorias", emoji: E("lock") },
     { value: "verification", label: "Verificação", description: "Libera o servidor só após o membro confirmar", emoji: E("ui_check") },
     { value: "accountfilter", label: "Contas novas", description: "Filtro de contas recém-criadas", emoji: E("ui_block") },
-    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: E("calendar") },
+    { value: "weeklyreport", label: "Relatório semanal", description: "Resumo automático de atividade e moderação", emoji: E("ui_date") },
     { value: "backup", label: "Backup", description: "Salvar e restaurar cargos e canais", emoji: E("pasta") }
 ];
 

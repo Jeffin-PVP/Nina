@@ -20,6 +20,20 @@ const MAX_REPLIES_DEFAULT_API = 8;
 const MAX_REPLIES_OWN_API = 30;
 const COOLDOWN_MS = 6000;
 const lastReply = new Map();
+const lastHumanCall = new Map();
+
+// Pedido explícito de atendimento humano: não depende da IA entender, nem de ela estar ligada.
+const HUMAN_PATTERNS = [
+    /\b(atendimento|atendente|suporte)\s+humano\b/,
+    /\b(falar|conversar|falo)\s+com\s+(um|uma|o|a)?\s*(humano|pessoa|atendente|alguem|equipe|staff|moderador\w*|admin\w*|suporte|dono)\b/,
+    /\b(chama|chamar|chame|acione|aciona|avisa|avisar|aviste)\s+(a\s+|o\s+|os\s+|as\s+)?(equipe|staff|suporte|moderador\w*|admin\w*|atendente|alguem|humano|dono)\b/,
+    /\b(quero|preciso|prefiro|queria)\s+(de\s+)?(um\s+|uma\s+)?(humano|pessoa|atendente|ajuda humana)\b/
+];
+
+const wantsHuman = text => {
+    const normalized = String(text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return HUMAN_PATTERNS.some(pattern => pattern.test(normalized));
+};
 
 function buildSystemPrompt({ guild, config, faq }) {
     const instructions = String(config.ai_instructions || "").trim().slice(0, 1500);
@@ -85,6 +99,13 @@ async function handleMessage(message) {
         return !message.mentions.has(message.client.user);
     }
 
+    // Pediu uma pessoa: avisa a equipe na hora (1x por minuto), mesmo com a IA desligada.
+    if (wantsHuman(message.content) && Date.now() - (lastHumanCall.get(message.channel.id) || 0) > 60000) {
+        lastHumanCall.set(message.channel.id, Date.now());
+        await escalate(message, config, "Certo! Vou chamar alguém da equipe para te atender.", ticket);
+        return true;
+    }
+
     // Dono marcou a Nina: responde pela conversa normal (evita resposta dupla).
     if (message.mentions.has(message.client.user)) return false;
 
@@ -145,13 +166,16 @@ async function handleMessage(message) {
     return true;
 }
 
-async function escalate(message, config, text) {
+async function escalate(message, config, text, ticket = null) {
     await TicketRepository.setAiActive(message.channel.id, 0);
     const role = config.support_role_id && message.guild.roles.cache.has(config.support_role_id) ? config.support_role_id : null;
-    const lines = [text ? `🤖 ${text}` : null, `🔔 Chamei a equipe${role ? ` (<@&${role}>)` : ""} para continuar o seu atendimento.`].filter(Boolean);
+    // Se alguém já assumiu o ticket, avisa essa pessoa em vez de marcar o cargo inteiro.
+    const claimer = ticket?.claimed_by || null;
+    const target = claimer ? `<@${claimer}>` : (role ? `<@&${role}>` : "");
+    const lines = [text ? `🤖 ${text}` : null, `🔔 Chamei ${claimer ? "o responsável" : "a equipe"}${target ? ` (${target})` : ""} para continuar o seu atendimento.`].filter(Boolean);
     await message.channel.send({
         content: lines.join("\n").slice(0, 1900),
-        allowedMentions: { parse: [], roles: role ? [role] : [] }
+        allowedMentions: { parse: [], roles: !claimer && role ? [role] : [], users: claimer ? [claimer] : [] }
     });
 }
 
