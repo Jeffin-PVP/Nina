@@ -81,8 +81,12 @@ async function handleMessage(message) {
         if (ticket.ai_active && message.member && TicketManager.isStaff(message.member, config)) {
             await TicketRepository.setAiActive(message.channel.id, 0);
         }
-        return true;
+        // Se marcaram a Nina, deixa a conversa normal por menção responder.
+        return !message.mentions.has(message.client.user);
     }
+
+    // Dono marcou a Nina: responde pela conversa normal (evita resposta dupla).
+    if (message.mentions.has(message.client.user)) return false;
 
     if (!config.ai_enabled || !config.ai_auto_reply) return true;
     if (!ticket.ai_active || ticket.claimed_by) return true;
