@@ -69,7 +69,7 @@ async function handleAI(interaction) {
 
     try {
 
-        const generated = await AIManager.generateEmbed(prompt);
+        const generated = await AIManager.generateEmbed(prompt, interaction.guild?.id || null);
 
         const data = EmbedUtils.sanitize(generated);
 

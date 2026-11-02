@@ -70,6 +70,8 @@
                             src="icons/autorole.svg?v=5" alt=""></span> Autoroles</button>
                 <button class="nav-item" data-section="tickets"><span class="nav-icon"><img src="icons/ticket.svg?v=5"
                             alt=""></span> Tickets</button>
+                <button class="nav-item" data-section="ia"><span class="nav-icon"><img src="icons/bot.svg?v=5"
+                            alt=""></span> Inteligência Artificial</button>
                 <button class="nav-item" data-section="logs"><span class="nav-icon"><img src="icons/logs.svg?v=5"
                             alt=""></span> Logs</button>
                 <button class="nav-item" data-section="tempvoice"><span class="nav-icon"><img
@@ -409,6 +411,46 @@
                         <div id="level-role-lista" class="list"></div>
                     </div>
                 </section>
+                <section id="secao-ia" class="section hidden">
+                    <div class="section-head">
+                        <div class="eyebrow">IA</div>
+                        <h2>Inteligência Artificial</h2>
+                        <p>Ligue ou desligue a IA do servidor e use a sua própria API, para tudo ou uma por função.</p>
+                    </div>
+                    <div class="panel form-panel">
+                        <div class="setting">
+                            <div><b>IA neste servidor</b><small>Conversa, tickets, Anti-Scam, embeds e demais recursos de IA.</small></div>
+                            <label class="switch"><input id="ia-enabled" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field"><label>Qual API usar?</label><select id="ia-mode">
+                                    <option value="default">API padrão da Nina (com limites diários)</option>
+                                    <option value="custom">Minha própria API</option>
+                                </select></div>
+                            <div class="field" id="ia-scope-field"><label>Escopo</label><select id="ia-scope">
+                                    <option value="all">Uma API para todas as funções</option>
+                                    <option value="per_feature">Uma API por função</option>
+                                </select></div>
+                        </div>
+                        <small id="ia-hint" class="muted"></small>
+                        <div class="form-actions"><button id="btn-salvar-ia" class="btn primary">Salvar</button><span id="ia-feedback" class="feedback"></span></div>
+                    </div>
+                    <div class="panel" id="ia-keys-panel">
+                        <div class="panel-head"><div><h3>Suas APIs</h3><p>As chaves ficam criptografadas e nunca são exibidas depois de salvas. Só dono/Administrador altera.</p></div>
+                            <button id="btn-testar-ia" class="btn ghost">Testar</button></div>
+                        <div id="ia-status" class="list"></div>
+                        <div class="grid-2">
+                            <div class="field"><label>Cadastrar API para</label><select id="ia-key-feature"></select></div>
+                            <div class="field"><label>Provedor</label><select id="ia-key-provider"></select></div>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field"><label>Chave da API</label><input id="ia-key-value" type="password" autocomplete="off" placeholder="Cole a chave aqui"></div>
+                            <div class="field"><label>Modelo (opcional)</label><input id="ia-key-model" type="text" placeholder="Ex.: gpt-4o-mini"></div>
+                        </div>
+                        <div class="field" id="ia-key-url-field"><label>URL base (provedor “custom”)</label><input id="ia-key-url" type="text" placeholder="https://api.exemplo.com/v1"></div>
+                        <div class="form-actions"><button id="btn-salvar-ia-key" class="btn primary">Testar e salvar API</button><span id="ia-key-feedback" class="feedback"></span></div>
+                    </div>
+                </section>
                 <section id="secao-tickets" class="section hidden">
                     <div class="section-head">
                         <div class="eyebrow">SUPORTE</div>
@@ -438,6 +480,20 @@
                             <div class="field"><label>Próximo número</label><input id="ticket-next-number" type="number"
                                     readonly></div>
                         </div>
+                        <div class="setting">
+                            <div><b>IA nos tickets</b><small>A Nina atende o membro até a equipe assumir, usando o FAQ e as instruções abaixo.</small>
+                            </div><label class="switch"><input id="ticket-ai-enabled" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="setting">
+                            <div><b>Responder automaticamente</b><small>Desligado: a IA só resume o ticket ao fechar.</small>
+                            </div><label class="switch"><input id="ticket-ai-reply" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="setting">
+                            <div><b>Resumo ao fechar</b><small>Anexa um resumo da IA à transcrição enviada nos logs.</small>
+                            </div><label class="switch"><input id="ticket-ai-summary" type="checkbox"><i></i></label>
+                        </div>
+                        <div class="field"><label>Instruções para a IA</label><textarea id="ticket-ai-instructions" rows="4" maxlength="1500"
+                                placeholder="Ex.: Somos uma loja de bots. Suporte de segunda a sexta. Pagamentos só pelo site..."></textarea></div>
                         <div class="form-actions"><button id="btn-salvar-tickets" class="btn primary">Salvar
                                 tickets</button><span id="tickets-feedback" class="feedback"></span></div>
                     </div>
@@ -918,6 +974,7 @@
     <script src="ui.js"></script>
     <script src="/panel/roles-lockdown.js?v=6"></script>
     <script src="/panel/recordings.js?v=1"></script>
+    <script src="/panel/ai.js?v=1"></script>
 </body>
 
 </html>

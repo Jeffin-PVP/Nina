@@ -120,6 +120,24 @@ module.exports = {
         .addSubcommand(sub =>
 
             sub
+                .setName("ia")
+                .setDescription("Liga ou pausa a IA no ticket atual (equipe).")
+                .addStringOption(option =>
+                    option
+                        .setName("acao")
+                        .setDescription("O que fazer com a IA neste ticket.")
+                        .addChoices(
+                            { name: "Ligar", value: "on" },
+                            { name: "Pausar", value: "off" }
+                        )
+                        .setRequired(true)
+                )
+
+        )
+
+        .addSubcommand(sub =>
+
+            sub
                 .setName("listar")
                 .setDescription("Lista os tickets abertos no servidor.")
 
@@ -244,6 +262,19 @@ module.exports = {
                 console.error("[Tickets] Falha ao alterar membro:", error);
                 return ui.fail(interaction, "Não consegui alterar os membros deste ticket. Verifique minhas permissões.", "Falha");
             }
+        }
+
+        /* IA DO TICKET */
+        if (sub === "ia") {
+            const ticket = await TicketRepository.getByThread(interaction.channel.id);
+            if (!ticket) return ui.caution(interaction, "Este comando só funciona dentro de um ticket.", "Não é um ticket");
+            const config = await TicketRepository.getConfig(guild.id);
+            if (!TicketManager.isStaff(interaction.member, config)) {
+                return ui.caution(interaction, "Só a equipe de suporte pode controlar a IA do ticket.", "Sem permissão");
+            }
+            const on = interaction.options.getString("acao") === "on";
+            await TicketRepository.setAiActive(interaction.channel.id, on);
+            return ui.respond(interaction, ui.success(on ? "A IA voltou a atender neste ticket (se estiver ligada em /config)." : "IA pausada neste ticket.", "IA do ticket", interaction));
         }
 
         /* LISTAR */

@@ -124,7 +124,7 @@ async function buildTranscript(channel, ticket) {
     const lines = [
         `Ticket #${String(ticket.number).padStart(4, "0")}`,
         `Servidor: ${channel.guild?.name || "Desconhecido"}`,
-        `Usuário: <@${ticket.user_id}>`,
+        `Usuário (ID): ${ticket.user_id}`,
         `Fechado em: ${new Date().toISOString()}`,
         "",
         "--- TRANSCRIÇÃO ---",
@@ -167,9 +167,14 @@ async function sendTicketTranscript({ guild, channel, ticket, user }) {
     const logChannelId = await GuildRepository.getLogChannel(guild.id).catch(() => null);
     const logChannel = logChannelId ? guild.channels.cache.get(logChannelId) : null;
 
+    // Resumo opcional feito pela IA (só se ligado em /config → Tickets).
+    const TicketAI = require("../ai/TicketAI");
+    const summary = await TicketAI.summarize({ guild, transcript }).catch(() => null);
+
     if (logChannel?.isTextBased?.()) {
         await logChannel.send({
-            content: `📄 Transcrição do ticket #${String(ticket.number).padStart(4, "0")}`,
+            content: `📄 Transcrição do ticket #${String(ticket.number).padStart(4, "0")}` + (summary ? `\n🧠 **Resumo da IA**\n${summary}` : ""),
+            allowedMentions: { parse: [] },
             files: [{ attachment: transcript, name: `ticket-${String(ticket.number).padStart(4, "0")}.txt` }]
         }).catch(() => null);
     }

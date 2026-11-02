@@ -23,6 +23,7 @@ const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const TicketRepository = require("../database/repositories/TicketRepository");
 const TicketManager = require("./TicketManager");
+const AiProviderManager = require("../ai/AiProviderManager");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const ServerStatsRepository = require("../database/repositories/ServerStatsRepository");
 const AntiNukeRepository = require("../database/repositories/AntiNukeRepository");
@@ -56,7 +57,8 @@ const CATEGORY_OPTIONS = [
     { value: "automod", label: "AutoMod", description: "Proteção automática do servidor", emoji: E("ui_bot") },
     { value: "security", label: "Security Center", description: "Assuntos proibidos e Honeypot", emoji: E("escudo") },
     { value: "welcome", label: "Boas-vindas", description: "Mensagem e canal de entrada", emoji: E("aceno") },
-    { value: "tickets", label: "Tickets", description: "Suporte e atendimento", emoji: E("ticket") },
+    { value: "tickets", label: "Tickets", description: "Suporte e atendimento (com IA)", emoji: E("ticket") },
+    { value: "ai", label: "Inteligência Artificial", description: "Ligar/desligar a IA e usar a sua própria API", emoji: E("ui_bot") },
     { value: "logs", label: "Logs", description: "Registros e auditoria", emoji: E("logs") },
     { value: "autorole", label: "Autoroles", description: "Cargos automáticos e níveis", emoji: E("cargo") },
     { value: "stats", label: "Stats", description: "Contadores do servidor", emoji: E("stats") },
@@ -479,7 +481,13 @@ async function buildTickets(interaction) {
     }
     addRow(container, roleSelect("config_role:tickets", "Escolher cargo de suporte"));
 
-    addNav(container);
+    addSep(container);
+    addToggle(container, { id: "config_ai:t_enabled", title: `${E("ui_bot")} IA nos tickets`, description: "A Nina atende o membro até a equipe assumir, usando o FAQ e as instruções abaixo.", enabled: !!c.ai_enabled });
+    addToggle(container, { id: "config_ai:t_reply", title: "Responder automaticamente", description: "Desligado: a IA não responde, só resume o ticket ao fechar.", enabled: !!c.ai_auto_reply });
+    addToggle(container, { id: "config_ai:t_summary", title: "Resumo ao fechar", description: "Anexa um resumo da IA à transcrição enviada nos logs.", enabled: !!c.ai_summary });
+    addText(container, `**Instruções para a IA**\n${c.ai_instructions ? ui.clip(c.ai_instructions, 300) : "*nenhuma — a IA usa só o FAQ (/ia faq)*"}`);
+
+    addNav(container, [actionButton("config_ai:t_instructions", "Instruções da IA", E("ui_bot"))]);
     return finish(container);
 }
 
@@ -1045,6 +1053,73 @@ async function buildBackup(interaction) {
     return finish(container);
 }
 
+/** De onde vem a IA de cada funcionalidade neste servidor. */
+function aiSourceLine(state, feature) {
+    const info = AiProviderManager.FEATURES[feature];
+    if (!state.enabled) return `${info.label}: *desligada*`;
+    const key = state.mode === "custom" ? state.keys[state.scope === "per_feature" ? feature : AiProviderManager.SCOPE_ALL] : null;
+    if (!key) return `${info.label}: API padrão da Nina`;
+    const provider = AiProviderManager.PROVIDERS[key.provider]?.label || key.provider;
+    return `${info.label}: **sua API** (${provider}${key.model ? ` · ${key.model}` : ""} · …${key.last4})`;
+}
+
+async function buildAi(interaction) {
+    const guild = interaction.guild;
+    const state = await AiProviderManager.getState(guild.id);
+    const custom = state.mode === "custom";
+    const perFeature = state.scope === "per_feature";
+    const container = card(stateColor(state.enabled));
+
+    addHeader(container, E("ui_bot"), "Inteligência Artificial", "Controle a IA da Nina neste servidor e use a sua própria API.");
+
+    addToggle(container, { id: "config_ai:enabled", title: "IA neste servidor", description: "Liga/desliga conversa, tickets, Anti-Scam, embeds e demais recursos de IA.", enabled: state.enabled });
+
+    addSep(container);
+    addText(container, Object.keys(AiProviderManager.FEATURES).map(feature => aiSourceLine(state, feature)).join("\n"));
+    addText(container, "-# Com a sua API, os limites diários da API padrão não se aplicam e o custo é seu. Só o dono/Administrador altera chaves. As chaves ficam criptografadas e nunca são exibidas.");
+
+    addRow(container, new StringSelectMenuBuilder()
+        .setCustomId("config_ai_mode")
+        .setPlaceholder("Qual API usar?")
+        .addOptions([
+            { label: "API padrão da Nina", value: "default", description: "Sem cadastrar nada, com limites diários.", default: !custom },
+            { label: "Minha própria API", value: "custom", description: "Usa a chave cadastrada abaixo.", default: custom }
+        ]));
+
+    if (custom) {
+        addRow(container, new StringSelectMenuBuilder()
+            .setCustomId("config_ai_scope")
+            .setPlaceholder("Uma API para tudo ou uma por função?")
+            .addOptions([
+                { label: "Uma API para todas as funções", value: "all", default: !perFeature },
+                { label: "Uma API por função", value: "per_feature", description: "Função sem chave própria usa a API padrão.", default: perFeature }
+            ]));
+
+        const registerOptions = perFeature
+            ? Object.entries(AiProviderManager.FEATURES).map(([value, info]) => ({ label: info.label, value, description: info.description.slice(0, 100) }))
+            : [{ label: "Todas as funções", value: AiProviderManager.SCOPE_ALL, description: "Uma chave vale para tudo." }];
+        addRow(container, new StringSelectMenuBuilder()
+            .setCustomId("config_ai_register")
+            .setPlaceholder("Cadastrar/trocar API para…")
+            .addOptions(registerOptions));
+
+        const saved = Object.keys(state.keys);
+        if (saved.length) {
+            addRow(container, new StringSelectMenuBuilder()
+                .setCustomId("config_ai_remove")
+                .setPlaceholder("Remover uma API cadastrada…")
+                .addOptions(saved.map(feature => ({
+                    label: feature === AiProviderManager.SCOPE_ALL ? "Todas as funções" : (AiProviderManager.FEATURES[feature]?.label || feature),
+                    value: feature,
+                    description: `${AiProviderManager.PROVIDERS[state.keys[feature].provider]?.label || state.keys[feature].provider} · …${state.keys[feature].last4}`.slice(0, 100)
+                }))));
+        }
+    }
+
+    addNav(container, [actionButton("config_ai:test", "Testar", E("ui_check"), ButtonStyle.Primary)]);
+    return finish(container);
+}
+
 async function build(interaction, category) {
     switch (category) {
         case "general": return buildGeneral(interaction);
@@ -1054,6 +1129,7 @@ async function build(interaction, category) {
         case "honeypot": return buildHoneypot(interaction);
         case "welcome": return buildWelcome(interaction);
         case "tickets": return buildTickets(interaction);
+        case "ai": return buildAi(interaction);
         case "logs": return buildLogs(interaction);
         case "autorole": return buildAutorole(interaction);
         case "lockdown": return buildLockdown(interaction);

@@ -1,4 +1,4 @@
-const groq = require("./groq");
+const AiProviderManager = require("../ai/AiProviderManager");
 
 const MODEL = process.env.ANTISCAM_MODEL || "qwen/qwen3.8-27b";
 
@@ -24,17 +24,14 @@ IMPORTANTE:
 - A classificação é uma indicação automatizada, não uma prova de fraude.
 - Responda SOMENTE em JSON válido.`;
 
-async function analisarImagem(urls) {
-    if (!process.env.ANTISCAM_GROQ_API_KEY) {
-        throw new Error("ANTISCAM_GROQ_API_KEY não configurada.");
-    }
+async function analisarImagem(urls, guildId = null) {
 
     const imagens = urls.slice(0, 3).map(url => ({
         type: "image_url",
         image_url: { url }
     }));
 
-    const completion = await groq.chat.completions.create({
+    const completion = await AiProviderManager.complete(guildId, "antiscam", {
         model: MODEL,
         temperature: 0,
         max_completion_tokens: 500,

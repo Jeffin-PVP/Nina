@@ -39,6 +39,7 @@ const VerificationManager = require("../../managers/VerificationManager");
 const AccountFilterManager = require("../../managers/AccountFilterManager");
 const WeeklyReportManager = require("../../managers/WeeklyReportManager");
 const BackupManager = require("../../managers/BackupManager");
+const AiConfigHandler = require("./aiHandler");
 
 function denied(interaction) {
     return ui.caution(interaction, "Você precisa da permissão **Gerenciar Servidor** para usar este painel.", "Sem permissão");
@@ -297,6 +298,9 @@ async function execute(interaction) {
     if (!ConfigPanelManager.permissionOk(interaction)) return denied(interaction);
 
     const id = interaction.customId;
+
+    // IA (servidor e tickets): lógica própria em aiHandler.js
+    if (id.startsWith("config_ai")) return AiConfigHandler.execute(interaction);
 
     if (id === "config_home" || id === "config_refresh") {
         return interaction.update(await ConfigPanelManager.buildHome(interaction));
@@ -1000,6 +1004,8 @@ async function modal(interaction) {
 
     const type = interaction.customId.split(":")[1];
     const guildId = interaction.guild.id;
+
+    if (type.startsWith("ai_")) return AiConfigHandler.modal(interaction);
 
     if (type === "security_timeout") {
         const minutes = Number.parseInt(interaction.fields.getTextInputValue("minutos"), 10);

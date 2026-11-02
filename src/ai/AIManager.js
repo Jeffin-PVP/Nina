@@ -1,4 +1,4 @@
-const groq = require("./groq");
+const AiProviderManager = require("./AiProviderManager");
 
 const systemPrompt = require("./systemPrompt");
 
@@ -43,6 +43,7 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
     static async chat({ message, question, context }) {
 
         const channelId = message.channel.id;
+        const guildId = message.guild?.id || null;
 
         if (message.guild) {
             const faq = await AiRepository.findMatchingFaq(message.guild.id, question);
@@ -55,7 +56,11 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
                 return "A IA está desativada neste servidor. Um administrador pode ativá-la novamente.";
             }
 
-            const usage = await AiRepository.consumeUsage(message.guild.id, message.author.id, config.limit_per_user, config.limit_per_server);
+            // Quem usa a própria API paga o próprio consumo: os limites diários da API padrão não se aplicam.
+            const usingOwnApi = (await AiProviderManager.resolve(guildId, "chat").catch(() => null))?.source === "custom";
+            const usage = usingOwnApi
+                ? { allowed: true }
+                : await AiRepository.consumeUsage(message.guild.id, message.author.id, config.limit_per_user, config.limit_per_server);
             if (!usage.allowed) {
                 return `Limite de IA atingido para este servidor/usuário. Tente novamente amanhã. (${usage.current}/${usage.limitUser} por usuário, ${usage.totalServer}/${usage.limitServer} no servidor).`;
             }
@@ -86,7 +91,7 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
 
         for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
 
-            const response = await groq.chat.completions.create({
+            const response = await AiProviderManager.complete(guildId, "chat", {
 
                 model: MODEL,
 
@@ -158,7 +163,7 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
         // Estourou o limite de rodadas sem uma resposta final — força uma última chamada sem tools
         if (finalContent === null) {
 
-            const response = await groq.chat.completions.create({
+            const response = await AiProviderManager.complete(guildId, "chat", {
 
                 model: MODEL,
 
@@ -232,7 +237,16 @@ IMPORTANTE:
             }
         ];
 
-        const response = await groq.chat.completions.create({
+        const askGuildId = interaction.guild?.id || null;
+
+        if (askGuildId) {
+            const guildConfig = await AiRepository.getGuildConfig(askGuildId);
+            if (!guildConfig.enabled) {
+                return "A IA está desativada neste servidor. Um administrador pode ativá-la novamente.";
+            }
+        }
+
+        const response = await AiProviderManager.complete(askGuildId, "chat", {
             model: MODEL,
             temperature: 0.3,
             messages
@@ -262,10 +276,10 @@ IMPORTANTE:
     =====================================
     */
 
-    static async generateEmbed(prompt) {
+    static async generateEmbed(prompt, guildId = null) {
 
         const response =
-            await groq.chat.completions.create({
+            await AiProviderManager.complete(guildId, "embed", {
 
                 model: MODEL,
 

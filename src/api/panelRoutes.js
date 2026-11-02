@@ -7,6 +7,7 @@ const WelcomeRepository = require("../database/repositories/WelcomeRepository");
 const AutoroleRepository = require("../database/repositories/AutoroleRepository");
 const GiveawayRepository = require("../database/repositories/GiveawayRepository");
 const TicketRepository = require("../database/repositories/TicketRepository");
+const AiProviderManager = require("../ai/AiProviderManager");
 const EconomyRepository = require("../database/repositories/EconomyRepository");
 const database = require("../database/database");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
@@ -212,6 +213,14 @@ function sanitizarTickets(body, guild) {
 
     if (b.support_role_id !== undefined) {
         campos.support_role_id = idOpcional("support_role_id", b.support_role_id, id => guild.roles.cache.has(id));
+    }
+
+    for (const chave of ["ai_enabled", "ai_auto_reply", "ai_summary"]) {
+        if (b[chave] !== undefined) campos[chave] = bool(b[chave]);
+    }
+
+    if (b.ai_instructions !== undefined) {
+        campos.ai_instructions = texto("ai_instructions", b.ai_instructions, 1500, { vazio: true }) || null;
     }
 
     return campos;
@@ -732,6 +741,99 @@ module.exports = (client) => {
         try { campos = sanitizarTickets(req.body, req.painelGuild); } catch (error) { return tratarValidacao(res, error); }
         await TicketRepository.setConfig(req.params.guildId, campos);
         res.json({ config: await TicketRepository.getConfig(req.params.guildId) });
+    });
+
+    /*
+    =========================
+        INTELIGÊNCIA ARTIFICIAL (APIs do servidor)
+    =========================
+    */
+
+    // Chaves de API são secretas e podem gerar custo: só dono do servidor ou Administrador.
+    async function podeGerenciarChaves(req) {
+        const guild = req.painelGuild;
+        const userId = String(req.painelSessao.user.id);
+        if (userId === String(guild.ownerId) || req.painelSessao.user.isOwner) return true;
+        const member = await guild.members.fetch(userId).catch(() => null);
+        return !!member?.permissions.has("Administrator");
+    }
+
+    const ultimoTesteIA = new Map();
+
+    function erroIA(res, error) {
+        if (error instanceof AiProviderManager.AiError) return res.status(400).json({ error: error.message });
+        console.error("[Painel/IA]", error.message);
+        return res.status(500).json({ error: "Não foi possível concluir a operação de IA." });
+    }
+
+    router.get("/guilds/:guildId/ia", async (req, res) => {
+        const state = await AiProviderManager.getState(req.params.guildId);
+        res.json({
+            enabled: state.enabled,
+            mode: state.mode,
+            scope: state.scope,
+            // Nunca devolve a chave: só provedor, modelo e os 4 últimos caracteres.
+            keys: Object.fromEntries(Object.entries(state.keys).map(([feature, key]) => [feature, {
+                provider: key.provider, model: key.model, last4: key.last4, updated_at: key.updated_at
+            }])),
+            features: Object.fromEntries(Object.entries(AiProviderManager.FEATURES).map(([id, f]) => [id, { label: f.label, description: f.description }])),
+            providers: Object.fromEntries(Object.entries(AiProviderManager.PROVIDERS).map(([id, p]) => [id, { label: p.label, model: p.model, needsUrl: !p.baseUrl }])),
+            canManageKeys: await podeGerenciarChaves(req)
+        });
+    });
+
+    router.post("/guilds/:guildId/ia", async (req, res) => {
+        try {
+            const b = req.body || {};
+            if (b.enabled !== undefined) await AiProviderManager.setEnabled(req.params.guildId, !!bool(b.enabled));
+            if (b.mode !== undefined || b.scope !== undefined) {
+                if (!await podeGerenciarChaves(req)) return res.status(403).json({ error: "Só o dono ou um Administrador pode mudar a API de IA do servidor." });
+                await AiProviderManager.setRouting(req.params.guildId, { mode: b.mode, scope: b.scope });
+            }
+            res.json({ ok: true });
+        } catch (error) { erroIA(res, error); }
+    });
+
+    router.post("/guilds/:guildId/ia/keys", async (req, res) => {
+        try {
+            if (!await podeGerenciarChaves(req)) return res.status(403).json({ error: "Só o dono ou um Administrador pode cadastrar APIs de IA." });
+            const agora = Date.now();
+            if (agora - (ultimoTesteIA.get(req.params.guildId) || 0) < 4000) return res.status(429).json({ error: "Aguarde alguns segundos antes de tentar de novo." });
+            ultimoTesteIA.set(req.params.guildId, agora);
+
+            const b = req.body || {};
+            await AiProviderManager.saveKey(req.params.guildId, String(b.feature || ""), {
+                provider: String(b.provider || "").toLowerCase(),
+                apiKey: b.apiKey,
+                model: b.model,
+                baseUrl: b.baseUrl
+            }, req.painelSessao.user.id);
+
+            // Cadastrar uma API já ativa o modo "minha API" com o escopo correspondente.
+            await AiProviderManager.setRouting(req.params.guildId, {
+                mode: "custom",
+                scope: b.feature === AiProviderManager.SCOPE_ALL ? "all" : "per_feature"
+            });
+            res.json({ ok: true });
+        } catch (error) { erroIA(res, error); }
+    });
+
+    router.delete("/guilds/:guildId/ia/keys/:feature", async (req, res) => {
+        try {
+            if (!await podeGerenciarChaves(req)) return res.status(403).json({ error: "Só o dono ou um Administrador pode remover APIs de IA." });
+            await AiProviderManager.removeKey(req.params.guildId, req.params.feature);
+            res.json({ ok: true });
+        } catch (error) { erroIA(res, error); }
+    });
+
+    router.post("/guilds/:guildId/ia/test", async (req, res) => {
+        try {
+            if (!await podeGerenciarChaves(req)) return res.status(403).json({ error: "Só o dono ou um Administrador pode testar as APIs de IA." });
+            const agora = Date.now();
+            if (agora - (ultimoTesteIA.get(req.params.guildId) || 0) < 4000) return res.status(429).json({ error: "Aguarde alguns segundos antes de tentar de novo." });
+            ultimoTesteIA.set(req.params.guildId, agora);
+            res.json({ results: await AiProviderManager.testGuild(req.params.guildId) });
+        } catch (error) { erroIA(res, error); }
     });
 
     /*

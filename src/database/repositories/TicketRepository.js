@@ -27,7 +27,7 @@ class TicketRepository {
             await database.run(
 
                 `
-                INSERT INTO ticket_config (guild_id)
+                INSERT OR IGNORE INTO ticket_config (guild_id)
                 VALUES (?)
                 `,
 
@@ -110,25 +110,22 @@ class TicketRepository {
     =========================
     */
 
+    // Atômico: dois tickets abertos ao mesmo tempo nunca recebem o mesmo número.
     static async nextNumber(guildId) {
 
-        const config = await this.getConfig(guildId);
+        await this.getConfig(guildId);
 
-        const number = config.next_number || 1;
-
-        await database.run(
-
+        const row = await database.get(
             `
             UPDATE ticket_config
-            SET next_number = ?
+            SET next_number = next_number + 1
             WHERE guild_id = ?
+            RETURNING next_number - 1 AS number
             `,
-
-            [number + 1, guildId]
-
+            [guildId]
         );
 
-        return number;
+        return row?.number || 1;
 
     }
 
@@ -295,6 +292,24 @@ class TicketRepository {
 
             [rating, threadId]
 
+        );
+
+    }
+
+    static async setAiActive(threadId, active) {
+
+        await database.run(
+            `UPDATE tickets SET ai_active = ? WHERE thread_id = ?`,
+            [active ? 1 : 0, threadId]
+        );
+
+    }
+
+    static async bumpAiReplies(threadId) {
+
+        await database.run(
+            `UPDATE tickets SET ai_replies = ai_replies + 1 WHERE thread_id = ?`,
+            [threadId]
         );
 
     }

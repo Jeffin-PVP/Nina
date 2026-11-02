@@ -8,6 +8,7 @@ const GlobalBanManager = require("../managers/GlobalBanManager");
 const SecurityManager = require("../managers/SecurityManager");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 const AfkManager = require("../managers/AfkManager");
+const TicketAI = require("../ai/TicketAI");
 
 module.exports = {
 
@@ -55,6 +56,13 @@ module.exports = {
         // Concede XP (com cooldown) independente de mencionar o bot ou não
         await LevelManager.handleMessage(message);
 
+        // Tickets: a IA atende o dono do ticket até a equipe assumir. Em ticket não há conversa por menção.
+        const emTicket = await TicketAI.handleMessage(message).catch(error => {
+            console.error("[Tickets/IA] Erro:", error);
+            return false;
+        });
+        if (emTicket) return;
+
         if (message.mentions.everyone) return;
 
         if (!message.mentions.has(message.client.user)) return;
@@ -92,8 +100,11 @@ module.exports = {
 
             console.error(err);
 
+            // Erros da API configurada no servidor têm mensagem própria e segura para mostrar.
+            const friendly = ["API_ERROR", "KEY_UNREADABLE", "NO_DEFAULT", "NO_MODEL"].includes(err?.code);
+
             await message.reply(
-                `${E("ui_cancel")} Ocorreu um erro ao conversar com a IA.`
+                `${E("ui_cancel")} ${friendly ? err.message : "Ocorreu um erro ao conversar com a IA."}`
             );
 
         }

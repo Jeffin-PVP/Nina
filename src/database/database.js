@@ -109,6 +109,25 @@ const statements = [
         reset_day TEXT NOT NULL DEFAULT 'daily'
     )`,
 
+    `CREATE TABLE IF NOT EXISTS ai_provider_config (
+        guild_id TEXT NOT NULL PRIMARY KEY,
+        mode TEXT NOT NULL DEFAULT 'default',
+        scope TEXT NOT NULL DEFAULT 'all'
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS ai_provider_keys (
+        guild_id TEXT NOT NULL,
+        feature TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        model TEXT NULL,
+        base_url TEXT NULL,
+        last4 TEXT NULL,
+        updated_by TEXT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (guild_id, feature)
+    )`,
+
     `CREATE TABLE IF NOT EXISTS guild_birthdays (
         guild_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
@@ -702,13 +721,23 @@ function migrateTicketSchema() {
     const ticketColumns = new Set(db.prepare("PRAGMA table_info(tickets)").all().map(row => row.name));
     const migrations = [
         ["mode", "TEXT NOT NULL DEFAULT 'thread'"],
-        ["category_id", "TEXT NULL"]
+        ["category_id", "TEXT NULL"],
+        ["ai_enabled", "INTEGER NOT NULL DEFAULT 0"],
+        ["ai_auto_reply", "INTEGER NOT NULL DEFAULT 1"],
+        ["ai_summary", "INTEGER NOT NULL DEFAULT 1"],
+        ["ai_instructions", "TEXT NULL"]
     ];
     for (const [name, definition] of migrations) {
         if (!configColumns.has(name)) db.exec(`ALTER TABLE ticket_config ADD COLUMN ${name} ${definition}`);
     }
     if (!ticketColumns.has("rating")) {
         db.exec("ALTER TABLE tickets ADD COLUMN rating INTEGER NULL");
+    }
+    if (!ticketColumns.has("ai_active")) {
+        db.exec("ALTER TABLE tickets ADD COLUMN ai_active INTEGER NOT NULL DEFAULT 1");
+    }
+    if (!ticketColumns.has("ai_replies")) {
+        db.exec("ALTER TABLE tickets ADD COLUMN ai_replies INTEGER NOT NULL DEFAULT 0");
     }
 }
 

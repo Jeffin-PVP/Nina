@@ -13,6 +13,9 @@ const { component } = require("../../utils/emojis");
 
 const isStaff = TicketManager.isStaff;
 
+// Evita dois tickets quando o botão é clicado duas vezes rápido (a checagem de "já tem ticket" é assíncrona).
+const opening = new Set();
+
 const userTarget = id => ({ id, tag: `<@${id}>`, username: `<@${id}>` });
 
 function ticketActionRow(state) {
@@ -34,6 +37,9 @@ function ticketActionRow(state) {
 // Fechamento compartilhado entre o botão e o comando /ticket fechar. O chamador já validou permissões.
 async function closeTicket(interaction, ticket) {
     const { guild, channel } = interaction;
+    if (ticket.status === "closed") {
+        return ui.caution(interaction, "Este ticket já está fechado.", "Ticket já fechado");
+    }
     await TicketRepository.close(channel.id, interaction.user.id);
     const paddedNumber = String(ticket.number).padStart(4, "0");
     await LogManager.send({
@@ -76,6 +82,13 @@ module.exports = {
                 return ui.caution(interaction, "O sistema de tickets não está configurado neste servidor.", "Tickets indisponíveis");
             }
 
+            const lockKey = `${guild.id}:${interaction.user.id}`;
+            if (opening.has(lockKey)) {
+                return ui.caution(interaction, "Seu ticket já está sendo criado. Aguarde um instante.", "Aguarde");
+            }
+            opening.add(lockKey);
+
+            try {
             const existing = await TicketRepository.getOpenByUser(guild.id, interaction.user.id);
             if (existing) {
                 return ui.caution(interaction, `Você já tem um ticket aberto: <#${existing.thread_id}>`, "Ticket já aberto");
@@ -106,7 +119,8 @@ module.exports = {
                 title: `Ticket #${paddedNumber}`,
                 description:
                     `Olá ${interaction.user}! Descreva o motivo do seu ticket com o máximo de detalhes.\n` +
-                    `A equipe de suporte foi notificada${config.support_role_id ? ` (<@&${config.support_role_id}>)` : ""} e vai te atender em breve.`,
+                    `A equipe de suporte foi notificada${config.support_role_id ? ` (<@&${config.support_role_id}>)` : ""} e vai te atender em breve.` +
+                    (config.ai_enabled && config.ai_auto_reply ? "\n🤖 Enquanto isso, a IA da Nina pode tentar te ajudar. Se precisar de uma pessoa, é só pedir." : ""),
                 thumbnail: interaction.user.displayAvatarURL({ size: 128 }),
                 fields: [
                     ui.field("user", "Aberto por", `${interaction.user}`),
@@ -130,6 +144,9 @@ module.exports = {
             });
 
             return ui.respond(interaction, ui.success(`Seu ticket foi criado: <#${ticketChannel.id}>`, "Ticket criado", interaction));
+            } finally {
+                opening.delete(lockKey);
+            }
         }
 
         /* ASSUMIR TICKET */
@@ -141,6 +158,7 @@ module.exports = {
                 return ui.caution(interaction, "Só a equipe de suporte pode assumir tickets.", "Sem permissão");
             }
             await TicketRepository.claim(interaction.channel.id, interaction.user.id);
+            await TicketRepository.setAiActive(interaction.channel.id, 0);
             return ui.respond(interaction, ui.panel({
                 color: ui.COLORS.success,
                 emoji: "shield",
@@ -168,6 +186,11 @@ module.exports = {
             const rating = Number(rawRating);
             if (!threadId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
                 return ui.caution(interaction, "Avaliação inválida.", "Ticket");
+            }
+            // Só quem abriu o ticket pode avaliar, e só um ticket que existe.
+            const rated = await TicketRepository.getByThread(threadId);
+            if (!rated || rated.user_id !== interaction.user.id) {
+                return ui.caution(interaction, "Você não pode avaliar este ticket.", "Ticket");
             }
             await TicketRepository.setRating(threadId, rating);
             return interaction.update({

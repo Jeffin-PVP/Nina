@@ -3,7 +3,7 @@ const {
     PermissionFlagsBits
 } = require("discord.js");
 
-const groq = require("../ai/groqServerBuilder");
+const AiProviderManager = require("../ai/AiProviderManager");
 
 /*
 =========================
@@ -497,9 +497,9 @@ function montarPromptSistema(tema) {
 
 }
 
-async function gerarEstruturaIA(tema) {
+async function gerarEstruturaIA(tema, guildId = null) {
 
-    const response = await groq.chat.completions.create({
+    const response = await AiProviderManager.complete(guildId, "builder", {
 
         model: MODEL,
 
@@ -620,7 +620,7 @@ async function aplicarEstrutura(guild, sessao) {
     const erros = [];
 
     // 1) Gera a estrutura via IA
-    const estrutura = await gerarEstruturaIA(tema);
+    const estrutura = await gerarEstruturaIA(tema, guild.id);
     const cargosIA = estrutura.cargos;
     const categoriasIA = estrutura.categorias;
 

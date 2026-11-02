@@ -67,10 +67,10 @@ function localKeywordMatch(content, keywords) {
 }
 
 async function contextualDecision(message, topic, keywords) {
-    if (!process.env.GROQ_API_KEY) return { violation: false, confidence: 0, unavailable: true };
+    const AiProviderManager = require("../ai/AiProviderManager");
+    if (!await AiProviderManager.isAvailable(message.guild?.id, "security")) return { violation: false, confidence: 0, unavailable: true };
     try {
-        const groq = require("../ai/groq");
-        const response = await groq.chat.completions.create({
+        const response = await AiProviderManager.complete(message.guild?.id, "security", {
             model: CONTEXT_MODEL,
             temperature: 0,
             max_tokens: 120,

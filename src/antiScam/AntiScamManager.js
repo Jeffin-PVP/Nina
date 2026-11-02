@@ -109,12 +109,15 @@ async function checkMessage(message) {
     const urls = obterImagens(message);
     if (!urls.length) return false;
 
+    // IA desligada no servidor (ou sem nenhuma chave disponível): não analisa.
+    if (!await require("../ai/AiProviderManager").isAvailable(message.guild.id, "antiscam")) return false;
+
     const chave = `${message.guild.id}:${message.id}`;
     if (urlsEmAnalise.has(chave)) return false;
     urlsEmAnalise.add(chave);
 
     try {
-        const resultado = await analisarImagem(urls);
+        const resultado = await analisarImagem(urls, message.guild.id);
 
         if (!resultado.is_scam_like) return false;
         if (resultado.confidence < Number(config.image_threshold || 0.85)) return false;

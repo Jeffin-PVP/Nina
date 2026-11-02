@@ -1,15 +1,14 @@
-const lazyGroq = require("./lazyGroq");
+const AiProviderManager = require("./AiProviderManager");
 
 const embedPrompt =
     require("./prompts/embedPrompt");
 
-const groq = lazyGroq("EMBED_GROQ_API_KEY");
 
 class EmbedAI {
 
-    static async generate(prompt) {
+    static async generate(prompt, guildId = null) {
 
-        const response = await groq.chat.completions.create({
+        const response = await AiProviderManager.complete(guildId, "embed", {
 
             model: "openai/gpt-oss-120b",
 
