@@ -3,6 +3,7 @@ const { EmbedBuilder } = require("discord.js");
 const Repo = require("../database/repositories/ServerToolsRepository");
 const AnalyticsRepository = require("../database/repositories/AnalyticsRepository");
 const database = require("../database/database");
+const PlanManager = require("./PlanManager");
 
 const TABLE = "weekly_report_config";
 const REPORT_HOUR = 9; // horário de Brasília
@@ -69,6 +70,8 @@ async function tick(client) {
         if (!config.channel_id || now.weekday !== Number(config.day) || now.hour < REPORT_HOUR || config.last_sent === now.date) continue;
         const guild = client.guilds.cache.get(config.guild_id);
         if (!guild) continue;
+        // Plano: relatório semanal automático é de plano pago (a config fica salva).
+        if (!(await PlanManager.can(guild.id, "weekly_report"))) continue;
         // Marca antes de enviar para nunca duplicar, mesmo se o envio falhar.
         await Repo.setConfig(TABLE, guild.id, { last_sent: now.date });
         await sendReport(guild, config.channel_id).catch(error => console.error(`[Relatório] Falha em ${guild.id}:`, error.message));

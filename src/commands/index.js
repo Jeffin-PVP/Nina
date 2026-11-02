@@ -17,6 +17,7 @@ const CATEGORY_LABELS = {
     AI: "🤖 Inteligência Artificial",
     Community: "💬 Comunidade",
     Voz: "🎙️ Voz",
+    Planos: "💎 Planos",
     Geral: "📌 Geral"
 };
 

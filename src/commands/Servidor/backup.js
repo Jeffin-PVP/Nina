@@ -5,6 +5,7 @@ const {
 const Repo = require("../../database/repositories/ServerToolsRepository");
 const BackupManager = require("../../managers/BackupManager");
 const ui = require("../../utils/ui");
+const PlanManager = require("../../managers/PlanManager");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -31,9 +32,11 @@ module.exports = {
             await interaction.deferReply({ ephemeral: true });
             const created = await BackupManager.createBackup(guild, interaction.user.id, interaction.options.getString("nome"));
             if (created.tooLarge) return ui.fail(interaction, "A estrutura é grande demais para um backup.", "Backup não criado");
+            if (created.limitReached) return ui.respond(interaction, PlanManager.limitEmbed("backups_max", created.current, created.max, interaction), { ephemeral: true });
             const { id, name, summary: sum } = created;
+            const maxBackups = created.max ?? await PlanManager.limit(guild.id, "backups_max");
             return ui.respond(interaction, ui.success(
-                `**${name}** (ID \`${id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.\nO servidor guarda até ${Repo.MAX_BACKUPS_PER_GUILD} backups; os mais antigos são removidos.\n\nMensagens, membros e configurações da Nina **não** entram no backup.`,
+                `**${name}** (ID \`${id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.\nSeu plano guarda até ${Number.isFinite(maxBackups) ? maxBackups : "∞"} backups (use \`/backup excluir\` para liberar espaço).\n\nMensagens, membros e configurações da Nina **não** entram no backup.`,
                 "Backup criado", interaction));
         }
 
@@ -65,6 +68,7 @@ module.exports = {
         }
 
         // restaurar → pede confirmação
+        if (!(await PlanManager.gate(interaction, "backup_restore"))) return;
         const me = guild.members.me;
         if (!me.permissions.has(PermissionFlagsBits.ManageChannels) || !me.permissions.has(PermissionFlagsBits.ManageRoles)) {
             return ui.fail(interaction, "Eu preciso das permissões **Gerenciar Canais** e **Gerenciar Cargos**.", "Faltam permissões");

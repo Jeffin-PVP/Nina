@@ -299,6 +299,9 @@ client.once(
 
         TemporaryBanManager.start(client);
 
+        // Planos: expira assinaturas vencidas e avisa 3 dias antes.
+        require("./src/managers/PlanManager").start(client);
+
         // Remove registros/canais temporários que sobraram após reinício do bot.
         for (const guild of client.guilds.cache.values()) {
             TempVoiceManager.cleanupGuild(guild).catch(error => {

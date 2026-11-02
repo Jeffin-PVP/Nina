@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const ui = require("../../utils/ui");
 const AiRepository = require("../../database/repositories/AiRepository");
+const PlanManager = require("../../managers/PlanManager");
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -32,6 +33,14 @@ module.exports = {
         if (subcommand === "adicionar") {
             const question = interaction.options.getString("pergunta", true).trim();
             const answer = interaction.options.getString("resposta", true).trim();
+            // Plano: limite de perguntas no FAQ (editar uma pergunta existente não conta).
+            if (!(await AiRepository.faqExists(interaction.guild.id, question))) {
+                const max = await PlanManager.limit(interaction.guild.id, "ai_faq_entries");
+                const total = await AiRepository.countFaq(interaction.guild.id);
+                if (total >= max) {
+                    return ui.respond(interaction, PlanManager.limitEmbed("ai_faq_entries", total, max, interaction), { ephemeral: true });
+                }
+            }
             await AiRepository.upsertFaq(interaction.guild.id, question, answer, interaction.user.id);
             return ui.respond(interaction, ui.success(`FAQ salva para a pergunta: **${question}**`, "FAQ cadastrada", interaction));
         }

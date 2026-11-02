@@ -1,5 +1,6 @@
 const { E } = require("../../config/emojiRegistry");
 const AIManager = require("../../ai/AIManager");
+const PlanManager = require("../../managers/PlanManager");
 
 const { MessageFlags } = require("discord.js");
 
@@ -65,6 +66,19 @@ async function handleAI(interaction) {
         await interaction.deferUpdate();
     } else {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+
+    // Plano: cota diária de embeds por IA.
+    if (interaction.guild?.id) {
+        const cota = await PlanManager.consumeDaily(interaction.guild.id, "ai_embed_daily", 1);
+        if (!cota.allowed) {
+            const embed = cota.max > 0
+                ? PlanManager.limitEmbed("ai_embed_daily", cota.used, cota.max, interaction)
+                : PlanManager.upgradeEmbed("ai_embed_daily", interaction);
+            return fromPanel
+                ? interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral })
+                : interaction.editReply({ embeds: [embed] });
+        }
     }
 
     try {

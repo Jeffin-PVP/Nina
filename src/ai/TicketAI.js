@@ -2,6 +2,7 @@ const TicketRepository = require("../database/repositories/TicketRepository");
 const AiRepository = require("../database/repositories/AiRepository");
 const TicketManager = require("../managers/TicketManager");
 const AiProviderManager = require("./AiProviderManager");
+const PlanManager = require("../managers/PlanManager");
 
 /*
 =========================
@@ -16,7 +17,6 @@ A API usada é a da funcionalidade "tickets" (padrão da Nina ou a do servidor).
 
 const MODEL = "openai/gpt-oss-120b";
 const ESCALATE_TOKEN = "[ESCALAR]";
-const MAX_REPLIES_DEFAULT_API = 8;
 const MAX_REPLIES_OWN_API = 30;
 const COOLDOWN_MS = 6000;
 const lastReply = new Map();
@@ -121,7 +121,9 @@ async function handleMessage(message) {
         const resolved = await AiProviderManager.resolve(message.guild.id, "tickets");
         if (resolved.disabled) return true;
 
-        const cap = resolved.source === "custom" ? MAX_REPLIES_OWN_API : MAX_REPLIES_DEFAULT_API;
+        const cap = resolved.source === "custom"
+            ? MAX_REPLIES_OWN_API
+            : await PlanManager.limit(message.guild.id, "ai_ticket_replies");
         if (ticket.ai_replies >= cap) {
             await escalate(message, config, "Já respondi o máximo que posso por aqui.");
             return true;

@@ -10,6 +10,7 @@ const TicketRepository = require("../database/repositories/TicketRepository");
 const AiProviderManager = require("../ai/AiProviderManager");
 const EconomyRepository = require("../database/repositories/EconomyRepository");
 const database = require("../database/database");
+const PlanManager = require("../managers/PlanManager");
 const { CATEGORIES: LOG_CATEGORIES } = require("../managers/LogCategories");
 const { validateHttpUrl } = require("../utils/safeFetch");
 const { EmbedBuilder, PermissionFlagsBits, ChannelType } = require("discord.js");
@@ -354,8 +355,13 @@ module.exports = (client) => {
     // Analytics agregado por servidor. O middleware requireGuildAccess já validou a sessão e o acesso.
     router.get("/guilds/:guildId/analytics/export", async (req, res) => {
         try {
+            if (!(await PlanManager.can(req.painelGuild.id, "analytics_csv"))) {
+                return res.status(403).json({ error: PlanManager.requirementText("analytics_csv").replace(/\*\*/g, "") });
+            }
             const requestedDays = Number.parseInt(req.query.days, 10) || 30;
             const days = [7, 14, 30, 90].includes(requestedDays) ? requestedDays : 30;
+            const maxDaysCsv = await PlanManager.limit(req.painelGuild.id, "analytics_days");
+            if (days > maxDaysCsv) return res.status(403).json({ error: `O plano deste servidor guarda ${maxDaysCsv} dias de histórico.` });
             const csv = await AnalyticsRepository.exportCsv(req.painelGuild.id, days);
             res.setHeader("Content-Type", "text/csv; charset=utf-8");
             res.setHeader("Content-Disposition", `attachment; filename="analytics-${days}d.csv"`);
@@ -370,6 +376,10 @@ module.exports = (client) => {
         try {
             const requestedDays = Number.parseInt(req.query.days, 10) || 7;
             const days = [7, 14, 30, 90].includes(requestedDays) ? requestedDays : 7;
+            const maxDays = await PlanManager.limit(req.painelGuild.id, "analytics_days");
+            if (days > maxDays) {
+                return res.status(403).json({ error: `O plano deste servidor mostra até ${maxDays} dias de histórico. Faça upgrade para ver ${days} dias.` });
+            }
             const analytics = await AnalyticsRepository.getAnalytics(
                 req.painelGuild.id,
                 days,
@@ -379,6 +389,38 @@ module.exports = (client) => {
         } catch (error) {
             console.error("[Painel Analytics] Falha ao consultar dados:", error);
             res.status(500).json({ error: "Não foi possível carregar o Analytics deste servidor." });
+        }
+    });
+
+
+    /*
+    =========================
+        PLANO DO SERVIDOR
+    =========================
+    */
+
+    router.get("/guilds/:guildId/plan", async (req, res) => {
+        try {
+            res.json({ ...(await PlanManager.describe(req.painelGuild.id)), catalog: await PlanManager.publicCatalog() });
+        } catch (error) {
+            console.error("[Painel/Plano]", error);
+            res.status(500).json({ error: "Não foi possível carregar o plano deste servidor." });
+        }
+    });
+
+    router.post("/guilds/:guildId/plan/redeem", async (req, res) => {
+        try {
+            const membro = await req.painelGuild.members.fetch(req.painelSessao.user.id).catch(() => null);
+            const pode = membro?.permissions.has(PermissionFlagsBits.Administrator) || membro?.permissions.has(PermissionFlagsBits.ManageGuild);
+            if (!pode) return res.status(403).json({ error: "Você precisa de Administrador ou Gerenciar Servidor para ativar um plano." });
+
+            if (!(await PlanManager.isEnabled())) return res.status(400).json({ error: "O sistema de planos ainda não foi ativado." });
+            await PlanManager.redeem({ code: req.body?.code, guildId: req.painelGuild.id, userId: req.painelSessao.user.id });
+            res.json({ ok: true, ...(await PlanManager.describe(req.painelGuild.id)) });
+        } catch (error) {
+            if (error instanceof PlanManager.PlanError) return res.status(400).json({ error: error.message });
+            console.error("[Painel/Plano]", error);
+            res.status(500).json({ error: "Não foi possível ativar o código." });
         }
     });
 
@@ -533,8 +575,9 @@ module.exports = (client) => {
             return tratarValidacao(res, error);
         }
         const current = await AutoroleRepository.listSelfRoles(req.params.guildId);
-        if (current.length >= 25 && !current.some(item => item.role_id === roleId)) {
-            return res.status(400).json({ error: "O painel de botões aceita no máximo 25 cargos." });
+        const maxSelf = Math.min(25, await PlanManager.limit(req.params.guildId, "selfroles_max"));
+        if (current.length >= maxSelf && !current.some(item => item.role_id === roleId)) {
+            return res.status(400).json({ error: `O plano deste servidor aceita no máximo ${maxSelf} cargos no painel de self-role.` });
         }
         await AutoroleRepository.addSelfRole(req.params.guildId, roleId, label, emoji);
         res.json({ roles: await AutoroleRepository.listSelfRoles(req.params.guildId) });
@@ -1306,6 +1349,10 @@ module.exports = (client) => {
                 if (!VoiceRecordingRepository.MAX_MINUTES_OPTIONS.includes(minutos)) {
                     throw new ErroValidacao(`"max_minutes" precisa ser um de: ${VoiceRecordingRepository.MAX_MINUTES_OPTIONS.join(", ")}.`);
                 }
+                const tetoPlano = await PlanManager.limit(guild.id, "recording_max_minutes");
+                if (minutos > tetoPlano) {
+                    throw new ErroValidacao(`O plano deste servidor permite até ${Number.isFinite(tetoPlano) ? tetoPlano : "∞"} min por gravação.`);
+                }
                 values.max_minutes = minutos;
             }
 
@@ -1622,7 +1669,10 @@ module.exports = (client) => {
         } catch (error) { return tratarValidacao(res, error); }
 
         const existentes = await SecurityRepository.listRules(guild.id);
-        if (existentes.length >= 50) return res.status(400).json({ error: "Limite de 50 regras TopicGuard atingido." });
+        const maxRegras = await PlanManager.limit(req.params.guildId, "topicguard_rules");
+        if (existentes.length >= maxRegras) {
+            return res.status(400).json({ error: `Limite de ${Number.isFinite(maxRegras) ? maxRegras : "∞"} regras TopicGuard do plano atingido. Faça upgrade para adicionar mais.` });
+        }
 
         await SecurityRepository.addRule(regra);
         await SecurityRepository.update(guild.id, { topic_enabled: 1 });

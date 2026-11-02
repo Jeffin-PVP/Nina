@@ -653,10 +653,77 @@ const statements = [
         reason TEXT NOT NULL,
         details_json TEXT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+
+    // ---------- PLANOS ----------
+    // Uma linha por servidor. Sem linha (ou expirada) = plano Free.
+    `CREATE TABLE IF NOT EXISTS guild_subscriptions (
+        guild_id TEXT PRIMARY KEY,
+        plan TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        source TEXT NOT NULL DEFAULT 'manual',
+        started_at INTEGER NOT NULL,
+        expires_at INTEGER NULL,
+        granted_by TEXT NULL,
+        note TEXT NULL,
+        warned_at INTEGER NULL,
+        updated_at INTEGER NOT NULL
+    )`,
+
+    // Histórico/auditoria de tudo que acontece com planos.
+    `CREATE TABLE IF NOT EXISTS subscription_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        guild_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        plan TEXT NULL,
+        source TEXT NULL,
+        actor TEXT NULL,
+        details TEXT NULL,
+        created_at INTEGER NOT NULL
+    )`,
+
+    // Limites customizados por servidor (parcerias, cortesias). value é JSON.
+    `CREATE TABLE IF NOT EXISTS plan_overrides (
+        guild_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        value TEXT NOT NULL,
+        PRIMARY KEY (guild_id, key)
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS redeem_codes (
+        code TEXT PRIMARY KEY,
+        plan TEXT NOT NULL,
+        duration_days INTEGER NULL,
+        max_uses INTEGER NOT NULL DEFAULT 1,
+        uses INTEGER NOT NULL DEFAULT 0,
+        expires_at INTEGER NULL,
+        note TEXT NULL,
+        created_by TEXT NULL,
+        created_at INTEGER NOT NULL,
+        revoked INTEGER NOT NULL DEFAULT 0
+    )`,
+
+    `CREATE TABLE IF NOT EXISTS redeem_code_uses (
+        code TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        used_at INTEGER NOT NULL
+    )`,
+
+    // Contadores mensais de recursos com cota (ex.: criar-servidor, minutos de transcrição).
+    `CREATE TABLE IF NOT EXISTS plan_usage (
+        guild_id TEXT NOT NULL,
+        key TEXT NOT NULL,
+        period TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id, key, period)
     )`
 ];
 
 const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_guild_subscriptions_expiry ON guild_subscriptions (status, expires_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_subscription_events_guild ON subscription_events (guild_id, created_at DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_redeem_code_uses_code ON redeem_code_uses (code)`,
     `CREATE INDEX IF NOT EXISTS idx_economy_transactions_user ON economy_transactions (guild_id, user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_economy_transactions_created ON economy_transactions (created_at)`,
     `CREATE INDEX IF NOT EXISTS idx_warnings_user ON warnings (guild_id, user_id)`,

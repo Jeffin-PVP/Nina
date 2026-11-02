@@ -8,6 +8,7 @@ const {
 } = require("discord.js");
 
 const ui = require("../../utils/ui");
+const PlanManager = require("../../managers/PlanManager");
 
 const ServerBuilder = require("../../managers/ServerBuilderManager");
 
@@ -32,6 +33,9 @@ module.exports = {
             return ui.caution(interaction, "Este comando só funciona dentro de um servidor.", "Somente em servidores");
 
         }
+
+        // Plano: recurso com cota mensal (0 = não incluso no plano).
+        if (!(await PlanManager.gate(interaction, "server_builder_month"))) return;
 
         const botMember = guild.members.me;
 

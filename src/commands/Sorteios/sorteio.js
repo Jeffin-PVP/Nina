@@ -13,6 +13,7 @@ const GiveawayRepository = require("../../database/repositories/GiveawayReposito
 const GiveawayManager = require("../../managers/GiveawayManager");
 const LogManager = require("../../managers/LogManager");
 const LogTypes = require("../../managers/LogTypes");
+const PlanManager = require("../../managers/PlanManager");
 
 module.exports = {
 
@@ -124,6 +125,12 @@ module.exports = {
                 const cargo = interaction.options.getRole("cargo");
                 const valor = interaction.options.getInteger("valor");
 
+                // Plano: teto do multiplicador de entradas.
+                const maxMult = await PlanManager.limit(guild.id, "giveaway_multiplier_max");
+                if (valor > maxMult) {
+                    return ui.fail(interaction, `O plano deste servidor permite multiplicadores de até **${Number.isFinite(maxMult) ? maxMult : "∞"}x**. Veja \`/plano comparar\`.`, "Limite do plano");
+                }
+
                 await GiveawayRepository.addMultiplier(guild.id, cargo.id, valor);
 
                 return ui.respond(interaction, ui.panel({
@@ -207,6 +214,13 @@ module.exports = {
 
                 return ui.caution(interaction, `Preciso de **Ver canal**, **Enviar mensagens** e **Inserir links** em ${canal}.`, "Sem permissão no canal");
 
+            }
+
+            // Plano: sorteios ativos ao mesmo tempo.
+            const ativos = await GiveawayRepository.listRunningByGuild(guild.id);
+            const maxAtivos = await PlanManager.limit(guild.id, "giveaways_active");
+            if (ativos.length >= maxAtivos) {
+                return ui.respond(interaction, PlanManager.limitEmbed("giveaways_active", ativos.length, maxAtivos, interaction), { ephemeral: true });
             }
 
             const endsAt = Date.now() + duracaoMs;

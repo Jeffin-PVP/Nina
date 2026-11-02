@@ -23,6 +23,7 @@ const {
 const VoiceRecordingRepository = require("../database/repositories/VoiceRecordingRepository");
 const RecordingApi = require("../services/RecordingService");
 const ui = require("../utils/ui");
+const PlanManager = require("./PlanManager");
 
 /*
 =========================
@@ -326,6 +327,32 @@ async function start({ guild, member, channel }) {
     const settings = await VoiceRecordingRepository.get(guild.id);
 
     if (!settings.enabled) return { ok: false, error: "A gravação de calls está desativada neste servidor." };
+
+    // Plano: gravar = transcrever (o áudio não é guardado), então exige os dois recursos.
+    if (!(await PlanManager.can(guild.id, "recording_enabled"))) {
+        return { ok: false, error: PlanManager.requirementText("recording_enabled").replace(/\*\*/g, "") };
+    }
+    if (!(await PlanManager.can(guild.id, "transcription_enabled"))) {
+        return { ok: false, error: PlanManager.requirementText("transcription_enabled").replace(/\*\*/g, "") };
+    }
+
+    const [planMaxMinutes, savedLimit, monthLimit, monthUsed, savedTotal] = await Promise.all([
+        PlanManager.limit(guild.id, "recording_max_minutes"),
+        PlanManager.limit(guild.id, "recording_saved"),
+        PlanManager.limit(guild.id, "transcription_minutes_month"),
+        PlanManager.usage(guild.id, "transcription_minutes_month"),
+        VoiceRecordingRepository.count(guild.id)
+    ]);
+
+    if (savedTotal >= savedLimit) {
+        return { ok: false, error: `Limite de gravações salvas do plano atingido (${savedTotal}/${savedLimit}). Apague gravações antigas ou faça upgrade (/plano comparar).` };
+    }
+    if (monthUsed >= monthLimit) {
+        return { ok: false, error: `Os minutos de transcrição deste mês acabaram (${monthUsed}/${monthLimit} min). Eles renovam no início do próximo mês, ou faça upgrade (/plano comparar).` };
+    }
+
+    // O limite do plano é o teto da duração configurada pelo servidor.
+    settings.max_minutes = Math.min(Number(settings.max_minutes) || planMaxMinutes, planMaxMinutes);
     if (!RecordingApi.isConfigured()) return { ok: false, error: "O serviço de gravação ainda não foi configurado pelo dono da Nina." };
     if (!canRecord(member, settings)) return { ok: false, error: "Você não tem um cargo autorizado a gravar calls." };
 
@@ -517,6 +544,12 @@ async function stop(guildId, reason = "manual") {
     });
 
     sessions.delete(guildId);
+
+    // Plano: desconta do mês os minutos efetivamente gravados (transcritos).
+    if (status !== "failed") {
+        PlanManager.addUsage(guildId, "transcription_minutes_month", Math.ceil((endedAt - session.startedAt) / 60_000))
+            .catch(error => console.error("[Gravação] Falha ao registrar uso do plano:", error.message));
+    }
 
     const note = STOP_MESSAGES[reason];
     await announce(session, `⏹️ **Gravação encerrada.**${note ? `\n${note}` : ""}`);

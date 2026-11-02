@@ -65,12 +65,7 @@ class ServerToolsRepository {
             "INSERT INTO guild_backups (guild_id, name, data, created_by) VALUES (?, ?, ?, ?)",
             [guildId, name, JSON.stringify(data), createdBy]
         );
-        // Mantém só os mais recentes.
-        await database.run(
-            `DELETE FROM guild_backups WHERE guild_id = ? AND id NOT IN
-             (SELECT id FROM guild_backups WHERE guild_id = ? ORDER BY id DESC LIMIT ?)`,
-            [guildId, guildId, MAX_BACKUPS_PER_GUILD]
-        );
+        // O limite de backups agora vem do plano e é checado antes de criar (nada é apagado sozinho).
         return result?.lastID ?? result?.lastInsertRowid ?? null;
     }
 

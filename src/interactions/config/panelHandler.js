@@ -253,6 +253,7 @@ async function ferramentas(interaction) {
             await interaction.deferUpdate();
             const created = await BackupManager.createBackup(guild, interaction.user.id, null);
             if (created.tooLarge) return notify(interaction, "fail", "A estrutura é grande demais para um backup.", "Backup não criado");
+            if (created.limitReached) return notify(interaction, "fail", `Seu plano comporta até ${Number.isFinite(created.max) ? created.max : "∞"} backups (${created.current} em uso). Exclua um backup ou faça upgrade (\`/plano comparar\`).`, "Limite do plano atingido");
             await interaction.editReply(await ConfigPanelManager.build(interaction, "backup"));
             const sum = created.summary;
             return notify(interaction, "ok", `**${created.name}** (ID \`${created.id}\`)\n${sum.roles} cargos · ${sum.categories} categorias · ${sum.channels} canais.`, "Backup criado");

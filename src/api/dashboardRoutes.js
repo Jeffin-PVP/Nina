@@ -9,6 +9,9 @@ const BannedGuildRepository = require("../database/repositories/BannedGuildRepos
 const GlobalBanManager = require("../managers/GlobalBanManager");
 const StatsHistoryRepository = require("../database/repositories/StatsHistoryRepository");
 const { encontrarCanalDeAnuncio } = require("../utils/findAnnounceChannel");
+const PlanManager = require("../managers/PlanManager");
+const PlanRepository = require("../database/repositories/PlanRepository");
+const Plans = require("../config/plans");
 
 module.exports = (client) => {
 
@@ -355,6 +358,164 @@ module.exports = (client) => {
 
         res.json({ history: historico.reverse() });
 
+    });
+
+
+    /*
+    =========================
+        PLANOS (admin)
+    =========================
+    Tudo aqui exige o token do dashboard (requireAuth já foi aplicado acima).
+    */
+
+    const planActor = "dashboard";
+    const SNOWFLAKE_ID = /^\d{17,20}$/;
+
+    const planError = (res, error) => {
+        if (error instanceof PlanManager.PlanError) return res.status(400).json({ error: error.message });
+        console.error("[Dashboard/Planos]", error);
+        return res.status(500).json({ error: "Não foi possível concluir a operação de planos." });
+    };
+
+    const guildLabel = (guildId) => {
+        const guild = client.guilds.cache.get(guildId);
+        return { id: guildId, name: guild?.name || null, icon: guild?.iconURL({ size: 64 }) || null, members: guild?.memberCount ?? null, inGuild: Boolean(guild) };
+    };
+
+    router.get("/plans/catalog", (req, res) => res.json(Plans.toPublic()));
+
+    // Chave geral: enquanto desligada, todo servidor usa a Nina sem limites de plano.
+    router.get("/plans/enabled", async (req, res) => {
+        try { res.json({ enabled: await PlanManager.isEnabled() }); } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/enabled", async (req, res) => {
+        try {
+            await PlanManager.setEnabled(Boolean(req.body?.enabled), planActor);
+            res.json({ ok: true, enabled: await PlanManager.isEnabled() });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.get("/plans/summary", async (req, res) => {
+        try {
+            const rows = await PlanRepository.countByPlan();
+            const counts = Object.fromEntries(Plans.PLAN_ORDER.map(id => [id, 0]));
+            for (const row of rows) if (row.plan in counts) counts[row.plan] = Number(row.total);
+            const total = client.guilds.cache.size;
+            counts.free = Math.max(0, total - counts.basic - counts.pro);
+            res.json({ counts, totalGuilds: total });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.get("/plans/subscriptions", async (req, res) => {
+        try {
+            const status = ["active", "expired"].includes(req.query.status) ? req.query.status : null;
+            const plan = Plans.isValidPlan(req.query.plan) ? req.query.plan : null;
+            const rows = await PlanRepository.listSubscriptions({ status, plan, limit: 500 });
+            res.json({
+                subscriptions: rows.map(r => ({
+                    ...guildLabel(r.guild_id),
+                    plan: r.plan, status: r.status, source: r.source,
+                    startedAt: Number(r.started_at), expiresAt: r.expires_at == null ? null : Number(r.expires_at),
+                    grantedBy: r.granted_by, note: r.note
+                }))
+            });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.get("/plans/guild/:guildId", async (req, res) => {
+        try {
+            const { guildId } = req.params;
+            if (!SNOWFLAKE_ID.test(guildId)) return res.status(400).json({ error: "ID de servidor inválido." });
+            const [info, events] = await Promise.all([PlanManager.describe(guildId), PlanRepository.listEvents(guildId, 30)]);
+            res.json({
+                guild: guildLabel(guildId),
+                ...info,
+                events: events.map(e => ({ action: e.action, plan: e.plan, source: e.source, actor: e.actor, details: e.details, at: Number(e.created_at) }))
+            });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/grant", async (req, res) => {
+        try {
+            const { guildId, plan, days, note } = req.body || {};
+            if (!SNOWFLAKE_ID.test(String(guildId || ""))) return res.status(400).json({ error: "ID de servidor inválido." });
+            const result = await PlanManager.grant({
+                guildId: String(guildId), plan, days: days === "" || days == null ? null : Number(days),
+                source: "manual", actor: planActor, note: note ? String(note).slice(0, 100) : null
+            });
+            res.json({ ok: true, plan: result.id, expiresAt: result.expiresAt });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/revoke", async (req, res) => {
+        try {
+            const guildId = String(req.body?.guildId || "");
+            if (!SNOWFLAKE_ID.test(guildId)) return res.status(400).json({ error: "ID de servidor inválido." });
+            const removed = await PlanManager.revoke({ guildId, actor: planActor, reason: "remoção pelo dashboard" });
+            res.json({ ok: true, removed });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/override", async (req, res) => {
+        try {
+            const { guildId, key, value } = req.body || {};
+            if (!SNOWFLAKE_ID.test(String(guildId || ""))) return res.status(400).json({ error: "ID de servidor inválido." });
+            await PlanManager.setOverride({ guildId: String(guildId), key, value, actor: planActor });
+            res.json({ ok: true });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/override/remove", async (req, res) => {
+        try {
+            const { guildId, key } = req.body || {};
+            if (!SNOWFLAKE_ID.test(String(guildId || ""))) return res.status(400).json({ error: "ID de servidor inválido." });
+            await PlanManager.removeOverride({ guildId: String(guildId), key: String(key || ""), actor: planActor });
+            res.json({ ok: true });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.get("/plans/codes", async (req, res) => {
+        try {
+            const rows = await PlanRepository.listCodes(200);
+            res.json({
+                codes: rows.map(c => ({
+                    code: c.code, plan: c.plan, durationDays: c.duration_days, maxUses: c.max_uses, uses: c.uses,
+                    expiresAt: c.expires_at == null ? null : Number(c.expires_at), note: c.note,
+                    revoked: Boolean(c.revoked), createdAt: Number(c.created_at)
+                }))
+            });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/codes", async (req, res) => {
+        try {
+            const b = req.body || {};
+            const codes = await PlanManager.createCode({
+                plan: b.plan,
+                durationDays: b.durationDays === "" || b.durationDays == null ? null : Number(b.durationDays),
+                maxUses: b.maxUses === "" || b.maxUses == null ? 1 : Number(b.maxUses),
+                expiresInDays: b.expiresInDays ? Number(b.expiresInDays) : null,
+                quantity: Number(b.quantity) || 1,
+                note: b.note ? String(b.note).slice(0, 100) : null,
+                actor: planActor
+            });
+            res.json({ ok: true, codes });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.post("/plans/codes/revoke", async (req, res) => {
+        try {
+            const ok = await PlanRepository.revokeCode(PlanManager.normalizeCode(req.body?.code));
+            res.json({ ok });
+        } catch (error) { planError(res, error); }
+    });
+
+    router.get("/plans/events", async (req, res) => {
+        try {
+            const rows = await PlanRepository.listEvents(null, 100);
+            res.json({ events: rows.map(e => ({ guild: guildLabel(e.guild_id), action: e.action, plan: e.plan, source: e.source, actor: e.actor, details: e.details, at: Number(e.created_at) })) });
+        } catch (error) { planError(res, error); }
     });
 
     /*

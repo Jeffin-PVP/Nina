@@ -57,9 +57,22 @@ class AiRepository {
         return result.insertId;
     }
 
+    static async countFaq(guildId) {
+        const row = await database.get(`SELECT COUNT(*) AS total FROM ai_faq WHERE guild_id = ?`, [guildId]);
+        return Number(row?.total || 0);
+    }
+
+    static async faqExists(guildId, question) {
+        const row = await database.get(
+            `SELECT 1 AS ok FROM ai_faq WHERE guild_id = ? AND LOWER(question) = LOWER(?) LIMIT 1`,
+            [guildId, String(question).trim()]
+        );
+        return Boolean(row);
+    }
+
     static async listFaq(guildId) {
         return database.all(
-            `SELECT * FROM ai_faq WHERE guild_id = ? ORDER BY created_at DESC LIMIT 50`,
+            `SELECT * FROM ai_faq WHERE guild_id = ? ORDER BY created_at DESC LIMIT 200`,
             [guildId]
         );
     }
@@ -76,7 +89,7 @@ class AiRepository {
         if (!question) return null;
 
         const rows = await database.all(
-            `SELECT * FROM ai_faq WHERE guild_id = ? ORDER BY id DESC LIMIT 50`,
+            `SELECT * FROM ai_faq WHERE guild_id = ? ORDER BY id DESC LIMIT 200`,
             [guildId]
         );
 

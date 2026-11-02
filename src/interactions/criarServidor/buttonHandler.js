@@ -5,6 +5,7 @@ const {
 
 const ServerBuilder = require("../../managers/ServerBuilderManager");
 const ui = require("../../utils/ui");
+const PlanManager = require("../../managers/PlanManager");
 
 /** Atualiza a mensagem do fluxo trocando o conteúdo por um embed e removendo os botões. */
 const trocarPorEmbed = (interaction, embed) =>
@@ -83,6 +84,19 @@ module.exports = {
 
         }
 
+        // Plano: gasta 1 uso da cota mensal. Só devolve se a criação falhar.
+        const cota = await PlanManager.consumeMonthly(interaction.guild.id, "server_builder_month", 1);
+
+        if (!cota.allowed) {
+
+            ServerBuilder.encerrarSessao(userId);
+
+            return trocarPorEmbed(interaction, cota.max > 0
+                ? PlanManager.limitEmbed("server_builder_month", cota.used, cota.max, interaction)
+                : PlanManager.upgradeEmbed("server_builder_month", interaction));
+
+        }
+
         ServerBuilder.encerrarSessao(userId);
 
         await trocarPorEmbed(interaction, ui.panel({
@@ -127,6 +141,9 @@ module.exports = {
         } catch (error) {
 
             console.error("[Criar Servidor IA] Erro:", error);
+
+            // Falhou: o uso da cota mensal volta.
+            await PlanManager.refundMonthly(interaction.guild.id, "server_builder_month", 1).catch(() => null);
 
             const erroEmbed = ui.error(error.message || "Erro inesperado ao criar o servidor.", "Erro ao criar o servidor");
 

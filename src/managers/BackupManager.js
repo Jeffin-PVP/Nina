@@ -1,5 +1,6 @@
 const { ChannelType, PermissionsBitField, PermissionFlagsBits } = require("discord.js");
 const Repo = require("../database/repositories/ServerToolsRepository");
+const PlanManager = require("./PlanManager");
 
 const MAX_SIZE = 4 * 1024 * 1024;
 
@@ -134,10 +135,15 @@ const isRestoring = guildId => restoring.has(guildId);
 
 
 // Cria e salva um backup. Usado pelo /backup criar e pelo painel /config.
-// Retorna { tooLarge: true } se a estrutura passar do limite, ou { id, name, summary }.
+// Retorna { tooLarge: true } se a estrutura passar do limite, { limitReached, current, max } se o plano
+// não comporta mais backups, ou { id, name, summary }.
 async function createBackup(guild, createdBy, name) {
     const data = snapshot(guild);
     if (JSON.stringify(data).length > MAX_SIZE) return { tooLarge: true };
+    // Plano: limite de backups (nada é apagado sozinho; o usuário exclui um para liberar espaço).
+    const max = await PlanManager.limit(guild.id, "backups_max");
+    const current = (await Repo.listBackups(guild.id)).length;
+    if (current >= max) return { limitReached: true, current, max };
     const finalName = name || `Backup ${new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}`;
     const id = await Repo.createBackup(guild.id, finalName, data, createdBy);
     return { id, name: finalName, summary: summarize(data) };

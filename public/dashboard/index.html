@@ -59,6 +59,7 @@
                 <button class="nav-item ativo" data-secao="visao-geral">Visão geral</button>
                 <button class="nav-item" data-secao="servidores">Servidores</button>
                 <button class="nav-item" data-secao="usuarios-banidos">Usuários banidos</button>
+                <button class="nav-item" data-secao="planos">Planos</button>
                 <button class="nav-item" data-secao="status">Status do bot</button>
                 <button class="nav-item" data-secao="comunicados">Comunicados</button>
                 <button class="nav-item" data-secao="reiniciar">Reiniciar</button>
@@ -150,6 +151,106 @@
 
                     <h3 class="subtitulo">Lista de banidos</h3>
                     <div id="lista-usuarios-banidos" class="lista-servidores"></div>
+
+                </section>
+
+                <!-- ===================== PLANOS ===================== -->
+                <section id="secao-planos" class="secao oculto">
+
+                    <h2>Planos</h2>
+                    <p class="secao-sub">Libere, renove ou remova planos de servidores, gere códigos de ativação e consulte os limites de cada plano.</p>
+
+                    <div id="plano-chave" class="plano-chave">
+                        <div>
+                            <b id="plano-chave-titulo">Sistema de planos: carregando…</b>
+                            <p id="plano-chave-texto" class="secao-sub" style="margin:4px 0 0"></p>
+                        </div>
+                        <button type="button" id="btn-plano-chave" class="btn-primario">—</button>
+                    </div>
+
+                    <div class="grid-stats" id="planos-resumo">
+                        <div class="stat-card"><span class="stat-label">Free</span><span class="stat-valor" id="plano-count-free">—</span></div>
+                        <div class="stat-card"><span class="stat-label">Basic</span><span class="stat-valor" id="plano-count-basic">—</span></div>
+                        <div class="stat-card"><span class="stat-label">Pro</span><span class="stat-valor" id="plano-count-pro">—</span></div>
+                    </div>
+
+                    <h3 class="subtitulo">Liberar plano para um servidor</h3>
+
+                    <form id="form-plano" class="plano-form">
+                        <div class="plano-campo plano-campo-grande">
+                            <label for="plano-guild">ID do servidor</label>
+                            <input type="text" id="plano-guild" placeholder="Ex: 123456789012345678" inputmode="numeric" required />
+                        </div>
+                        <div class="plano-campo">
+                            <label for="plano-tipo">Plano</label>
+                            <select id="plano-tipo">
+                                <option value="basic">Basic</option>
+                                <option value="pro">Pro</option>
+                                <option value="free">Free (remove)</option>
+                            </select>
+                        </div>
+                        <div class="plano-campo">
+                            <label for="plano-dias">Dias</label>
+                            <input type="number" id="plano-dias" min="1" max="3650" placeholder="Vazio = sem vencimento" />
+                        </div>
+                        <div class="plano-campo plano-campo-grande">
+                            <label for="plano-nota">Nota interna</label>
+                            <input type="text" id="plano-nota" maxlength="100" placeholder="Ex: comprador, parceria..." />
+                        </div>
+                        <div class="plano-botoes">
+                            <button type="submit" class="btn-primario">Liberar / renovar</button>
+                            <button type="button" id="btn-plano-consultar" class="btn-secundario">Consultar</button>
+                            <button type="button" id="btn-plano-remover" class="btn-perigo">Remover plano</button>
+                        </div>
+                    </form>
+
+                    <div id="plano-resultado" class="resultado-broadcast"></div>
+                    <div id="plano-detalhe" class="plano-detalhe oculto"></div>
+
+                    <h3 class="subtitulo">Servidores com plano</h3>
+                    <div id="lista-planos" class="lista-servidores"><p class="carregando">Carregando...</p></div>
+
+                    <h3 class="subtitulo">Códigos de ativação</h3>
+                    <p class="secao-sub">O dono do servidor ativa com <code>/plano ativar</code> ou pelo painel web.</p>
+
+                    <form id="form-codigo" class="plano-form">
+                        <div class="plano-campo">
+                            <label for="codigo-plano">Plano</label>
+                            <select id="codigo-plano">
+                                <option value="basic">Basic</option>
+                                <option value="pro">Pro</option>
+                            </select>
+                        </div>
+                        <div class="plano-campo">
+                            <label for="codigo-dias">Dias de plano</label>
+                            <input type="number" id="codigo-dias" min="1" max="3650" value="30" placeholder="Vazio = permanente" />
+                        </div>
+                        <div class="plano-campo">
+                            <label for="codigo-usos">Usos por código</label>
+                            <input type="number" id="codigo-usos" min="1" max="10000" value="1" />
+                        </div>
+                        <div class="plano-campo">
+                            <label for="codigo-qtd">Quantidade</label>
+                            <input type="number" id="codigo-qtd" min="1" max="50" value="1" />
+                        </div>
+                        <div class="plano-campo plano-campo-grande">
+                            <label for="codigo-nota">Nota interna</label>
+                            <input type="text" id="codigo-nota" maxlength="100" placeholder="Ex: lote de lançamento" />
+                        </div>
+                        <div class="plano-botoes">
+                            <button type="submit" class="btn-primario">Gerar código(s)</button>
+                        </div>
+                    </form>
+
+                    <pre id="codigos-gerados" class="plano-codigos oculto"></pre>
+                    <div id="lista-codigos" class="lista-servidores"></div>
+
+                    <h3 class="subtitulo">Limites por plano</h3>
+                    <p class="secao-sub">Definidos em <code>src/config/plans.js</code>. Itens marcados com “não aplicado” ainda não são verificados pelo bot.</p>
+                    <div id="plano-tabela" class="plano-tabela-wrap"></div>
+
+                    <h3 class="subtitulo">Atividade recente</h3>
+                    <div id="plano-eventos" class="lista-servidores"></div>
 
                 </section>
 

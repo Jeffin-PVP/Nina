@@ -132,6 +132,7 @@ function setResultado(el,estado,texto){el.textContent=texto||"";if(estado&&texto
             if (alvo === "visao-geral") carregarVisaoGeral();
             if (alvo === "servidores") { carregarServidores(); carregarBanidos(); }
             if (alvo === "usuarios-banidos") carregarUsuariosBanidos();
+            if (alvo === "planos") carregarPlanos();
             if (alvo === "status") carregarStatus();
             if (alvo === "comunicados") carregarHistoricoComunicados();
 
@@ -884,6 +885,256 @@ function setResultado(el,estado,texto){el.textContent=texto||"";if(estado&&texto
         }
 
     });
+
+
+    /*
+    =========================
+        PLANOS
+    =========================
+    */
+
+    const planoResultadoEl = document.getElementById("plano-resultado");
+    const planoDetalheEl = document.getElementById("plano-detalhe");
+    const PLANO_NOMES = { free: "Free", basic: "Basic", pro: "Pro" };
+
+    function fmtData(ms) {
+        return ms ? new Date(ms).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "sem vencimento";
+    }
+
+    function fmtLimite(def, valor) {
+        if (def && def.type === "boolean") return valor ? "✅" : "❌";
+        if (valor === null || valor === undefined) return "∞";
+        if (valor === true) return "✅";
+        if (valor === false || valor === 0) return "❌";
+        return Number(valor).toLocaleString("pt-BR") + (def && def.unit === "×" ? "×" : "");
+    }
+
+    function badgePlano(plano, estado) {
+        return `<span class="plano-badge" data-plano="${escapeHtml(plano)}" ${estado ? `data-estado="${escapeHtml(estado)}"` : ""}>${escapeHtml(PLANO_NOMES[plano] || plano)}${estado === "expired" ? " (expirado)" : ""}</span>`;
+    }
+
+    let planosLigados = false;
+
+    function pintarChavePlanos() {
+        document.getElementById("plano-chave").dataset.ligado = planosLigados ? "1" : "0";
+        document.getElementById("plano-chave-titulo").textContent = planosLigados ? "Sistema de planos: LIGADO" : "Sistema de planos: DESLIGADO";
+        document.getElementById("plano-chave-texto").textContent = planosLigados
+            ? "Os limites de Free, Basic e Pro estão valendo em todos os servidores."
+            : "Todos os servidores usam a Nina sem limites de plano, como antes. Você pode configurar e testar planos normalmente; só não há bloqueios.";
+        const btn = document.getElementById("btn-plano-chave");
+        btn.textContent = planosLigados ? "Desligar planos" : "Ligar planos";
+        btn.className = planosLigados ? "btn-perigo" : "btn-primario";
+    }
+
+    document.getElementById("btn-plano-chave").addEventListener("click", async () => {
+        const proximo = !planosLigados;
+        const aviso = proximo
+            ? "Ligar o sistema de planos? Servidores sem plano passam a ter os limites do Free."
+            : "Desligar o sistema de planos? Todos voltam a usar a Nina sem limites.";
+        if (!confirm(aviso)) return;
+        try {
+            const r = await api("/plans/enabled", { method: "POST", body: { enabled: proximo } });
+            planosLigados = r.enabled;
+            pintarChavePlanos();
+        } catch (error) { setResultado(planoResultadoEl, "erro", error.message); }
+    });
+
+    async function carregarPlanos() {
+        api("/plans/enabled").then(r => { planosLigados = r.enabled; pintarChavePlanos(); }).catch(() => { });
+        carregarResumoPlanos();
+        carregarListaPlanos();
+        carregarCodigos();
+        carregarTabelaPlanos();
+        carregarEventosPlanos();
+    }
+
+    async function carregarResumoPlanos() {
+        try {
+            const { counts } = await api("/plans/summary");
+            for (const id of ["free", "basic", "pro"]) {
+                document.getElementById(`plano-count-${id}`).textContent = (counts[id] ?? 0).toLocaleString("pt-BR");
+            }
+        } catch { /* mantém os traços */ }
+    }
+
+    async function carregarListaPlanos() {
+        const el = document.getElementById("lista-planos");
+        try {
+            const { subscriptions } = await api("/plans/subscriptions");
+            if (!subscriptions.length) { el.innerHTML = `<p class="carregando">Nenhum servidor com plano ainda.</p>`; return; }
+            el.innerHTML = "";
+            subscriptions.forEach(sub => {
+                const item = document.createElement("div");
+                item.className = "servidor-item";
+                item.innerHTML = `
+                    <img src="${escapeHtml(sub.icon || "")}" alt="" onerror="this.style.visibility='hidden'" />
+                    <div class="servidor-info">
+                        <div class="servidor-nome">${escapeHtml(sub.name || "Servidor fora da Nina")} ${badgePlano(sub.plan, sub.status === "expired" ? "expired" : "")}</div>
+                        <div class="servidor-meta">ID ${escapeHtml(sub.id)} • ${sub.expiresAt ? "vence " + fmtData(sub.expiresAt) : "sem vencimento"} • ${escapeHtml(sub.source)}${sub.note ? " • " + escapeHtml(sub.note) : ""}</div>
+                    </div>
+                    <div class="servidor-acoes"><button class="btn-secundario" type="button">Abrir</button></div>`;
+                item.querySelector("button").addEventListener("click", () => {
+                    document.getElementById("plano-guild").value = sub.id;
+                    consultarPlano();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                });
+                el.appendChild(item);
+            });
+        } catch (error) { el.innerHTML = `<p class="carregando">${escapeHtml(error.message)}</p>`; }
+    }
+
+    function guildIdDoForm() {
+        const id = document.getElementById("plano-guild").value.trim();
+        if (!/^\d{17,20}$/.test(id)) {
+            setResultado(planoResultadoEl, "erro", "Informe um ID de servidor válido (17 a 20 números).");
+            return null;
+        }
+        return id;
+    }
+
+    async function consultarPlano() {
+        const id = guildIdDoForm();
+        if (!id) return;
+        try {
+            const info = await api(`/plans/guild/${id}`);
+            const eventos = info.events.slice(0, 8).map(e => `<li>${fmtData(e.at)} — <b>${escapeHtml(e.action)}</b>${e.plan ? " (" + escapeHtml(e.plan) + ")" : ""}${e.details ? " — " + escapeHtml(e.details) : ""}</li>`).join("");
+            const overrides = Object.entries(info.overrides).map(([k, v]) => `<li><code>${escapeHtml(k)}</code> = ${escapeHtml(String(v))} <button type="button" class="btn-fantasma" data-rm="${escapeHtml(k)}">remover</button></li>`).join("");
+            planoDetalheEl.innerHTML = `
+                <h4>${escapeHtml(info.guild.name || "Servidor fora da Nina")} <span style="color:var(--texto-sutil);font-weight:400">· ${escapeHtml(id)}</span></h4>
+                <div>Plano: ${badgePlano(info.plan, info.status === "expired" ? "expired" : "")} • ${info.expiresAt ? "vence " + fmtData(info.expiresAt) : (info.active ? "sem vencimento" : "—")}${info.source ? " • origem: " + escapeHtml(info.source) : ""}</div>
+                <div style="margin-top:10px"><b>Override de limite</b> (exceção só deste servidor)</div>
+                <ul>${overrides || "<li>Nenhum.</li>"}</ul>
+                <div class="plano-form" id="form-override" style="margin-top:10px;padding:10px">
+                    <div class="plano-campo"><label>Limite</label><select id="override-key">${Object.entries(planoCatalogo?.catalog || {}).map(([k, m]) => `<option value="${escapeHtml(k)}">${escapeHtml(m.label)}</option>`).join("")}</select></div>
+                    <div class="plano-campo"><label>Valor (número, “ilimitado”, true/false)</label><input type="text" id="override-valor" placeholder="Ex: 100" /></div>
+                    <div class="plano-botoes"><button type="button" id="btn-override" class="btn-secundario">Aplicar override</button></div>
+                </div>
+                <div style="margin-top:10px"><b>Histórico</b></div>
+                <ul>${eventos || "<li>Sem histórico.</li>"}</ul>`;
+            planoDetalheEl.classList.remove("oculto");
+            planoDetalheEl.querySelectorAll("[data-rm]").forEach(btn => btn.addEventListener("click", async () => {
+                await api("/plans/override/remove", { method: "POST", body: { guildId: id, key: btn.dataset.rm } });
+                consultarPlano();
+            }));
+            document.getElementById("btn-override").addEventListener("click", async () => {
+                const key = document.getElementById("override-key").value;
+                let value = document.getElementById("override-valor").value.trim();
+                if (value === "") return;
+                try {
+                    await api("/plans/override", { method: "POST", body: { guildId: id, key, value } });
+                    consultarPlano();
+                } catch (error) { setResultado(planoResultadoEl, "erro", error.message); }
+            });
+            setResultado(planoResultadoEl, null, "");
+        } catch (error) { setResultado(planoResultadoEl, "erro", error.message); }
+    }
+
+    document.getElementById("btn-plano-consultar").addEventListener("click", consultarPlano);
+
+    document.getElementById("form-plano").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const guildId = guildIdDoForm();
+        if (!guildId) return;
+        try {
+            await api("/plans/grant", { method: "POST", body: {
+                guildId,
+                plan: document.getElementById("plano-tipo").value,
+                days: document.getElementById("plano-dias").value,
+                note: document.getElementById("plano-nota").value
+            } });
+            setResultado(planoResultadoEl, "ok", "Plano atualizado.");
+            consultarPlano(); carregarResumoPlanos(); carregarListaPlanos(); carregarEventosPlanos();
+        } catch (error) { setResultado(planoResultadoEl, "erro", error.message); }
+    });
+
+    document.getElementById("btn-plano-remover").addEventListener("click", async () => {
+        const guildId = guildIdDoForm();
+        if (!guildId) return;
+        if (!confirm("Remover o plano deste servidor? Ele volta ao Free (nenhum dado é apagado).")) return;
+        try {
+            const { removed } = await api("/plans/revoke", { method: "POST", body: { guildId } });
+            setResultado(planoResultadoEl, "ok", removed ? "Plano removido. O servidor voltou ao Free." : "Esse servidor não tinha plano.");
+            consultarPlano(); carregarResumoPlanos(); carregarListaPlanos(); carregarEventosPlanos();
+        } catch (error) { setResultado(planoResultadoEl, "erro", error.message); }
+    });
+
+    async function carregarCodigos() {
+        const el = document.getElementById("lista-codigos");
+        try {
+            const { codes } = await api("/plans/codes");
+            if (!codes.length) { el.innerHTML = `<p class="carregando">Nenhum código gerado.</p>`; return; }
+            el.innerHTML = "";
+            codes.forEach(c => {
+                const item = document.createElement("div");
+                item.className = "servidor-item";
+                const esgotado = c.uses >= c.maxUses;
+                item.innerHTML = `
+                    <div class="servidor-info">
+                        <div class="servidor-nome"><code>${escapeHtml(c.code)}</code> ${badgePlano(c.plan)} ${c.revoked ? "· revogado" : (esgotado ? "· esgotado" : "")}</div>
+                        <div class="servidor-meta">${c.durationDays ? c.durationDays + " dia(s)" : "permanente"} • ${c.uses}/${c.maxUses} usos${c.note ? " • " + escapeHtml(c.note) : ""} • criado ${fmtData(c.createdAt)}</div>
+                    </div>
+                    <div class="servidor-acoes">${c.revoked ? "" : `<button class="btn-perigo" type="button">Revogar</button>`}</div>`;
+                item.querySelector("button")?.addEventListener("click", async () => {
+                    await api("/plans/codes/revoke", { method: "POST", body: { code: c.code } });
+                    carregarCodigos();
+                });
+                el.appendChild(item);
+            });
+        } catch (error) { el.innerHTML = `<p class="carregando">${escapeHtml(error.message)}</p>`; }
+    }
+
+    document.getElementById("form-codigo").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const box = document.getElementById("codigos-gerados");
+        try {
+            const { codes } = await api("/plans/codes", { method: "POST", body: {
+                plan: document.getElementById("codigo-plano").value,
+                durationDays: document.getElementById("codigo-dias").value,
+                maxUses: document.getElementById("codigo-usos").value,
+                quantity: document.getElementById("codigo-qtd").value,
+                note: document.getElementById("codigo-nota").value
+            } });
+            box.textContent = codes.join("\n");
+            box.classList.remove("oculto");
+            carregarCodigos();
+        } catch (error) {
+            box.textContent = error.message;
+            box.classList.remove("oculto");
+        }
+    });
+
+    let planoCatalogo = null;
+
+    async function carregarTabelaPlanos() {
+        const wrap = document.getElementById("plano-tabela");
+        try {
+            planoCatalogo = await api("/plans/catalog");
+            const { catalog, plans } = planoCatalogo;
+            let grupo = null;
+            let html = `<table class="plano-tabela"><thead><tr><th>Limite</th>${plans.map(p => `<th>${escapeHtml(p.name)}</th>`).join("")}</tr></thead><tbody>`;
+            for (const [key, meta] of Object.entries(catalog)) {
+                if (meta.group !== grupo) {
+                    grupo = meta.group;
+                    html += `<tr class="plano-grupo"><td colspan="${plans.length + 1}">${escapeHtml(grupo)}</td></tr>`;
+                }
+                html += `<tr><td>${escapeHtml(meta.label)}${meta.wired === false ? `<span class="nao-aplicado">não aplicado</span>` : ""}</td>${plans.map(p => `<td>${fmtLimite(meta, p.limits[key])}</td>`).join("")}</tr>`;
+            }
+            wrap.innerHTML = html + "</tbody></table>";
+        } catch (error) { wrap.innerHTML = `<p class="carregando">${escapeHtml(error.message)}</p>`; }
+    }
+
+    async function carregarEventosPlanos() {
+        const el = document.getElementById("plano-eventos");
+        try {
+            const { events } = await api("/plans/events");
+            if (!events.length) { el.innerHTML = `<p class="carregando">Sem atividade ainda.</p>`; return; }
+            el.innerHTML = events.slice(0, 20).map(e => `
+                <div class="servidor-item"><div class="servidor-info">
+                    <div class="servidor-nome">${escapeHtml(e.action)}${e.plan ? " · " + escapeHtml(e.plan) : ""} — ${escapeHtml(e.guild.name || e.guild.id)}</div>
+                    <div class="servidor-meta">${fmtData(e.at)}${e.source ? " • " + escapeHtml(e.source) : ""}${e.details ? " • " + escapeHtml(e.details) : ""}</div>
+                </div></div>`).join("");
+        } catch (error) { el.innerHTML = `<p class="carregando">${escapeHtml(error.message)}</p>`; }
+    }
 
     /*
     =========================

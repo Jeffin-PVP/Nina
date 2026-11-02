@@ -4,6 +4,7 @@ const AutomodRepository = require("../database/repositories/AutomodRepository");
 const WarningRepository = require("../database/repositories/WarningRepository");
 const LogManager = require("../managers/LogManager");
 const LogTypes = require("../managers/LogTypes");
+const PlanManager = require("../managers/PlanManager");
 const { analisarImagem } = require("./GroqImageClassifier");
 
 const EXECUTOR = { tag: "🤖 Nina Anti-Scam", username: "Nina Anti-Scam" };
@@ -104,6 +105,8 @@ async function checkMessage(message) {
     const config = await AutomodRepository.get(message.guild.id);
 
     if (!config.image_enabled) return false;
+    // Plano: a análise de imagens por IA é um recurso de plano pago.
+    if (!(await PlanManager.can(message.guild.id, "anti_scam_images"))) return false;
     if (estaIsento(message, config)) return false;
 
     const urls = obterImagens(message);

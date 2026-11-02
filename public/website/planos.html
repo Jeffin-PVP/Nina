@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Conheça os planos Free, Basic e Pro da Nina e compare limites de IA, gravação de voz, backups e mais.">
+    <title>Planos da Nina — Free, Basic e Pro</title>
+
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/plans.css">
+
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="theme-color" content="#080b18">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Planos da Nina — Free, Basic e Pro">
+    <meta property="og:description" content="Conheça os planos Free, Basic e Pro da Nina e compare limites de IA, gravação de voz, backups e mais.">
+    <meta property="og:image" content="assets/Logo Nina.png">
+    <meta property="og:locale" content="pt_BR">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="icon" href="assets/favicon.ico">
+    <link rel="canonical" href="https://nina.injectcloud.space/website/planos.html">
+</head>
+
+<body>
+
+    <div class="background">
+        <div class="glow glow-one"></div>
+        <div class="glow glow-two"></div>
+        <div class="grid"></div>
+    </div>
+
+    <header class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <span class="logo-mark">J</span>
+                <span class="logo-text"><span>Nina</span></span>
+            </a>
+
+            <button class="mobile-menu" id="mobileMenu" aria-label="Abrir menu">☰</button>
+
+            <nav id="navMenu">
+                <a href="index.html">Início</a>
+                <a href="index.html#features">Recursos</a>
+                <a href="commands.html">Comandos</a>
+                <a href="planos.html" class="active">Planos</a>
+                <a href="https://nina.injectcloud.space/panel">Dashboard</a>
+                <a href="index.html#about">Sobre</a>
+                <a href="https://discord.com/oauth2/authorize?client_id=1551732753047879860&permissions=8&integration_type=0&scope=bot" class="nav-button">Adicionar ao Discord</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+
+        <section class="plans-hero">
+            <div class="container">
+                <div class="section-heading">
+                    <span>PLANOS</span>
+                    <h2>Escolha o plano certo para o seu servidor</h2>
+                    <p>Comece de graça e faça upgrade quando precisar de mais IA, gravações e ferramentas. O plano vale para o servidor inteiro.</p>
+                </div>
+
+                <div class="plans-grid" id="plans-grid">
+                    <p class="plans-error">Carregando planos…</p>
+                </div>
+
+                <p class="plans-note">Se um plano vencer, nada é apagado: seus dados continuam salvos e os recursos extras voltam ao renovar.</p>
+            </div>
+        </section>
+
+        <section class="plans-compare">
+            <div class="container">
+                <div class="section-heading">
+                    <span>COMPARATIVO</span>
+                    <h2>Todos os limites lado a lado</h2>
+                </div>
+                <div class="compare-wrap">
+                    <table class="compare-table" id="compare-table"></table>
+                </div>
+            </div>
+        </section>
+
+        <section class="plans-how">
+            <div class="container">
+                <div class="section-heading">
+                    <span>COMO FUNCIONA</span>
+                    <h2>Ativação simples</h2>
+                </div>
+                <div class="how-grid">
+                    <div class="how-card"><b>1. Escolha o plano</b><p>Fale com a equipe no nosso servidor de suporte e escolha Basic ou Pro.</p></div>
+                    <div class="how-card"><b>2. Receba o código</b><p>Você recebe um código de ativação para o seu servidor (ou a equipe libera direto pelo ID).</p></div>
+                    <div class="how-card"><b>3. Ative no Discord</b><p>Use <code>/plano ativar</code> no seu servidor ou cole o código na aba <b>Plano</b> do painel web.</p></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-container">
+            <div>
+                <a href="index.html" class="logo">
+                    <span class="logo-mark">J</span>
+                    <span class="logo-text"><span>Nina</span></span>
+                </a>
+                <p>Seu servidor. Mais inteligente.</p>
+            </div>
+            <div class="footer-links">
+                <a href="index.html">Início</a>
+                <a href="commands.html">Comandos</a>
+                <a href="planos.html">Planos</a>
+                <a href="https://nina.injectcloud.space/panel">Dashboard</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© <span id="currentYear"></span> Nina. Todos os direitos reservados.</span>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/plans.js"></script>
+
+</body>
+
+</html>

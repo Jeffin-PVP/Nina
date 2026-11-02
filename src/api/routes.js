@@ -1,4 +1,6 @@
 const router = require("express").Router();
+const Plans = require("../config/plans");
+const PlanManager = require("../managers/PlanManager");
 
 
 module.exports = (client) => {
@@ -26,6 +28,15 @@ module.exports = (client) => {
 
         });
 
+
+    });
+
+
+    // Catálogo público de planos (usado pelo site). Não expõe nada de servidor algum.
+    router.get("/plans", async (req, res) => {
+
+        res.set("Cache-Control", "public, max-age=30");
+        res.json({ enabled: await PlanManager.isEnabled(), ...Plans.toPublic() });
 
     });
 

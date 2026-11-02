@@ -1,0 +1,114 @@
+/* Página de planos */
+
+.plans-hero {
+    padding: 150px 0 40px;
+    text-align: center;
+}
+
+.plans-hero .section-heading { margin-bottom: 0; max-width: 720px; }
+
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    align-items: stretch;
+    margin-top: 48px;
+}
+
+.plan-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 30px 26px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(10px);
+    transition: transform .25s, border-color .25s;
+}
+
+.plan-card:hover { transform: translateY(-4px); border-color: rgba(255, 255, 255, .16); }
+
+.plan-card.featured {
+    border-color: rgba(139, 92, 246, .55);
+    box-shadow: 0 20px 60px rgba(139, 92, 246, .16);
+}
+
+.plan-tag {
+    position: absolute;
+    top: -12px;
+    left: 26px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+}
+
+.plan-name { font-size: 22px; font-weight: 800; letter-spacing: -.5px; }
+.plan-tagline { color: var(--muted); font-size: 14px; line-height: 1.6; margin-top: 8px; min-height: 45px; }
+
+.plan-price { margin: 22px 0 6px; font-size: 38px; font-weight: 800; letter-spacing: -1.5px; }
+.plan-price small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 4px; }
+
+.plan-list { list-style: none; margin: 22px 0 28px; display: grid; gap: 11px; font-size: 14px; color: #d6dae8; }
+.plan-list li { display: flex; gap: 10px; line-height: 1.5; }
+.plan-list li::before { content: "✓"; color: #79a8ff; font-weight: 800; flex: none; }
+.plan-list li.off { color: var(--muted); }
+.plan-list li.off::before { content: "—"; color: var(--muted); }
+
+.plan-card .button { margin-top: auto; }
+
+.plans-compare { padding: 70px 0 20px; }
+
+.compare-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.compare-table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px; }
+
+.compare-table th,
+.compare-table td { padding: 14px 18px; text-align: center; border-bottom: 1px solid var(--border); }
+
+.compare-table th:first-child,
+.compare-table td:first-child { text-align: left; }
+
+.compare-table thead th { position: sticky; top: 0; background: var(--surface-solid); font-size: 15px; }
+
+.compare-table tr.group td {
+    text-align: left;
+    padding: 18px 18px 10px;
+    color: #79a8ff;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, .02);
+}
+
+.compare-table tbody tr:last-child td { border-bottom: 0; }
+.compare-table td.yes { color: #57f287; font-weight: 700; }
+.compare-table td.no { color: var(--muted); }
+
+.plans-how { padding: 70px 0 110px; }
+
+.how-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 10px; }
+
+.how-card { padding: 26px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.how-card b { display: block; font-size: 15px; margin-bottom: 8px; }
+.how-card p { color: var(--muted); font-size: 14px; line-height: 1.7; }
+.how-card code { background: rgba(255, 255, 255, .08); padding: 2px 6px; border-radius: 6px; font-size: 13px; }
+
+.plans-note { text-align: center; color: var(--muted); font-size: 13px; margin-top: 18px; }
+.plans-error { text-align: center; color: var(--muted); padding: 40px 0; }
+
+@media (max-width: 900px) {
+    .plans-grid, .how-grid { grid-template-columns: 1fr; }
+    .plans-hero { padding-top: 120px; }
+}
+
+.hidden { display: none !important; }

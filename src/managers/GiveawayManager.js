@@ -7,6 +7,7 @@ const {
 const GiveawayRepository = require("../database/repositories/GiveawayRepository");
 const LogManager = require("./LogManager");
 const LogTypes = require("./LogTypes");
+const PlanManager = require("./PlanManager");
 const ui = require("../utils/ui");
 const { e, component } = require("../utils/emojis");
 
@@ -110,6 +111,9 @@ async function construirPoolPonderado(guild, participantes, multiplicadores) {
 
     if (!multiplicadores.length) return [...participantes];
 
+    // Plano: teto do multiplicador (nunca acima do máximo técnico).
+    const tetoMultiplicador = Math.min(MULTIPLICADOR_MAXIMO, await PlanManager.limit(guild.id, "giveaway_multiplier_max"));
+
     const pool = [];
 
     for (const userId of participantes) {
@@ -134,7 +138,7 @@ async function construirPoolPonderado(guild, participantes, multiplicadores) {
             continue; // saiu do servidor
         }
 
-        multiplicador = Math.min(multiplicador, MULTIPLICADOR_MAXIMO);
+        multiplicador = Math.min(multiplicador, Math.max(tetoMultiplicador, 1));
 
         for (let i = 0; i < multiplicador; i++) pool.push(userId);
 

@@ -91,6 +91,8 @@
                             alt=""></span> Analytics</button>
                 <button class="nav-item" data-section="stats"><span class="nav-icon"><img src="icons/stats.svg?v=5"
                             alt=""></span> Stats</button>
+                <button class="nav-item" data-section="plano"><span class="nav-icon"><img src="icons/bot.svg?v=5"
+                            alt=""></span> Plano</button>
                 <button class="nav-item" data-section="comandos"><span class="nav-icon"><img src="icons/bot.svg?v=5"
                             alt=""></span> Comandos</button>
                 <div class="sidebar-footer"><span class="status-dot"></span><span>Nina online</span></div>
@@ -620,6 +622,32 @@
                         <div class="notice"><svg class="ic" aria-hidden="true"><use href="#i-mic"/></svg> A gravação e a <svg class="ic" aria-hidden="true"><use href="#i-file"/></svg> transcrição de calls ficam na seção <b>Gravação de calls</b>.</div>
                     </div>
                 </section>
+                <section id="secao-plano" class="section hidden">
+                    <div class="section-head">
+                        <div>
+                            <div class="eyebrow">ASSINATURA</div>
+                            <h2>Plano do servidor</h2>
+                            <p>Veja o plano atual, seus limites e ative um código de plano. Nada é apagado quando um plano vence:
+                                os dados ficam salvos e os recursos extras voltam ao renovar.</p>
+                        </div>
+                    </div>
+                    <div class="dashboard-grid">
+                        <div class="panel form-panel">
+                            <div id="plano-atual" class="setting"><span>Carregando…</span></div>
+                            <h3 style="margin:18px 0 8px">Ativar um código</h3>
+                            <div class="setting">
+                                <input id="plano-codigo" type="text" maxlength="40" placeholder="NINA-XXXX-XXXX-XXXX" autocomplete="off" style="flex:1;min-width:0">
+                                <button id="btn-plano-ativar" class="btn primary" type="button">Ativar</button>
+                            </div>
+                            <div id="plano-feedback" class="feedback"></div>
+                        </div>
+                        <div class="panel form-panel" style="overflow-x:auto">
+                            <h3 style="margin:0 0 10px">Comparativo de planos</h3>
+                            <div id="plano-tabela-painel"></div>
+                        </div>
+                    </div>
+                </section>
+
                 <section id="secao-gravacoes" class="section hidden">
                     <div class="section-head">
                         <div>
@@ -975,6 +1003,7 @@
     <script src="/panel/roles-lockdown.js?v=6"></script>
     <script src="/panel/recordings.js?v=1"></script>
     <script src="/panel/ai.js?v=1"></script>
+    <script src="/panel/plano.js?v=1"></script>
 </body>
 
 </html>

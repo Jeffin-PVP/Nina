@@ -4,6 +4,7 @@ const systemPrompt = require("./systemPrompt");
 
 const ToolManager = require("./ToolManager");
 const AiRepository = require("../database/repositories/AiRepository");
+const PlanManager = require("../managers/PlanManager");
 
 const ConversationMemory = require("./ConversationMemory");
 const NinaEmojiManager = require("./NinaEmojiManager");
@@ -58,11 +59,18 @@ Contexto atual (use para responder de forma consciente de onde você está, mas 
 
             // Quem usa a própria API paga o próprio consumo: os limites diários da API padrão não se aplicam.
             const usingOwnApi = (await AiProviderManager.resolve(guildId, "chat").catch(() => null))?.source === "custom";
-            const usage = usingOwnApi
-                ? { allowed: true }
-                : await AiRepository.consumeUsage(message.guild.id, message.author.id, config.limit_per_user, config.limit_per_server);
+            // Os limites diários vêm do plano do servidor (config/plans.js).
+            let usage = { allowed: true };
+            if (!usingOwnApi) {
+                const [limitUser, limitServer] = await Promise.all([
+                    PlanManager.limit(message.guild.id, "ai_user_daily"),
+                    PlanManager.limit(message.guild.id, "ai_guild_daily")
+                ]);
+                usage = await AiRepository.consumeUsage(message.guild.id, message.author.id, limitUser, limitServer);
+            }
             if (!usage.allowed) {
-                return `Limite de IA atingido para este servidor/usuário. Tente novamente amanhã. (${usage.current}/${usage.limitUser} por usuário, ${usage.totalServer}/${usage.limitServer} no servidor).`;
+                const fmt = n => (Number.isFinite(n) ? n : "∞");
+                return `Limite de IA atingido para este servidor/usuário. Tente novamente amanhã ou faça upgrade do plano (\`/plano comparar\`). (${usage.current}/${fmt(usage.limitUser)} por usuário, ${usage.totalServer}/${fmt(usage.limitServer)} no servidor).`;
             }
         }
 
